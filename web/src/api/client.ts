@@ -8,6 +8,10 @@ export interface AskResponse {
   status: 'done' | 'insufficient'
 }
 
+export interface IngestResponse {
+  chunk_count: number
+}
+
 // 模拟真实后端的响应时间，后续接 API 时只替换这个模块。
 export const MOCK_DELAY_MS = 650
 
@@ -69,4 +73,23 @@ export async function listSources(): Promise<Source[]> {
   }
 
   return mockSources
+}
+
+export async function ingestFile(file: File): Promise<IngestResponse> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await requestBackend('/ingest/file', {
+    method: 'POST',
+    body: formData,
+  })
+
+  if (!response) {
+    throw new Error('后端不可用')
+  }
+
+  if (!response.ok) {
+    throw new Error('上传失败')
+  }
+
+  return (await response.json()) as IngestResponse
 }

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
-import { askQuestion, listSources } from './api/client'
+import { askQuestion, ingestFile, listSources } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { SourcePanel } from './components/SourcePanel'
 import { DatabaseIcon } from './components/icons'
@@ -19,6 +19,7 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [sources, setSources] = useState<Source[]>(mockSources)
+  const [uploadError, setUploadError] = useState<string | null>(null)
 
   useEffect(() => {
     let active = true
@@ -35,6 +36,18 @@ export default function App() {
 
     return () => {
       active = false
+    }
+  }, [])
+
+  const handleFileUpload = useCallback(async (file: File) => {
+    setUploadError(null)
+
+    try {
+      await ingestFile(file)
+      const data = await listSources()
+      setSources(data)
+    } catch {
+      setUploadError('上传失败，请确认后端正在运行。')
     }
   }, [])
 
@@ -109,7 +122,11 @@ export default function App() {
           </div>
         </div>
         <div className="min-h-0 flex-1">
-          <SourcePanel sources={sources} />
+          <SourcePanel
+            sources={sources}
+            onUploadFile={handleFileUpload}
+            uploadError={uploadError}
+          />
         </div>
       </header>
 
@@ -125,7 +142,11 @@ export default function App() {
         </header>
 
         <div className="h-72 border-b border-line lg:hidden">
-          <SourcePanel sources={sources} />
+          <SourcePanel
+            sources={sources}
+            onUploadFile={handleFileUpload}
+            uploadError={uploadError}
+          />
         </div>
 
         <main className="min-h-[620px] flex-1 lg:min-h-0">

@@ -8,8 +8,9 @@ describe('App', () => {
     vi.useRealTimers()
   })
 
-  it('shows the simulated error state', () => {
+  it('shows the simulated error state', async () => {
     render(<App />)
+    await act(async () => {})
 
     fireEvent.click(screen.getByRole('button', { name: '模拟错误状态' }))
 
@@ -21,6 +22,7 @@ describe('App', () => {
   it('returns a sample answer and citation for a matching question', async () => {
     vi.useFakeTimers()
     render(<App />)
+    await act(async () => {})
 
     const input = screen.getByLabelText('输入医学问题')
     fireEvent.change(input, {
@@ -45,6 +47,7 @@ describe('App', () => {
   it('returns the insufficient-data state for unmatched questions', async () => {
     vi.useFakeTimers()
     render(<App />)
+    await act(async () => {})
 
     const input = screen.getByLabelText('输入医学问题')
     fireEvent.change(input, { target: { value: '今天天气如何' } })

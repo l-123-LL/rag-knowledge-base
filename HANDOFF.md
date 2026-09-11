@@ -44,6 +44,7 @@
 - 已创建 FastAPI 后端骨架，提供 `GET /health`、`POST /ask`、`GET /sources`。
 - 前端 API 层会优先请求本地后端，后端不可用时自动回退到本地 mock。
 - 前端来源面板已改为启动时请求 `/sources`，后端不可用时继续使用本地示例来源。
+- 前端来源面板新增“上传资料”按钮，可上传 TXT、Markdown、HTML 和文本层 PDF。
 - 已实现文本切分、轻量混合检索、数据入口、DeepSeek 生成客户端和 RAG 管线模块。
 - 已接入 `BAAI/bge-large-zh-v1.5` 嵌入模型、FAISS 向量库、jieba 分词和 rank-bm25。
 - 后端 `/ask` 已切换到 RAG 管线，新增 `POST /ingest`，并支持文本层 PDF 解析。

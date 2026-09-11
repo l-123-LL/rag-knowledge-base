@@ -1,9 +1,11 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { Source } from '../types'
 import { AlertIcon, CheckIcon, ChevronDownIcon, LinkIcon } from './icons'
 
 interface SourcePanelProps {
   sources: Source[]
+  onUploadFile?: (file: File) => Promise<void>
+  uploadError?: string | null
 }
 
 const statusMeta = {
@@ -12,10 +14,32 @@ const statusMeta = {
   failed: { label: '失败', className: 'bg-rose-50 text-rose-700' },
 } as const
 
-export function SourcePanel({ sources }: SourcePanelProps) {
+export function SourcePanel({
+  sources,
+  onUploadFile,
+  uploadError,
+}: SourcePanelProps) {
   // 当前选中的来源，用于展开或收起详情。
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [isUploading, setIsUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
   const selected = sources.find((source) => source.id === selectedId) ?? null
+
+  async function handleFileChange(file: File | undefined) {
+    if (!file || !onUploadFile) {
+      return
+    }
+
+    setIsUploading(true)
+    try {
+      await onUploadFile(file)
+    } finally {
+      setIsUploading(false)
+      if (fileInputRef.current) {
+        fileInputRef.current.value = ''
+      }
+    }
+  }
 
   return (
     <aside className="flex h-full min-h-0 flex-col bg-surface lg:border-r lg:border-line">
@@ -106,10 +130,34 @@ export function SourcePanel({ sources }: SourcePanelProps) {
       </div>
 
       <div className="border-t border-line px-5 py-4">
+        {onUploadFile ? (
+          <div className="mb-3">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".txt,.md,.html,.htm,.pdf"
+              className="hidden"
+              onChange={(event) =>
+                void handleFileChange(event.target.files?.[0])
+              }
+            />
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:bg-slate-300"
+            >
+              {isUploading ? '正在导入…' : '上传资料'}
+            </button>
+          </div>
+        ) : null}
         <div className="flex items-start gap-2 text-xs leading-5 text-ink-500">
           <AlertIcon className="mt-0.5 h-4 w-4 shrink-0 text-amber-500" />
           <span>当前为纯前端预览，数据为本地模拟内容。</span>
         </div>
+        {uploadError ? (
+          <p className="mt-2 text-xs text-rose-600">{uploadError}</p>
+        ) : null}
       </div>
     </aside>
   )
