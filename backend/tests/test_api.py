@@ -91,3 +91,19 @@ def test_ingest_file_accepts_text_file() -> None:
 
     assert response.status_code == 200
     assert response.json()["chunk_count"] == 1
+
+
+def test_ingest_url_accepts_public_page(monkeypatch: pytest.MonkeyPatch) -> None:
+    app.state.pipeline = FakePipeline()
+    monkeypatch.setattr(
+        "app.main.fetch_url_text",
+        lambda url: ("网页正文内容", {"file_name": url}),
+    )
+
+    response = client.post(
+        "/ingest/url",
+        json={"url": "https://example.com/medical"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["chunk_count"] == 1

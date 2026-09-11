@@ -13,6 +13,10 @@ class IngestRequest(BaseModel):
     source: str = Field(default="示例资料", min_length=1)
 
 
+class UrlIngestRequest(BaseModel):
+    url: str = Field(min_length=1)
+
+
 class IngestResponse(BaseModel):
     chunk_count: int
 

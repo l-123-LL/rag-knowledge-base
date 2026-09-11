@@ -9,7 +9,7 @@ from . import config  # noqa: F401
 from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
-from .ingestion import load_bytes
+from .ingestion import fetch_url_text, load_bytes
 from .mock_data import sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -20,6 +20,7 @@ from .schemas import (
     IngestRequest,
     IngestResponse,
     Source,
+    UrlIngestRequest,
 )
 
 app = FastAPI(title="Medical RAG API", version="0.1.0")
@@ -89,6 +90,28 @@ async def ingest_file(file: UploadFile = File(...)) -> IngestResponse:
             title=metadata["file_name"],
             category="上传资料",
             url="",
+            status="indexed",
+            updatedAt="刚刚",
+            description=text[:100],
+        )
+    )
+    return IngestResponse(chunk_count=chunk_count)
+
+
+@app.post("/ingest/url", response_model=IngestResponse)
+def ingest_url(request: UrlIngestRequest) -> IngestResponse:
+    text, metadata = fetch_url_text(request.url)
+    pipeline = get_pipeline()
+    chunk_count = pipeline.ingest_text(
+        text,
+        metadata={"source": request.url, "file_name": request.url},
+    )
+    sources.append(
+        Source(
+            id=f"url-{len(sources) + 1}",
+            title=request.url,
+            category="网页资料",
+            url=request.url,
             status="indexed",
             updatedAt="刚刚",
             description=text[:100],
