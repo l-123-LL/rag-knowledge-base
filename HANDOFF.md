@@ -43,6 +43,7 @@
 - 已加入前端错误边界 `web/src/components/ErrorBoundary.tsx`，避免渲染异常导致白屏。
 - 已创建 FastAPI 后端骨架，提供 `GET /health`、`POST /ask`、`GET /sources`。
 - 前端 API 层会优先请求本地后端，后端不可用时自动回退到本地 mock。
+- 已实现文本切分、轻量混合检索、数据入口、DeepSeek 生成客户端和 RAG 管线模块。
 
 ### 已做到哪一步
 
@@ -54,10 +55,15 @@
 - 没有数据、切分、Embedding、向量库、检索、生成、评估。
 - 前端 API 仍返回 mock 数据，尚未连接真实 Python 后端。
 - 后端当前只返回与前端相同的 mock 数据，尚未接入真实检索和模型生成。
+- RAG 核心模块已存在，但尚未接回 `/ask` 接口，也未接入真实 Embedding 和 Chroma。
 
 ### 尚未开始
 
 - 真实 RAG 数据管线和模型生成。
+- PDF 解析。
+- 真实中文 Embedding 模型和 Chroma 向量库。
+- DeepSeek 实际联调。
+- 接口层与 RAG 管线的最终接线。
 - 数据采集、清洗、解析。
 - 文本切分。
 - 中文 Embedding。
@@ -121,6 +127,13 @@
 - `backend/app/schemas.py`：请求与响应的 Pydantic 数据模型。
 - `backend/app/mock_data.py`：与前端一致的示例来源和示例问答。
 - `backend/tests/test_api.py`：健康检查、问答、来源列表接口测试。
+- `backend/app/chunking.py`：文本归一化和段落/窗口切分。
+- `backend/app/embeddings.py`：Embedder 接口和测试用 HashEmbedder。
+- `backend/app/vector_store.py`：内存向量库实现，后续替换为 Chroma。
+- `backend/app/retrieval.py`：BM25、混合检索器和检索结果模型。
+- `backend/app/ingestion.py`：TXT/Markdown/HTML 读取与清洗。
+- `backend/app/generation.py`：DeepSeek 生成客户端。
+- `backend/app/pipeline.py`：串联检索与生成的 RAGPipeline。
 
 ## 4. 关键决策及原因
 
@@ -231,7 +244,9 @@
 - 新增 `backend/requirements.txt` 或 `pyproject.toml`
 - 修改 `web/src/api/client.ts`
 
-### P0-4：实现最小 RAG 闭环
+### P0-4：实现最小 RAG 闭环（进行中）
+
+**当前进度：** 核心模块已实现并通过测试，尚未接入真实 Embedding、Chroma 和 `/ask` 接口。
 
 **要做什么：**
 
@@ -304,6 +319,7 @@
 - 前端交互仅在浏览器手动验证过，没有自动化回归。
 - 尚未验证真实 PDF 解析效果。
 - 尚未验证 Chroma、BM25、Embedding 与 DeepSeek 的实际联调。
+- 尚未安装 `sentence-transformers` 和 `chromadb`，当前检索使用内存向量库和测试 Embedder。
 
 ## 7. 运行与验证方法
 
@@ -380,7 +396,7 @@ cd backend
 ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider
 ```
 
-当前包含 4 个接口测试。
+当前包含 13 个后端测试，其中 4 个是 FastAPI 接口测试。
 
 ## 8. 不可违反的约束
 
