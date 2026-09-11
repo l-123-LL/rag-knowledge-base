@@ -1,3 +1,5 @@
+import io
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -77,3 +79,15 @@ def test_sources_returns_sample_list() -> None:
 
     assert response.status_code == 200
     assert len(response.json()) >= 5
+
+
+def test_ingest_file_accepts_text_file() -> None:
+    app.state.pipeline = FakePipeline()
+
+    response = client.post(
+        "/ingest/file",
+        files={"file": ("note.txt", io.BytesIO("流感患者应尽早治疗。".encode()), "text/plain")},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["chunk_count"] == 1

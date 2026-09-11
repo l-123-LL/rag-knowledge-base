@@ -47,6 +47,7 @@
 - 已实现文本切分、轻量混合检索、数据入口、DeepSeek 生成客户端和 RAG 管线模块。
 - 已接入 `BAAI/bge-large-zh-v1.5` 嵌入模型、FAISS 向量库、jieba 分词和 rank-bm25。
 - 后端 `/ask` 已切换到 RAG 管线，新增 `POST /ingest`，并支持文本层 PDF 解析。
+- 新增 `POST /ingest/file`，支持上传 TXT、Markdown、HTML 和文本层 PDF。
 - 后端支持从 `backend/.env` 读取 `DEEPSEEK_API_KEY` 和 `HF_ENDPOINT`，示例见 `backend/.env.example`。
 - 已用示例文本和真实 DeepSeek 完成一次端到端问答，返回了答案和引用。
 - FAISS 在每次导入后保存到 `data/faiss`，重启后可恢复。

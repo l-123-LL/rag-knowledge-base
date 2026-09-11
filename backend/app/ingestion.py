@@ -1,5 +1,6 @@
 import html
 import re
+from io import BytesIO
 from pathlib import Path
 
 
@@ -16,30 +17,35 @@ def clean_html(content: str) -> str:
 
 def load_text_file(path: str | Path) -> tuple[str, dict]:
     file_path = Path(path)
-    suffix = file_path.suffix.lower()
+    content = file_path.read_bytes()
+    return load_bytes(file_path.name, content)
+
+
+def load_bytes(filename: str, content: bytes) -> tuple[str, dict]:
+    suffix = Path(filename).suffix.lower()
 
     if suffix == ".pdf":
         from pypdf import PdfReader
 
-        reader = PdfReader(str(file_path))
-        content = "\n\n".join(
+        reader = PdfReader(BytesIO(content))
+        text = "\n\n".join(
             page.extract_text() or "" for page in reader.pages
         )
         metadata = {
-            "source_path": str(file_path),
-            "file_name": file_path.name,
+            "source_path": filename,
+            "file_name": filename,
             "file_type": suffix,
         }
-        return content, metadata
+        return text, metadata
 
-    content = file_path.read_text(encoding="utf-8", errors="ignore")
+    text = content.decode("utf-8", errors="ignore")
 
     if suffix in {".html", ".htm"}:
-        content = clean_html(content)
+        text = clean_html(text)
 
     metadata = {
-        "source_path": str(file_path),
-        "file_name": file_path.name,
+        "source_path": filename,
+        "file_name": filename,
         "file_type": suffix,
     }
-    return content, metadata
+    return text, metadata

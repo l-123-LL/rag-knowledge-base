@@ -1,7 +1,7 @@
 import time
 import os
 
-from fastapi import FastAPI
+from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException
 
@@ -9,6 +9,7 @@ from . import config  # noqa: F401
 from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
+from .ingestion import load_bytes
 from .mock_data import sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -68,6 +69,29 @@ def ingest(request: IngestRequest) -> IngestResponse:
             status="indexed",
             updatedAt="刚刚",
             description=request.text[:100],
+        )
+    )
+    return IngestResponse(chunk_count=chunk_count)
+
+
+@app.post("/ingest/file", response_model=IngestResponse)
+async def ingest_file(file: UploadFile = File(...)) -> IngestResponse:
+    content = await file.read()
+    text, metadata = load_bytes(file.filename or "upload.txt", content)
+    pipeline = get_pipeline()
+    chunk_count = pipeline.ingest_text(
+        text,
+        metadata={"source": metadata["file_name"], "file_name": metadata["file_name"]},
+    )
+    sources.append(
+        Source(
+            id=f"uploaded-{len(sources) + 1}",
+            title=metadata["file_name"],
+            category="上传资料",
+            url="",
+            status="indexed",
+            updatedAt="刚刚",
+            description=text[:100],
         )
     )
     return IngestResponse(chunk_count=chunk_count)
