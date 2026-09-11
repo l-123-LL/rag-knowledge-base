@@ -41,6 +41,8 @@
 - 已加入 Vitest + React Testing Library，前端当前有 14 个测试并全部通过。
 - 已建立前端 API 抽象层 `web/src/api/client.ts`，将 mock 问答集中到 API 模块。
 - 已加入前端错误边界 `web/src/components/ErrorBoundary.tsx`，避免渲染异常导致白屏。
+- 已创建 FastAPI 后端骨架，提供 `GET /health`、`POST /ask`、`GET /sources`。
+- 前端 API 层会优先请求本地后端，后端不可用时自动回退到本地 mock。
 
 ### 已做到哪一步
 
@@ -51,10 +53,11 @@
 - 没有真实 RAG 能力。
 - 没有数据、切分、Embedding、向量库、检索、生成、评估。
 - 前端 API 仍返回 mock 数据，尚未连接真实 Python 后端。
+- 后端当前只返回与前端相同的 mock 数据，尚未接入真实检索和模型生成。
 
 ### 尚未开始
 
-- Python 后端。
+- 真实 RAG 数据管线和模型生成。
 - 数据采集、清洗、解析。
 - 文本切分。
 - 中文 Embedding。
@@ -110,6 +113,15 @@
 - 前端 JS 入口：`web/src/main.tsx`
 - 后端入口：尚未创建。
 
+### 后端项目 `backend/`
+
+- `backend/requirements.txt`：FastAPI、Uvicorn、Pydantic、pytest、httpx 依赖。
+- `backend/pytest.ini`：pytest 路径和测试目录配置。
+- `backend/app/main.py`：FastAPI 应用入口和接口定义。
+- `backend/app/schemas.py`：请求与响应的 Pydantic 数据模型。
+- `backend/app/mock_data.py`：与前端一致的示例来源和示例问答。
+- `backend/tests/test_api.py`：健康检查、问答、来源列表接口测试。
+
 ## 4. 关键决策及原因
 
 ### 4.1 当前只做前端预览
@@ -138,7 +150,7 @@
 
 ### 4.5 后端技术方案为计划，尚未编码
 
-以下是已讨论、但尚未实现的技术方向：
+当前已用 FastAPI 搭建后端骨架，但真实 RAG 能力尚未实现。以下是已讨论、但尚未实现的技术方向：
 
 - 后端语言：Python 3.11+。
 - 数据：官方公开指南/科普/说明书 + 用户合法自有资料。
@@ -203,7 +215,9 @@
 - 修改 `web/src/App.tsx`
 - 修改 `web/src/components/ChatPanel.tsx`
 
-### P0-3：搭建 Python 后端骨架
+### P0-3：搭建 Python 后端骨架（已完成）
+
+**状态：** 已完成，提交 `87a8e23`。后端提供三个 mock 接口，前端已通过 `/api` 代理尝试连接后端。
 
 **要做什么：**
 
@@ -250,7 +264,7 @@
 ### 核心功能缺失
 
 - 当前没有真实 RAG，只有前端模拟问答。
-- 没有 Python 后端，电脑上当前也未检测到 Python 环境。
+- 已有 FastAPI 后端骨架，但仍没有真实 RAG 能力。
 - 没有数据、Embedding、向量库、检索、生成和评估。
 
 ### 测试缺失
@@ -283,7 +297,7 @@
 
 - DeepSeek API Key 尚未配置。
 - 未来 Key 应放在未提交的本地 `.env` 或环境变量中。
-- Python 环境尚未安装和验证。
+- 项目虚拟环境 `.venv` 已创建，Python 版本为 3.12.14。
 
 ### 未验证部分
 
@@ -300,7 +314,7 @@
 - Node.js：`v24.15.0`
 - npm：`11.12.1`
 - Git：`2.55.0.windows.5`
-- Python：未检测到，需要先安装 3.11 或更高版本。
+- Python：项目虚拟环境 `.venv`，版本 3.12.14。
 
 ### 启动前端
 
@@ -358,6 +372,15 @@ npm test
 ```
 
 当前包含 6 个测试文件、14 个测试用例。
+
+### 后端接口测试
+
+```bash
+cd backend
+..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider
+```
+
+当前包含 4 个接口测试。
 
 ## 8. 不可违反的约束
 
