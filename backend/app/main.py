@@ -1,8 +1,10 @@
+import json
 import time
 import os
 
 from fastapi import FastAPI, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException
 
 from . import config  # noqa: F401
@@ -167,4 +169,47 @@ def ask(request: AskRequest) -> AskResponse:
                 os.getenv("DEEPSEEK_OUTPUT_PRICE_PER_MILLION", "0")
             ),
         ),
+    )
+
+
+@app.post("/ask/stream")
+def ask_stream(request: AskRequest):
+    pipeline = get_pipeline()
+    contexts = pipeline.retrieve(request.question, top_k=request.top_k)
+
+    if not contexts:
+        return JSONResponse(
+            status_code=200,
+            content={
+                "answer": "当前资料不足，暂时无法给出可靠回答。",
+                "citations": [],
+                "status": "insufficient",
+            },
+        )
+
+    generator = getattr(pipeline.generator, "stream", None)
+    if generator is None:
+        raise HTTPException(status_code=501, detail="当前生成器不支持流式输出")
+
+    context_payload = [
+        {
+            "text": context.text,
+            "source": context.metadata.get("source", "未知来源"),
+            "score": context.combined_score,
+        }
+        for context in contexts
+    ]
+
+    def event_stream():
+        yield f"data: {json.dumps({'type': 'sources', 'contexts': context_payload}, ensure_ascii=False)}\n\n"
+        try:
+            for delta in generator(request.question, contexts):
+                yield f"data: {json.dumps({'type': 'delta', 'text': delta}, ensure_ascii=False)}\n\n"
+        except GenerationError as exc:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"
+        yield "data: [DONE]\n\n"
+
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
     )

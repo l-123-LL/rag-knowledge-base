@@ -1,5 +1,7 @@
+import json
 import os
 from dataclasses import dataclass
+from collections.abc import Iterator
 from typing import Protocol
 
 import httpx
@@ -26,6 +28,13 @@ class Generator(Protocol):
         contexts: list[RetrievedChunk],
     ) -> GenerationResult:
         """根据问题和检索片段生成答案及用量信息。"""
+
+    def stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+    ) -> Iterator[str]:
+        """流式返回生成内容。"""
 
 
 class DeepSeekGenerator:
@@ -85,3 +94,50 @@ class DeepSeekGenerator:
             completion_tokens=usage.get("completion_tokens", 0),
             total_tokens=usage.get("total_tokens", 0),
         )
+
+    def stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+    ) -> Iterator[str]:
+        api_key = os.getenv(self.api_key_env)
+        if not api_key:
+            raise GenerationError(f"缺少环境变量 {self.api_key_env}")
+
+        system_prompt = (
+            "你是面向医务人员的医学知识助手。"
+            "只能根据提供的资料回答，不得编造。"
+            "如果资料不足，请明确说明资料不足。"
+        )
+        context_text = "\n\n".join(
+            f"[来源：{chunk.metadata.get('source', '未知来源')}]\n{chunk.text}"
+            for chunk in contexts
+        )
+        user_prompt = f"资料：\n{context_text}\n\n问题：{question}"
+
+        with httpx.Client(timeout=None) as client:
+            with client.stream(
+                "POST",
+                f"{self.base_url}/chat/completions",
+                headers={"Authorization": f"Bearer {api_key}"},
+                json={
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    "temperature": 0.2,
+                    "stream": True,
+                },
+            ) as response:
+                response.raise_for_status()
+                for line in response.iter_lines():
+                    if not line.startswith("data: "):
+                        continue
+                    data = line[6:].strip()
+                    if data == "[DONE]":
+                        break
+                    payload = json.loads(data)
+                    delta = payload["choices"][0]["delta"].get("content")
+                    if delta:
+                        yield delta

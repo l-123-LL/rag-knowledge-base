@@ -52,6 +52,7 @@
 - 新增 `POST /ingest/file`，支持上传 TXT、Markdown、HTML 和文本层 PDF。
 - 新增 `POST /ingest/url`，可抓取公开网页、清洗正文并导入索引。
 - 后端支持从 `backend/.env` 读取 `DEEPSEEK_API_KEY` 和 `HF_ENDPOINT`，示例见 `backend/.env.example`。
+- 后端新增 `POST /ask/stream`，使用 SSE 流式返回 DeepSeek 生成内容。
 - 已用示例文本和真实 DeepSeek 完成一次端到端问答，返回了答案和引用。
 - FAISS 在每次导入后保存到 `data/faiss`，重启后可恢复。
 - 已加入检索评估指标和命令行运行器，示例评估结果为 `hit@1=1.0`、`MRR=1.0`。

@@ -30,6 +30,30 @@ class FakePipeline:
         )
 
 
+class FakeStreamingGenerator:
+    def stream(self, question: str, contexts: list[RetrievedChunk]):
+        yield "应尽早"
+        yield "给予抗流感病毒治疗。"
+
+
+class FakeStreamingPipeline:
+    def __init__(self) -> None:
+        self.generator = FakeStreamingGenerator()
+
+    def retrieve(
+        self,
+        question: str,
+        top_k: int = 5,
+    ) -> list[RetrievedChunk]:
+        return [
+            RetrievedChunk(
+                text="重症流感患者应尽早给予抗流感病毒治疗。",
+                metadata={"source": "流感指南"},
+                combined_score=1.0,
+            )
+        ]
+
+
 @pytest.fixture(autouse=True)
 def reset_pipeline() -> None:
     app.state.pipeline = None
@@ -107,3 +131,16 @@ def test_ingest_url_accepts_public_page(monkeypatch: pytest.MonkeyPatch) -> None
 
     assert response.status_code == 200
     assert response.json()["chunk_count"] == 1
+
+
+def test_ask_stream_returns_sse() -> None:
+    app.state.pipeline = FakeStreamingPipeline()
+
+    response = client.post(
+        "/ask/stream",
+        json={"question": "流感如何治疗？"},
+    )
+
+    assert response.status_code == 200
+    assert "text/event-stream" in response.headers["content-type"]
+    assert "应尽早给予抗流感病毒治疗" in response.text

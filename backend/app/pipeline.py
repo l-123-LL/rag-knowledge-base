@@ -38,7 +38,7 @@ class RAGPipeline:
         return len(chunks)
 
     def answer(self, question: str, top_k: int = 5) -> PipelineAnswer:
-        contexts = self.retriever.search(question, top_k=top_k)
+        contexts = self.retrieve(question, top_k=top_k)
         if not contexts:
             return PipelineAnswer(
                 answer="当前资料不足，暂时无法给出可靠回答。",
@@ -55,3 +55,7 @@ class RAGPipeline:
                 "total_tokens": result.total_tokens,
             },
         )
+
+    def retrieve(self, question: str, top_k: int = 5) -> list[RetrievedChunk]:
+        contexts = self.retriever.search(question, top_k=top_k)
+        return contexts
