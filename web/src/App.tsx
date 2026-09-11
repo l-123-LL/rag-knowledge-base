@@ -1,10 +1,10 @@
-import { useCallback, useState } from 'react'
-import { askQuestion } from './api/client'
+import { useCallback, useEffect, useState } from 'react'
+import { askQuestion, listSources } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { SourcePanel } from './components/SourcePanel'
 import { DatabaseIcon } from './components/icons'
 import { mockConversations, mockSources } from './data/mockData'
-import type { Conversation } from './types'
+import type { Conversation, Source } from './types'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -18,6 +18,25 @@ export default function App() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sources, setSources] = useState<Source[]>(mockSources)
+
+  useEffect(() => {
+    let active = true
+
+    listSources()
+      .then((data) => {
+        if (active && data.length > 0) {
+          setSources(data)
+        }
+      })
+      .catch(() => {
+        // 后端不可用时继续使用本地 mock 来源。
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   // 前端预览：先展示加载状态，再用本地示例数据模拟一次问答。
   const handleAsk = useCallback(async (rawQuestion: string) => {
@@ -90,7 +109,7 @@ export default function App() {
           </div>
         </div>
         <div className="min-h-0 flex-1">
-          <SourcePanel sources={mockSources} />
+          <SourcePanel sources={sources} />
         </div>
       </header>
 
@@ -106,7 +125,7 @@ export default function App() {
         </header>
 
         <div className="h-72 border-b border-line lg:hidden">
-          <SourcePanel sources={mockSources} />
+          <SourcePanel sources={sources} />
         </div>
 
         <main className="min-h-[620px] flex-1 lg:min-h-0">
