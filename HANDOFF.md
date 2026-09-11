@@ -46,6 +46,7 @@
 - 已实现文本切分、轻量混合检索、数据入口、DeepSeek 生成客户端和 RAG 管线模块。
 - 已接入 `BAAI/bge-large-zh-v1.5` 嵌入模型、FAISS 向量库、jieba 分词和 rank-bm25。
 - 后端 `/ask` 已切换到 RAG 管线，新增 `POST /ingest`，并支持文本层 PDF 解析。
+- 后端支持从 `backend/.env` 读取 `DEEPSEEK_API_KEY` 和 `HF_ENDPOINT`，示例见 `backend/.env.example`。
 
 ### 已做到哪一步
 
@@ -132,6 +133,8 @@
 - `backend/app/mock_data.py`：与前端一致的示例来源和示例问答。
 - `backend/tests/test_api.py`：健康检查、问答、来源列表接口测试。
 - `backend/app/factory.py`：真实 RAG 管线组装工厂。
+- `backend/app/config.py`：加载 `backend/.env` 环境变量。
+- `backend/.env.example`：本地环境变量示例，不提交真实 Key。
 - `backend/app/chunking.py`：文本归一化和段落/窗口切分。
 - `backend/app/embeddings.py`：Embedder 接口和测试用 HashEmbedder。
 - `backend/app/vector_store.py`：内存向量库和 FAISS 向量库实现。
@@ -316,7 +319,7 @@
 ### 环境与密钥
 
 - DeepSeek API Key 尚未配置。
-- 未来 Key 应放在未提交的本地 `.env` 或环境变量中。
+- Key 应放在未提交的 `backend/.env`，参考 `backend/.env.example`。
 - 项目虚拟环境 `.venv` 已创建，Python 版本为 3.12.14。
 
 ### 未验证部分

@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException
 
+from . import config  # noqa: F401
 from .factory import build_pipeline
 from .generation import GenerationError
 from .mock_data import sources
