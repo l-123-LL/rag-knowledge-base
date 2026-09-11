@@ -50,37 +50,23 @@
 - 后端支持从 `backend/.env` 读取 `DEEPSEEK_API_KEY` 和 `HF_ENDPOINT`，示例见 `backend/.env.example`。
 - 已用示例文本和真实 DeepSeek 完成一次端到端问答，返回了答案和引用。
 - FAISS 在每次导入后保存到 `data/faiss`，重启后可恢复。
+- 已加入检索评估指标和命令行运行器，示例评估结果为 `hit@1=1.0`、`MRR=1.0`。
 
 ### 已做到哪一步
 
-目前只完成“前端可交互原型”：
+已完成真实 RAG 最小闭环：
 
-- 问答使用本地示例数据模拟。
-- 没有真实后端。
-- 没有真实 RAG 能力。
-- 没有数据、切分、Embedding、向量库、检索、生成、评估。
-- 前端 API 仍返回 mock 数据，尚未连接真实 Python 后端。
-- 后端当前只返回与前端相同的 mock 数据，尚未接入真实检索和模型生成。
-- RAG 核心模块已存在，但尚未接回 `/ask` 接口，也未接入真实 Embedding 和 Chroma。
-- 真实 RAG 代码已接通，并已完成一次真实端到端问答验证。
+- 前端已能显示真实来源和真实问答结果。
+- `/ask` 已接入 Embedding、FAISS、混合检索和 DeepSeek 生成。
+- 已用示例文本完成一次真实端到端验证。
+- 评估指标框架已建立，示例检索评估结果全命中。
 
 ### 尚未开始
 
-- 真实 RAG 数据管线和模型生成。
-- PDF 解析。
-- 真实中文 Embedding 模型和 Chroma 向量库。
-- DeepSeek 实际联调。
-- 接口层与 RAG 管线的最终接线。
-- 扫描版 PDF OCR 和复杂表格解析。
-- 数据采集、清洗、解析。
-- 文本切分。
-- 中文 Embedding。
-- Chroma 向量库。
-- BM25 + 向量混合检索。
 - rerank。
-- DeepSeek 生成与引用校验。
-- 后端自动化测试。
-- 指标评估。
+- 扫描版 PDF OCR 和复杂表格解析。
+- RAGAS 生成质量评估。
+- 50 条以上正式评估集。
 - 缓存、日志、监控。
 - Docker 部署。
 
@@ -125,7 +111,7 @@
 
 - 前端 HTML 入口：`web/index.html`
 - 前端 JS 入口：`web/src/main.tsx`
-- 后端入口：尚未创建。
+- 后端入口：`backend/app/main.py`
 
 ### 后端项目 `backend/`
 
@@ -145,6 +131,10 @@
 - `backend/app/ingestion.py`：TXT/Markdown/HTML 读取、清洗和文本层 PDF。
 - `backend/app/generation.py`：DeepSeek 生成客户端。
 - `backend/app/pipeline.py`：串联检索与生成的 RAGPipeline。
+- `backend/app/evaluation.py`：检索评估指标和批量运行函数。
+- `backend/evaluation/run_eval.py`：示例评估命令行入口。
+- `backend/evaluation/sample_corpus.json`：示例评估语料。
+- `backend/evaluation/sample_questions.json`：示例评估问题。
 
 ## 4. 关键决策及原因
 

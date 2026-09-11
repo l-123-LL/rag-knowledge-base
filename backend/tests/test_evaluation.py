@@ -1,4 +1,4 @@
-from app.evaluation import evaluate_retrieval
+from app.evaluation import evaluate_retrieval, run_retrieval_evaluation
 from app.retrieval import RetrievedChunk
 
 
@@ -35,3 +35,18 @@ def test_evaluate_retrieval_returns_zero_for_missing_target() -> None:
 
     assert metrics["hit@1"] == 0.0
     assert metrics["mrr"] == 0.0
+
+
+def test_run_retrieval_evaluation_returns_average_metrics() -> None:
+    corpus = [
+        {"id": "target", "text": "流感患者应尽早给予抗病毒治疗。"},
+        {"id": "noise", "text": "高血压患者应低盐饮食。"},
+    ]
+    questions = [
+        {"question": "流感抗病毒治疗", "relevant_ids": ["target"]},
+    ]
+
+    result = run_retrieval_evaluation(corpus, questions)
+
+    assert result["average"]["hit@1"] == 1.0
+    assert result["average"]["mrr"] == 1.0

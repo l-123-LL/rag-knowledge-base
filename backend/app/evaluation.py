@@ -1,6 +1,9 @@
 from collections.abc import Iterable
 
+from .chunking import Chunk
+from .embeddings import HashEmbedder
 from .retrieval import RetrievedChunk
+from .retrieval import HybridRetriever
 
 
 def hit_at_k(
@@ -34,3 +37,39 @@ def evaluate_retrieval(
     }
     metrics["mrr"] = reciprocal_rank(results, relevant_set)
     return metrics
+
+
+def run_retrieval_evaluation(
+    corpus: list[dict],
+    questions: list[dict],
+    k_values: tuple[int, ...] = (1, 3, 5),
+) -> dict:
+    """用小规模语料和 HashEmbedder 跑一遍检索评估，方便离线验证。"""
+    retriever = HybridRetriever(HashEmbedder())
+    for item in corpus:
+        retriever.add_chunks(
+            [Chunk(text=item["text"], metadata={"id": item["id"]})]
+        )
+
+    per_query: list[dict[str, float]] = []
+    for question in questions:
+        results = retriever.search(
+            question["question"],
+            top_k=max(k_values),
+        )
+        per_query.append(
+            evaluate_retrieval(
+                results,
+                question["relevant_ids"],
+                k_values=k_values,
+            )
+        )
+
+    if not per_query:
+        return {"per_query": [], "average": {}}
+
+    average = {
+        key: sum(item[key] for item in per_query) / len(per_query)
+        for key in per_query[0]
+    }
+    return {"per_query": per_query, "average": average}
