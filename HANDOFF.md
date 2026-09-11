@@ -47,6 +47,8 @@
 - 已接入 `BAAI/bge-large-zh-v1.5` 嵌入模型、FAISS 向量库、jieba 分词和 rank-bm25。
 - 后端 `/ask` 已切换到 RAG 管线，新增 `POST /ingest`，并支持文本层 PDF 解析。
 - 后端支持从 `backend/.env` 读取 `DEEPSEEK_API_KEY` 和 `HF_ENDPOINT`，示例见 `backend/.env.example`。
+- 已用示例文本和真实 DeepSeek 完成一次端到端问答，返回了答案和引用。
+- FAISS 在每次导入后保存到 `data/faiss`，重启后可恢复。
 
 ### 已做到哪一步
 
@@ -59,7 +61,7 @@
 - 前端 API 仍返回 mock 数据，尚未连接真实 Python 后端。
 - 后端当前只返回与前端相同的 mock 数据，尚未接入真实检索和模型生成。
 - RAG 核心模块已存在，但尚未接回 `/ask` 接口，也未接入真实 Embedding 和 Chroma。
-- 真实 RAG 代码已接通，但仍需本机下载嵌入模型并配置 DeepSeek Key 做实际联调。
+- 真实 RAG 代码已接通，并已完成一次真实端到端问答验证。
 
 ### 尚未开始
 
@@ -328,7 +330,7 @@
 - 尚未验证真实 PDF 解析效果。
 - 尚未验证 Chroma、BM25、Embedding 与 DeepSeek 的实际联调。
 - 尚未下载 `BAAI/bge-large-zh-v1.5` 模型权重，首次查询会触发下载。
-- 尚未使用真实 DeepSeek Key 验证 `/ask`。
+- 模型缓存已下载到 `D:\rag知识库\models\huggingface`，真实 DeepSeek Key 已用于验证 `/ask`。
 
 ## 7. 运行与验证方法
 

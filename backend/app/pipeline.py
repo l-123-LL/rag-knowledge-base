@@ -31,6 +31,9 @@ class RAGPipeline:
             chunk.metadata.setdefault("id", f"{metadata.get('file_name', 'text')}-{index}")
 
         self.retriever.add_chunks(chunks)
+        save = getattr(self.retriever.vector_store, "save", None)
+        if save is not None:
+            save()
         return len(chunks)
 
     def answer(self, question: str, top_k: int = 5) -> PipelineAnswer:
