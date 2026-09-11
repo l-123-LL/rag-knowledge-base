@@ -1,3 +1,5 @@
+import time
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from starlette.exceptions import HTTPException
@@ -72,11 +74,14 @@ def ingest(request: IngestRequest) -> IngestResponse:
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
     pipeline = get_pipeline()
+    started_at = time.perf_counter()
 
     try:
         result = pipeline.answer(request.question, top_k=request.top_k)
     except GenerationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    latency_ms = int((time.perf_counter() - started_at) * 1000)
 
     if not result.contexts:
         return AskResponse(
@@ -84,6 +89,7 @@ def ask(request: AskRequest) -> AskResponse:
             citations=[],
             model="deepseek-chat",
             status="insufficient",
+            latency_ms=latency_ms,
         )
 
     return AskResponse(
@@ -101,4 +107,6 @@ def ask(request: AskRequest) -> AskResponse:
         ],
         model="deepseek-chat",
         status="done",
+        latency_ms=latency_ms,
+        usage=result.usage,
     )

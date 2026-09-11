@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 from .chunking import Chunk, split_text
 from .embeddings import Embedder
-from .generation import Generator
+from .generation import Generator, GenerationResult
 from .retrieval import HybridRetriever, RetrievedChunk
 from .vector_store import VectorStore
 
@@ -11,6 +11,7 @@ from .vector_store import VectorStore
 class PipelineAnswer:
     answer: str
     contexts: list[RetrievedChunk]
+    usage: dict[str, int] | None = None
 
 
 class RAGPipeline:
@@ -44,5 +45,13 @@ class RAGPipeline:
                 contexts=[],
             )
 
-        answer = self.generator.generate(question, contexts)
-        return PipelineAnswer(answer=answer, contexts=contexts)
+        result: GenerationResult = self.generator.generate(question, contexts)
+        return PipelineAnswer(
+            answer=result.text,
+            contexts=contexts,
+            usage={
+                "prompt_tokens": result.prompt_tokens,
+                "completion_tokens": result.completion_tokens,
+                "total_tokens": result.total_tokens,
+            },
+        )

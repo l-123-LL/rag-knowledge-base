@@ -1,4 +1,5 @@
 import os
+from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
@@ -10,9 +11,21 @@ class GenerationError(RuntimeError):
     """生成失败时抛出，方便接口层统一返回错误。"""
 
 
+@dataclass
+class GenerationResult:
+    text: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+
+
 class Generator(Protocol):
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
-        """根据问题和检索片段生成答案。"""
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+    ) -> GenerationResult:
+        """根据问题和检索片段生成答案及用量信息。"""
 
 
 class DeepSeekGenerator:
@@ -28,7 +41,11 @@ class DeepSeekGenerator:
         self.api_key_env = api_key_env
         self.timeout_seconds = timeout_seconds
 
-    def generate(self, question: str, contexts: list[RetrievedChunk]) -> str:
+    def generate(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+    ) -> GenerationResult:
         api_key = os.getenv(self.api_key_env)
         if not api_key:
             raise GenerationError(f"缺少环境变量 {self.api_key_env}")
@@ -61,4 +78,10 @@ class DeepSeekGenerator:
             response.raise_for_status()
 
         payload = response.json()
-        return payload["choices"][0]["message"]["content"]
+        usage = payload.get("usage", {})
+        return GenerationResult(
+            text=payload["choices"][0]["message"]["content"],
+            prompt_tokens=usage.get("prompt_tokens", 0),
+            completion_tokens=usage.get("completion_tokens", 0),
+            total_tokens=usage.get("total_tokens", 0),
+        )

@@ -31,6 +31,8 @@ class AskResponse(BaseModel):
     citations: list[Citation]
     model: str
     status: Literal["done", "insufficient"]
+    latency_ms: int = 0
+    usage: dict[str, int] | None = None
 
 
 class Source(BaseModel):
