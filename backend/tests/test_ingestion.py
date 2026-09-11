@@ -1,7 +1,5 @@
 from pathlib import Path
 
-import pytest
-
 from app.ingestion import clean_html, load_text_file
 
 
@@ -25,12 +23,19 @@ def test_load_text_file_reads_utf8() -> None:
     assert metadata["file_name"] == "test_ingestion_tmp.txt"
 
 
-def test_load_pdf_raises_for_now() -> None:
+def test_load_pdf_returns_text() -> None:
     file_path = Path("test_ingestion_tmp.pdf")
-    file_path.write_bytes(b"%PDF-1.4")
+    from pypdf import PdfWriter
+
+    writer = PdfWriter()
+    writer.add_blank_page(width=200, height=200)
+    with file_path.open("wb") as handle:
+        writer.write(handle)
 
     try:
-        with pytest.raises(NotImplementedError):
-            load_text_file(file_path)
+        text, metadata = load_text_file(file_path)
     finally:
         file_path.unlink(missing_ok=True)
+
+    assert isinstance(text, str)
+    assert metadata["file_name"] == "test_ingestion_tmp.pdf"

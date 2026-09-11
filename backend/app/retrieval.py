@@ -1,9 +1,12 @@
 import math
 from dataclasses import dataclass, field
 
+import jieba
+from rank_bm25 import BM25Okapi
+
 from .chunking import Chunk
-from .embeddings import Embedder, tokenize
-from .vector_store import InMemoryVectorStore, VectorHit
+from .embeddings import Embedder
+from .vector_store import InMemoryVectorStore, VectorStore
 
 
 @dataclass
@@ -15,66 +18,42 @@ class RetrievedChunk:
     combined_score: float = 0.0
 
 
-class SimpleBM25:
-    """轻量 BM25，先保证关键词精确命中，后续可换成 rank-bm25。"""
+def _tokenize(text: str) -> list[str]:
+    """用 jieba 做中文分词，保留英文和数字。"""
+    return [token.strip() for token in jieba.cut(text.lower()) if token.strip()]
 
-    def __init__(self, k1: float = 1.5, b: float = 0.75) -> None:
-        self.k1 = k1
-        self.b = b
+
+class BM25Index:
+    def __init__(self) -> None:
         self.documents: list[list[str]] = []
-        self.doc_freq: dict[str, int] = {}
-        self.doc_lengths: list[int] = []
-        self.avg_doc_length = 0.0
+        self._model: BM25Okapi | None = None
 
     def add_document(self, text: str) -> None:
-        tokens = tokenize(text)
-        self.documents.append(tokens)
-        self.doc_lengths.append(len(tokens))
+        self.documents.append(_tokenize(text))
+        self._model = None
 
-        for token in set(tokens):
-            self.doc_freq[token] = self.doc_freq.get(token, 0) + 1
-
-        self.avg_doc_length = sum(self.doc_lengths) / len(self.doc_lengths)
+    def finalize(self) -> None:
+        if self.documents and self._model is None:
+            self._model = BM25Okapi(self.documents)
 
     def score(self, query: str, document_index: int) -> float:
-        query_tokens = tokenize(query)
-        doc_tokens = self.documents[document_index]
-        doc_len = self.doc_lengths[document_index]
-        total = 0.0
-
-        for token in query_tokens:
-            freq = doc_tokens.count(token)
-            if freq == 0:
-                continue
-
-            df = self.doc_freq.get(token, 0)
-            idf = math.log(
-                1 + (len(self.documents) - df + 0.5) / (df + 0.5)
-            )
-            total += (
-                idf
-                * freq
-                * (self.k1 + 1)
-                / (
-                    freq
-                    + self.k1
-                    * (1 - self.b + self.b * doc_len / self.avg_doc_length)
-                )
-            )
-
-        return total
+        self.finalize()
+        if self._model is None:
+            return 0.0
+        return float(self._model.get_scores(_tokenize(query))[document_index])
 
 
 class HybridRetriever:
     def __init__(
         self,
         embedder: Embedder,
+        vector_store: VectorStore | None = None,
         dense_weight: float = 0.7,
     ) -> None:
         self.embedder = embedder
         self.dense_weight = dense_weight
-        self.vector_store = InMemoryVectorStore()
-        self.bm25 = SimpleBM25()
+        self.vector_store = vector_store or InMemoryVectorStore()
+        self.bm25 = BM25Index()
         self.doc_ids: list[str] = []
         self.doc_texts: list[str] = []
         self.doc_metadata: list[dict] = []
@@ -94,6 +73,8 @@ class HybridRetriever:
             self.doc_ids.append(document_id)
             self.doc_texts.append(chunk.text)
             self.doc_metadata.append(chunk.metadata)
+
+        self.bm25.finalize()
 
     def search(self, query: str, top_k: int = 5) -> list[RetrievedChunk]:
         query_embedding = self.embedder.embed([query])[0]

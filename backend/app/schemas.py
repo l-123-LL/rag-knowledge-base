@@ -8,6 +8,15 @@ class AskRequest(BaseModel):
     top_k: int = Field(default=5, ge=1, le=20)
 
 
+class IngestRequest(BaseModel):
+    text: str = Field(min_length=1)
+    source: str = Field(default="示例资料", min_length=1)
+
+
+class IngestResponse(BaseModel):
+    chunk_count: int
+
+
 class Citation(BaseModel):
     id: str
     title: str

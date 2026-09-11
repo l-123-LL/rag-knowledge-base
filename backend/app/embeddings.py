@@ -39,3 +39,29 @@ class HashEmbedder:
             vectors.append(vector)
 
         return vectors
+
+
+class SentenceTransformerEmbedder:
+    """真实中文嵌入模型；在首次使用时才加载，避免测试和启动变慢。"""
+
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-large-zh-v1.5",
+        device: str | None = None,
+    ) -> None:
+        self.model_name = model_name
+        self.device = device
+        self._model = None
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if self._model is None:
+            from sentence_transformers import SentenceTransformer
+
+            self._model = SentenceTransformer(self.model_name, device=self.device)
+
+        vectors = self._model.encode(
+            texts,
+            normalize_embeddings=True,
+            convert_to_numpy=True,
+        )
+        return vectors.tolist()

@@ -1,10 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.exceptions import HTTPException
 
-from .mock_data import find_mock_answer, sources
-from .schemas import AskRequest, AskResponse, HealthResponse, Source
+from .factory import build_pipeline
+from .generation import GenerationError
+from .mock_data import sources
+from .pipeline import RAGPipeline
+from .schemas import (
+    AskRequest,
+    AskResponse,
+    Citation,
+    HealthResponse,
+    IngestRequest,
+    IngestResponse,
+    Source,
+)
 
 app = FastAPI(title="Medical RAG API", version="0.1.0")
+app.state.pipeline: RAGPipeline | None = None
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,6 +31,12 @@ app.add_middleware(
 )
 
 
+def get_pipeline() -> RAGPipeline:
+    if app.state.pipeline is None:
+        app.state.pipeline = build_pipeline()
+    return app.state.pipeline
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
@@ -28,21 +47,57 @@ def list_sources() -> list[Source]:
     return sources
 
 
+@app.post("/ingest", response_model=IngestResponse)
+def ingest(request: IngestRequest) -> IngestResponse:
+    pipeline = get_pipeline()
+    chunk_count = pipeline.ingest_text(
+        request.text,
+        metadata={"source": request.source},
+    )
+    sources.append(
+        Source(
+            id=f"ingested-{len(sources) + 1}",
+            title=request.source,
+            category="用户资料",
+            url="",
+            status="indexed",
+            updatedAt="刚刚",
+            description=request.text[:100],
+        )
+    )
+    return IngestResponse(chunk_count=chunk_count)
+
+
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
-    match = find_mock_answer(request.question)
+    pipeline = get_pipeline()
 
-    if match is None:
+    try:
+        result = pipeline.answer(request.question, top_k=request.top_k)
+    except GenerationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    if not result.contexts:
         return AskResponse(
             answer="当前示例资料不足，暂时无法给出可靠回答。",
             citations=[],
-            model="mock",
+            model="deepseek-chat",
             status="insufficient",
         )
 
     return AskResponse(
-        answer=match["answer"],
-        citations=match["citations"],
-        model="mock",
+        answer=result.answer,
+        citations=[
+            Citation(
+                id=str(index),
+                title=context.metadata.get("source", "未知来源"),
+                url=context.metadata.get("url", ""),
+                location=context.metadata.get("file_name", ""),
+                snippet=context.text[:200],
+                score=context.combined_score,
+            )
+            for index, context in enumerate(result.contexts)
+        ],
+        model="deepseek-chat",
         status="done",
     )

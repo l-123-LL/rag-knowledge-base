@@ -19,7 +19,18 @@ def load_text_file(path: str | Path) -> tuple[str, dict]:
     suffix = file_path.suffix.lower()
 
     if suffix == ".pdf":
-        raise NotImplementedError("PDF 解析尚未实现，下一步会引入 pypdf 或 pdfplumber。")
+        from pypdf import PdfReader
+
+        reader = PdfReader(str(file_path))
+        content = "\n\n".join(
+            page.extract_text() or "" for page in reader.pages
+        )
+        metadata = {
+            "source_path": str(file_path),
+            "file_name": file_path.name,
+            "file_type": suffix,
+        }
+        return content, metadata
 
     content = file_path.read_text(encoding="utf-8", errors="ignore")
 
