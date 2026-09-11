@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import App from './App'
+import { MOCK_DELAY_MS } from './api/client'
 
 describe('App', () => {
   afterEach(() => {
@@ -17,7 +18,7 @@ describe('App', () => {
     ).toBeInTheDocument()
   })
 
-  it('returns a sample answer and citation for a matching question', () => {
+  it('returns a sample answer and citation for a matching question', async () => {
     vi.useFakeTimers()
     render(<App />)
 
@@ -29,8 +30,8 @@ describe('App', () => {
 
     expect(screen.getByLabelText('正在生成答案')).toBeInTheDocument()
 
-    act(() => {
-      vi.advanceTimersByTime(650)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MOCK_DELAY_MS)
     })
 
     expect(
@@ -41,7 +42,7 @@ describe('App', () => {
     ).toBeGreaterThan(0)
   })
 
-  it('returns the insufficient-data state for unmatched questions', () => {
+  it('returns the insufficient-data state for unmatched questions', async () => {
     vi.useFakeTimers()
     render(<App />)
 
@@ -49,8 +50,8 @@ describe('App', () => {
     fireEvent.change(input, { target: { value: '今天天气如何' } })
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 
-    act(() => {
-      vi.advanceTimersByTime(650)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MOCK_DELAY_MS)
     })
 
     expect(screen.getByText('示例资料不足')).toBeInTheDocument()

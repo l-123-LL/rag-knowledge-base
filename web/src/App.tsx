@@ -1,8 +1,9 @@
 import { useCallback, useState } from 'react'
+import { askQuestion } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { SourcePanel } from './components/SourcePanel'
 import { DatabaseIcon } from './components/icons'
-import { findMockAnswer, mockConversations, mockSources } from './data/mockData'
+import { mockConversations, mockSources } from './data/mockData'
 import type { Conversation } from './types'
 
 function createId() {
@@ -19,7 +20,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
 
   // 前端预览：先展示加载状态，再用本地示例数据模拟一次问答。
-  const handleAsk = useCallback((rawQuestion: string) => {
+  const handleAsk = useCallback(async (rawQuestion: string) => {
     const question = rawQuestion.trim()
 
     if (!question) {
@@ -44,26 +45,36 @@ export default function App() {
     setConversations((current) => [...current, pendingConversation])
     setIsLoading(true)
 
-    // 延迟 650ms 模拟真实后端响应，后续接真实 API 时替换这里即可。
-    window.setTimeout(() => {
-      const match = findMockAnswer(question)
-
+    try {
+      const response = await askQuestion(question)
       setConversations((current) =>
         current.map((conversation) =>
           conversation.id === pendingConversation.id
             ? {
                 ...conversation,
-                answer: match
-                  ? match.answer
-                  : '当前示例资料不足，暂时无法给出可靠回答。',
-                citations: match?.citations ?? [],
-                status: match ? 'done' : 'insufficient',
+                answer: response.answer,
+                citations: response.citations,
+                status: response.status,
               }
             : conversation,
         ),
       )
+    } catch {
+      setError('接口暂时不可用，请稍后重试。')
+      setConversations((current) =>
+        current.map((conversation) =>
+          conversation.id === pendingConversation.id
+            ? {
+                ...conversation,
+                answer: '接口暂时不可用，请稍后重试。',
+                status: 'insufficient',
+              }
+            : conversation,
+        ),
+      )
+    } finally {
       setIsLoading(false)
-    }, 650)
+    }
   }, [])
 
   return (
