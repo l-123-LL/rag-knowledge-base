@@ -93,3 +93,21 @@ export async function ingestFile(file: File): Promise<IngestResponse> {
 
   return (await response.json()) as IngestResponse
 }
+
+export async function ingestUrl(url: string): Promise<IngestResponse> {
+  const response = await requestBackend('/ingest/url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ url }),
+  })
+
+  if (!response) {
+    throw new Error('后端不可用')
+  }
+
+  if (!response.ok) {
+    throw new Error('网页导入失败')
+  }
+
+  return (await response.json()) as IngestResponse
+}

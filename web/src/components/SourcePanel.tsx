@@ -1,10 +1,11 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type FormEvent } from 'react'
 import type { Source } from '../types'
 import { AlertIcon, CheckIcon, ChevronDownIcon, LinkIcon } from './icons'
 
 interface SourcePanelProps {
   sources: Source[]
   onUploadFile?: (file: File) => Promise<void>
+  onIngestUrl?: (url: string) => Promise<void>
   uploadError?: string | null
 }
 
@@ -17,11 +18,14 @@ const statusMeta = {
 export function SourcePanel({
   sources,
   onUploadFile,
+  onIngestUrl,
   uploadError,
 }: SourcePanelProps) {
   // 当前选中的来源，用于展开或收起详情。
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isUploading, setIsUploading] = useState(false)
+  const [isImportingUrl, setIsImportingUrl] = useState(false)
+  const [url, setUrl] = useState('')
   const fileInputRef = useRef<HTMLInputElement>(null)
   const selected = sources.find((source) => source.id === selectedId) ?? null
 
@@ -38,6 +42,22 @@ export function SourcePanel({
       if (fileInputRef.current) {
         fileInputRef.current.value = ''
       }
+    }
+  }
+
+  async function handleUrlSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const target = url.trim()
+    if (!target || !onIngestUrl) {
+      return
+    }
+
+    setIsImportingUrl(true)
+    try {
+      await onIngestUrl(target)
+      setUrl('')
+    } finally {
+      setIsImportingUrl(false)
     }
   }
 
@@ -130,6 +150,29 @@ export function SourcePanel({
       </div>
 
       <div className="border-t border-line px-5 py-4">
+        {onIngestUrl ? (
+          <form onSubmit={handleUrlSubmit} className="mb-3">
+            <label htmlFor="source-url" className="mb-1 block text-xs font-medium text-ink-500">
+              导入网页
+            </label>
+            <div className="flex gap-2">
+              <input
+                id="source-url"
+                value={url}
+                onChange={(event) => setUrl(event.target.value)}
+                placeholder="粘贴公开网页 URL"
+                className="min-w-0 flex-1 rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand-500"
+              />
+              <button
+                type="submit"
+                disabled={isImportingUrl || !url.trim()}
+                className="shrink-0 rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:bg-slate-300"
+              >
+                {isImportingUrl ? '导入中…' : '导入'}
+              </button>
+            </div>
+          </form>
+        ) : null}
         {onUploadFile ? (
           <div className="mb-3">
             <input

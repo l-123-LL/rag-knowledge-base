@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest'
-import { askQuestion, MOCK_DELAY_MS, listSources } from './client'
+import {
+  askQuestion,
+  ingestUrl,
+  MOCK_DELAY_MS,
+  listSources,
+} from './client'
 
 describe('api client', () => {
   it('returns a grounded mock answer for a matching question', async () => {
@@ -33,5 +38,9 @@ describe('api client', () => {
     const sources = await listSources()
 
     expect(sources.length).toBeGreaterThan(0)
+  })
+
+  it('throws when URL ingestion has no backend', async () => {
+    await expect(ingestUrl('https://example.com')).rejects.toThrow('后端不可用')
   })
 })

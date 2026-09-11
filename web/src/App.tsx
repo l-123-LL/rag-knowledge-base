@@ -1,5 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
-import { askQuestion, ingestFile, listSources } from './api/client'
+import {
+  askQuestion,
+  ingestFile,
+  ingestUrl,
+  listSources,
+} from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { SourcePanel } from './components/SourcePanel'
 import { DatabaseIcon } from './components/icons'
@@ -48,6 +53,18 @@ export default function App() {
       setSources(data)
     } catch {
       setUploadError('上传失败，请确认后端正在运行。')
+    }
+  }, [])
+
+  const handleUrlIngest = useCallback(async (url: string) => {
+    setUploadError(null)
+
+    try {
+      await ingestUrl(url)
+      const data = await listSources()
+      setSources(data)
+    } catch {
+      setUploadError('网页导入失败，请确认后端正在运行且链接可访问。')
     }
   }, [])
 
@@ -125,6 +142,7 @@ export default function App() {
           <SourcePanel
             sources={sources}
             onUploadFile={handleFileUpload}
+            onIngestUrl={handleUrlIngest}
             uploadError={uploadError}
           />
         </div>
@@ -145,6 +163,7 @@ export default function App() {
           <SourcePanel
             sources={sources}
             onUploadFile={handleFileUpload}
+            onIngestUrl={handleUrlIngest}
             uploadError={uploadError}
           />
         </div>
