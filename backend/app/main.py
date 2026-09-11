@@ -1,4 +1,5 @@
 import time
+import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -6,6 +7,7 @@ from starlette.exceptions import HTTPException
 
 from . import config  # noqa: F401
 from .factory import build_pipeline
+from .cost import calculate_cost
 from .generation import GenerationError
 from .mock_data import sources
 from .pipeline import RAGPipeline
@@ -109,4 +111,13 @@ def ask(request: AskRequest) -> AskResponse:
         status="done",
         latency_ms=latency_ms,
         usage=result.usage,
+        cost=calculate_cost(
+            result.usage,
+            input_price_per_million=float(
+                os.getenv("DEEPSEEK_INPUT_PRICE_PER_MILLION", "0")
+            ),
+            output_price_per_million=float(
+                os.getenv("DEEPSEEK_OUTPUT_PRICE_PER_MILLION", "0")
+            ),
+        ),
     )

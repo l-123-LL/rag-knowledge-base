@@ -33,6 +33,7 @@ class AskResponse(BaseModel):
     status: Literal["done", "insufficient"]
     latency_ms: int = 0
     usage: dict[str, int] | None = None
+    cost: float | None = None
 
 
 class Source(BaseModel):
