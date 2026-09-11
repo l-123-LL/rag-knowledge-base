@@ -12,6 +12,11 @@ export interface IngestResponse {
   chunk_count: number
 }
 
+interface StreamHandlers {
+  onSources?: (citations: Citation[]) => void
+  onDelta?: (text: string) => void
+}
+
 // 模拟真实后端的响应时间，后续接 API 时只替换这个模块。
 export const MOCK_DELAY_MS = 650
 
@@ -110,4 +115,77 @@ export async function ingestUrl(url: string): Promise<IngestResponse> {
   }
 
   return (await response.json()) as IngestResponse
+}
+
+export async function streamAsk(
+  question: string,
+  handlers: StreamHandlers,
+): Promise<void> {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
+    throw new Error('当前环境不支持流式输出')
+  }
+
+  const response = await window.fetch('/api/ask/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+  })
+
+  if (!response.ok || !response.body) {
+    throw new Error('流式接口不可用')
+  }
+
+  const reader = response.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) {
+      break
+    }
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() ?? ''
+
+    for (const line of lines) {
+      const trimmed = line.trim()
+      if (!trimmed.startsWith('data:')) {
+        continue
+      }
+
+      const data = trimmed.slice(5).trim()
+      if (data === '[DONE]') {
+        return
+      }
+
+      const payload = JSON.parse(data) as {
+        type: string
+        text?: string
+        contexts?: Array<{
+          text: string
+          source: string
+          score: number
+        }>
+      }
+
+      if (payload.type === 'delta' && payload.text) {
+        handlers.onDelta?.(payload.text)
+      }
+
+      if (payload.type === 'sources' && payload.contexts) {
+        handlers.onSources?.(
+          payload.contexts.map((context, index) => ({
+            id: `stream-${index}`,
+            title: context.source,
+            url: '',
+            location: '',
+            snippet: context.text,
+            score: context.score,
+          })),
+        )
+      }
+    }
+  }
 }

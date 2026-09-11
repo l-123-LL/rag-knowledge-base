@@ -4,6 +4,7 @@ import {
   ingestFile,
   ingestUrl,
   listSources,
+  streamAsk,
 } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { SourcePanel } from './components/SourcePanel'
@@ -95,6 +96,31 @@ export default function App() {
     setIsLoading(true)
 
     try {
+      await streamAsk(question, {
+        onSources: (citations) => {
+          setConversations((current) =>
+            current.map((conversation) =>
+              conversation.id === pendingConversation.id
+                ? { ...conversation, citations, status: 'done' }
+                : conversation,
+            ),
+          )
+        },
+        onDelta: (text) => {
+          setConversations((current) =>
+            current.map((conversation) =>
+              conversation.id === pendingConversation.id
+                ? {
+                    ...conversation,
+                    answer: `${conversation.answer ?? ''}${text}`,
+                    status: 'done',
+                  }
+                : conversation,
+            ),
+          )
+        },
+      })
+    } catch {
       const response = await askQuestion(question)
       setConversations((current) =>
         current.map((conversation) =>
@@ -104,19 +130,6 @@ export default function App() {
                 answer: response.answer,
                 citations: response.citations,
                 status: response.status,
-              }
-            : conversation,
-        ),
-      )
-    } catch {
-      setError('接口暂时不可用，请稍后重试。')
-      setConversations((current) =>
-        current.map((conversation) =>
-          conversation.id === pendingConversation.id
-            ? {
-                ...conversation,
-                answer: '接口暂时不可用，请稍后重试。',
-                status: 'insufficient',
               }
             : conversation,
         ),
