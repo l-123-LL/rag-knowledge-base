@@ -15,7 +15,32 @@ function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
 
+async function requestBackend(
+  path: string,
+  init?: RequestInit,
+): Promise<Response | null> {
+  if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
+    return null
+  }
+
+  try {
+    return await window.fetch(path, init)
+  } catch {
+    return null
+  }
+}
+
 export async function askQuestion(question: string): Promise<AskResponse> {
+  const response = await requestBackend('/api/ask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ question }),
+  })
+
+  if (response?.ok) {
+    return (await response.json()) as AskResponse
+  }
+
   await wait(MOCK_DELAY_MS)
   const match = findMockAnswer(question)
 
@@ -37,5 +62,11 @@ export async function askQuestion(question: string): Promise<AskResponse> {
 }
 
 export async function listSources(): Promise<Source[]> {
+  const response = await requestBackend('/api/sources')
+
+  if (response?.ok) {
+    return (await response.json()) as Source[]
+  }
+
   return mockSources
 }
