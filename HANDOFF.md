@@ -38,7 +38,9 @@
 - 前端已能启动、构建、通过 TypeScript 类型检查。
 - 前端包含左侧来源面板、右侧问答区、示例问答、引用折叠、空结果和错误状态。
 - 关键前端代码已添加简短注释。
-- 已加入 Vitest + React Testing Library，前端当前有 10 个测试并全部通过。
+- 已加入 Vitest + React Testing Library，前端当前有 14 个测试并全部通过。
+- 已建立前端 API 抽象层 `web/src/api/client.ts`，将 mock 问答集中到 API 模块。
+- 已加入前端错误边界 `web/src/components/ErrorBoundary.tsx`，避免渲染异常导致白屏。
 
 ### 已做到哪一步
 
@@ -48,6 +50,7 @@
 - 没有真实后端。
 - 没有真实 RAG 能力。
 - 没有数据、切分、Embedding、向量库、检索、生成、评估。
+- 前端 API 仍返回 mock 数据，尚未连接真实 Python 后端。
 
 ### 尚未开始
 
@@ -87,6 +90,7 @@
 - `web/src/types.ts`：`Source`、`Citation`、`Conversation`、`MockConversation` 等类型定义。
 - `web/src/index.css`：Tailwind 基础样式、全局滚动条和字体规则。
 - `web/src/styles.css`：前端自定义 `fade-in` 动画。
+- `web/src/api/client.ts`：前端 API 抽象层，当前提供 mock 版 `askQuestion` 和 `listSources`。
 
 ### 前端数据与组件 `web/src/`
 
@@ -98,6 +102,7 @@
 - `web/src/components/AnswerCard.tsx`：单个问答卡片，处理加载、答案、资料不足三种状态。
 - `web/src/components/CitationList.tsx`：引用来源折叠/展开。
 - `web/src/components/icons.tsx`：项目内使用的内联 SVG 图标组件。
+- `web/src/components/ErrorBoundary.tsx`：渲染异常时的兜底页面。
 
 ### 入口文件
 
@@ -180,7 +185,9 @@
 - `web/src/components/AnswerCard.tsx`
 - `web/src/components/ChatPanel.tsx`
 
-### P0-2：建立前端 API 抽象层
+### P0-2：建立前端 API 抽象层（已完成）
+
+**状态：** 已完成，提交 `bfde8e6`。`askQuestion` 和 `listSources` 已集中在 `web/src/api/client.ts`，错误边界已接入 `web/src/main.tsx`。
 
 **要做什么：**
 
@@ -248,7 +255,7 @@
 
 ### 测试缺失
 
-- 前端已补齐 Vitest 测试运行器、`npm test` 脚本和 10 个基础测试。
+- 前端已补齐 Vitest 测试运行器、`npm test` 脚本和 14 个基础测试。
 - 后端测试尚未开始，等后端骨架创建后再补 pytest。
 
 ### 文档缺失
@@ -263,7 +270,7 @@
 - 没有 lint、format 脚本。
 - 没有 CI/CD。
 - 移动端布局未经过自动化浏览器测试。
-- 没有错误边界，真实 API 异常时可能白屏。
+- 已有错误边界，但真实 API 异常路径尚未接入后端验证。
 
 ### 医学合规与安全风险
 
@@ -350,7 +357,7 @@ cd web
 npm test
 ```
 
-当前包含 4 个测试文件、10 个测试用例。
+当前包含 6 个测试文件、14 个测试用例。
 
 ## 8. 不可违反的约束
 
