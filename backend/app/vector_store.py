@@ -17,6 +17,9 @@ class VectorStore(Protocol):
     def query(self, embedding: list[float], top_k: int = 5) -> list["VectorHit"]:
         ...
 
+    def all_records(self) -> list["VectorRecord"]:
+        ...
+
 
 @dataclass
 class VectorRecord:
@@ -72,6 +75,9 @@ class InMemoryVectorStore:
 
         hits.sort(key=lambda hit: hit.score, reverse=True)
         return hits[:top_k]
+
+    def all_records(self) -> list[VectorRecord]:
+        return list(self._records)
 
     @staticmethod
     def _cosine(left: list[float], right: list[float]) -> float:
@@ -150,6 +156,9 @@ class FAISSVectorStore:
             )
 
         return hits
+
+    def all_records(self) -> list[VectorRecord]:
+        return list(self._records.values())
 
     def save(self) -> None:
         if not self.persist_dir:

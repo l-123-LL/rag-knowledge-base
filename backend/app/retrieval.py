@@ -57,6 +57,15 @@ class HybridRetriever:
         self.doc_ids: list[str] = []
         self.doc_texts: list[str] = []
         self.doc_metadata: list[dict] = []
+        self._load_existing_records()
+
+    def _load_existing_records(self) -> None:
+        for record in self.vector_store.all_records():
+            self.bm25.add_document(record.text)
+            self.doc_ids.append(record.id)
+            self.doc_texts.append(record.text)
+            self.doc_metadata.append(record.metadata)
+        self.bm25.finalize()
 
     def add_chunks(self, chunks: list[Chunk]) -> None:
         embeddings = self.embedder.embed([chunk.text for chunk in chunks])
