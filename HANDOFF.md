@@ -67,6 +67,7 @@
 - 新增 `GET /faqs` 和 `POST /faqs`，支持运行时新增 FAQ 并立即参与优先命中。
 - 前端来源面板已加入“新增 FAQ”表单，可直接录入问题、答案和关键词。
 - 已加入后端、前端 Dockerfile 和 `docker-compose.yml`，可通过 Docker 启动完整服务。
+- 已加入 GitHub Actions CI，推送或提交 PR 时自动跑后端测试、前端测试、类型检查和构建。
 - 已用示例文本和真实 DeepSeek 完成一次端到端问答，返回了答案和引用。
 - FAISS 在每次导入后保存到 `data/faiss`，重启后可恢复。
 - 已加入检索评估指标和命令行运行器，示例评估结果为 `hit@1=1.0`、`MRR=1.0`。
