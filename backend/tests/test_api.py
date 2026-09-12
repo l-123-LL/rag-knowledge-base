@@ -243,6 +243,30 @@ def test_create_faq_is_used_by_ask() -> None:
     assert "发货前" in response.json()["answer"]
 
 
+def test_update_and_delete_faq() -> None:
+    created = client.post(
+        "/faqs",
+        json={
+            "question": "如何修改手机号？",
+            "answer": "在账号设置中修改。",
+            "keywords": ["修改手机号"],
+        },
+    ).json()
+    updated = client.put(
+        f"/faqs/{created['id']}",
+        json={
+            "question": "怎么修改手机号？",
+            "answer": "在账号安全设置中修改手机号。",
+            "keywords": ["修改手机号", "手机号"],
+        },
+    )
+    deleted = client.delete(f"/faqs/{created['id']}")
+
+    assert updated.status_code == 200
+    assert updated.json()["version"] == 2
+    assert deleted.status_code == 200
+
+
 def test_archive_and_restore_source() -> None:
     archived = client.post(
         "/sources/return-policy/archive",

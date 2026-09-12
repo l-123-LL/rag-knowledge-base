@@ -28,6 +28,7 @@ function createId() {
 }
 
 export default function App() {
+  const isAdmin = Boolean(import.meta.env.VITE_ADMIN_API_KEY)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -255,10 +256,10 @@ export default function App() {
         <aside className="hidden w-[340px] shrink-0 border-r border-line bg-surface lg:block">
           <SourcePanel
             sources={sources}
-            onUploadFile={handleFileUpload}
-            onIngestUrl={handleUrlIngest}
-            onCreateFaq={handleCreateFaq}
-            onToggleSource={handleToggleSource}
+            onUploadFile={isAdmin ? handleFileUpload : undefined}
+            onIngestUrl={isAdmin ? handleUrlIngest : undefined}
+            onCreateFaq={isAdmin ? handleCreateFaq : undefined}
+            onToggleSource={isAdmin ? handleToggleSource : undefined}
             uploadError={uploadError}
             stats={stats}
             metrics={metrics}
@@ -269,10 +270,10 @@ export default function App() {
           <div className="h-80 border-b border-line bg-surface lg:hidden">
             <SourcePanel
               sources={sources}
-              onUploadFile={handleFileUpload}
-              onIngestUrl={handleUrlIngest}
-              onCreateFaq={handleCreateFaq}
-              onToggleSource={handleToggleSource}
+              onUploadFile={isAdmin ? handleFileUpload : undefined}
+              onIngestUrl={isAdmin ? handleUrlIngest : undefined}
+              onCreateFaq={isAdmin ? handleCreateFaq : undefined}
+              onToggleSource={isAdmin ? handleToggleSource : undefined}
               uploadError={uploadError}
               stats={stats}
               metrics={metrics}

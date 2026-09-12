@@ -277,6 +277,7 @@ export function SourcePanel({
       </div>
 
       <div className="border-t border-line bg-mist/60 px-5 py-4">
+        {onCreateFaq ? (
         <details className="mb-3">
           <summary className="cursor-pointer text-xs font-semibold text-brand-700">
             新增 FAQ
@@ -310,7 +311,9 @@ export function SourcePanel({
             </button>
           </form>
         </details>
+        ) : null}
 
+        {onIngestUrl ? (
         <form onSubmit={handleUrlSubmit} className="mb-3">
           <label
             htmlFor="source-url"
@@ -335,7 +338,10 @@ export function SourcePanel({
             </button>
           </div>
         </form>
+        ) : null}
 
+        {onUploadFile ? (
+        <>
         <input
           ref={fileInputRef}
           type="file"
@@ -351,6 +357,8 @@ export function SourcePanel({
         >
           {isUploading ? '正在导入…' : '上传资料'}
         </button>
+        </>
+        ) : null}
 
         {uploadError ? (
           <p className="mt-2 text-xs text-rose-600">{uploadError}</p>

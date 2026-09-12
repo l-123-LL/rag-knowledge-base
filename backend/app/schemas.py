@@ -29,6 +29,12 @@ class FaqCreateRequest(BaseModel):
     source: str = Field(default="人工录入", min_length=1)
 
 
+class FaqUpdateRequest(BaseModel):
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
+    keywords: list[str] = Field(default_factory=list)
+
+
 class FeedbackRequest(BaseModel):
     session_id: str | None = None
     question: str = Field(min_length=1)

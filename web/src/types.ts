@@ -34,6 +34,7 @@ export interface FaqItem {
   question: string
   answer: string
   keywords: string[]
+  version?: number
 }
 
 export interface Citation {

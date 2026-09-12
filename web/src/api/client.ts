@@ -161,6 +161,47 @@ export async function createFaq(payload: {
   return (await response.json()) as FaqItem
 }
 
+export async function listFaqs(): Promise<FaqItem[]> {
+  const response = await requestBackend('/faqs')
+
+  if (response?.ok) {
+    return (await response.json()) as FaqItem[]
+  }
+
+  return []
+}
+
+export async function updateFaq(
+  faqId: string,
+  payload: {
+    question: string
+    answer: string
+    keywords: string[]
+  },
+): Promise<FaqItem> {
+  const response = await requestBackend(`/faqs/${encodeURIComponent(faqId)}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response?.ok) {
+    throw new Error('FAQ 更新失败')
+  }
+
+  return (await response.json()) as FaqItem
+}
+
+export async function deleteFaq(faqId: string): Promise<void> {
+  const response = await requestBackend(`/faqs/${encodeURIComponent(faqId)}`, {
+    method: 'DELETE',
+  })
+
+  if (!response?.ok) {
+    throw new Error('FAQ 删除失败')
+  }
+}
+
 export async function ingestFile(file: File): Promise<IngestResponse> {
   const formData = new FormData()
   formData.append('file', file)

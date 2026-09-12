@@ -81,6 +81,7 @@
 - 扫描版 PDF 的 OCR 作为可选增强：开启 `OCR_ENABLED=true` 并安装 OCR 组件后生效。
 - 已加入多租户基础隔离：通过 `X-Tenant-ID` 隔离来源、FAQ、会话、工单和检索元数据。
 - 已加入可选 OIDC/SSO 校验钩子：配置 `OIDC_JWKS_URL` 后，问答接口要求 Bearer Token。
+- FAQ 已改为本地持久化，支持新增、编辑、删除和版本号；普通用户前端不显示管理入口。
 - 新增 `GET /alerts`，按平均延迟和低有帮助率输出监控告警。
 - 工单支持可选 Webhook 外发，配置 `TICKET_WEBHOOK_URL` 后可推送到 CRM 或客服平台。
 - 日志和反馈支持可选监控 Webhook，配置 `OBSERVABILITY_WEBHOOK_URL` 后可接 Langfuse 或告警平台。

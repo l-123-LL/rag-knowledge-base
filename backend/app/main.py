@@ -14,6 +14,14 @@ from .backup import create_backup
 from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
+from .faq_store import (
+    add_faq,
+    delete_faq,
+    faq_count,
+    find_faq_answer,
+    list_faqs as list_faq_store,
+    update_faq,
+)
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
 from .observability import (
@@ -22,7 +30,7 @@ from .observability import (
     summarize_ask_log,
     summarize_feedback,
 )
-from .mock_data import add_faq, faq_count, faq_items, find_mock_answer, sources
+from .mock_data import sources
 from .pipeline import RAGPipeline
 from .schemas import (
     AskRequest,
@@ -32,6 +40,7 @@ from .schemas import (
     IngestRequest,
     IngestResponse,
     FaqCreateRequest,
+    FaqUpdateRequest,
     FeedbackRequest,
     SessionResetRequest,
     Source,
@@ -285,9 +294,7 @@ def archive_source(
 
 @app.get("/faqs")
 def list_faqs(tenant_id: str = Depends(get_tenant_id)) -> list[dict]:
-    return [
-        item for item in faq_items if item.get("tenant_id", "default") == tenant_id
-    ]
+    return list_faq_store(tenant_id)
 
 
 @app.post("/faqs")
@@ -303,6 +310,36 @@ def create_faq(
         source=request.source,
         tenant_id=tenant_id,
     )
+
+
+@app.put("/faqs/{faq_id}")
+def edit_faq(
+    faq_id: str,
+    request: FaqUpdateRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_admin_key),
+) -> dict:
+    item = update_faq(
+        faq_id=faq_id,
+        question=request.question,
+        answer=request.answer,
+        keywords=request.keywords,
+        tenant_id=tenant_id,
+    )
+    if item is None:
+        raise HTTPException(status_code=404, detail="FAQ 不存在")
+    return item
+
+
+@app.delete("/faqs/{faq_id}")
+def remove_faq(
+    faq_id: str,
+    tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_admin_key),
+) -> dict:
+    if not delete_faq(faq_id, tenant_id=tenant_id):
+        raise HTTPException(status_code=404, detail="FAQ 不存在")
+    return {"status": "ok"}
 
 
 @app.post("/feedback")
@@ -389,7 +426,7 @@ def ask(
             status="done",
         )
 
-    faq_match = find_mock_answer(request.question, tenant_id=tenant_id)
+    faq_match = find_faq_answer(request.question, tenant_id=tenant_id)
     if faq_match is not None:
         record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
         record_message(
@@ -551,7 +588,7 @@ def ask_stream(
         )
         return StreamingResponse(text_stream(text), media_type="text/event-stream")
 
-    faq_match = find_mock_answer(request.question, tenant_id=tenant_id)
+    faq_match = find_faq_answer(request.question, tenant_id=tenant_id)
     if faq_match is not None:
         record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
         record_message(
