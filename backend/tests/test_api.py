@@ -332,3 +332,10 @@ def test_oidc_requires_bearer_token_when_configured(
     response = client.post("/ask", json={"question": "如何申请退货？"})
 
     assert response.status_code == 401
+
+
+def test_alerts_endpoint_returns_status() -> None:
+    response = client.get("/alerts")
+
+    assert response.status_code == 200
+    assert response.json()["status"] in {"ok", "warning"}

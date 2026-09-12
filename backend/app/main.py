@@ -217,6 +217,46 @@ def metrics() -> dict:
     }
 
 
+@app.get("/alerts")
+def alerts() -> dict:
+    metric_data = {
+        **summarize_ask_log(),
+        **summarize_feedback(),
+    }
+    latency_threshold = float(os.getenv("ALERT_LATENCY_MS", "5000"))
+    helpful_threshold = float(os.getenv("ALERT_HELPFUL_RATE", "0.7"))
+    active_alerts: list[dict] = []
+
+    if metric_data["avg_latency_ms"] > latency_threshold:
+        active_alerts.append(
+            {
+                "type": "latency",
+                "message": "平均响应延迟超过阈值",
+                "value": metric_data["avg_latency_ms"],
+                "threshold": latency_threshold,
+            }
+        )
+
+    if (
+        metric_data["feedback_count"] > 0
+        and metric_data["helpful_rate"] < helpful_threshold
+    ):
+        active_alerts.append(
+            {
+                "type": "helpful_rate",
+                "message": "有帮助率低于阈值",
+                "value": metric_data["helpful_rate"],
+                "threshold": helpful_threshold,
+            }
+        )
+
+    return {
+        "status": "warning" if active_alerts else "ok",
+        "alerts": active_alerts,
+        "metrics": metric_data,
+    }
+
+
 @app.post("/sources/{source_id}/archive", response_model=Source)
 def archive_source(
     source_id: str,
