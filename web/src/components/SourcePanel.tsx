@@ -141,6 +141,12 @@ export function SourcePanel({
               {stats.session_count}
             </p>
           </div>
+          <div className="rounded-lg bg-mist px-3 py-2">
+            <p className="text-xs text-ink-500">工单</p>
+            <p className="mt-1 text-sm font-semibold text-ink-900">
+              {stats.ticket_count}
+            </p>
+          </div>
         </div>
       ) : null}
 

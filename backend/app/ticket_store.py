@@ -43,3 +43,8 @@ def list_tickets(limit: int = 100) -> list[dict]:
     ]
     tickets.sort(key=lambda item: item["created_at"], reverse=True)
     return tickets[:limit]
+
+
+def count_tickets() -> int:
+    directory = _ticket_dir()
+    return len(list(directory.glob("T*.json"))) if directory.exists() else 0

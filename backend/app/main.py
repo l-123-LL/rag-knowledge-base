@@ -43,7 +43,7 @@ from .session_store import (
     record_message,
 )
 from .security import require_admin_key
-from .ticket_store import create_ticket, list_tickets
+from .ticket_store import count_tickets, create_ticket, list_tickets
 
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
@@ -184,6 +184,7 @@ def stats() -> dict:
         "chunk_count": pipeline.chunk_count() if pipeline else 0,
         "session_count": count_sessions(),
         "faq_count": faq_count(),
+        "ticket_count": count_tickets(),
     }
 
 

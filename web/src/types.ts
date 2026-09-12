@@ -16,6 +16,7 @@ export interface Stats {
   chunk_count: number
   session_count: number
   faq_count: number
+  ticket_count: number
 }
 
 export interface Metrics {

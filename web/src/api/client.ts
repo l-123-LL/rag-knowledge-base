@@ -109,6 +109,7 @@ export async function getStats(): Promise<Stats> {
     chunk_count: 0,
     session_count: 0,
     faq_count: 0,
+    ticket_count: 0,
   }
 }
 

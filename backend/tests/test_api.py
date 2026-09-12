@@ -214,6 +214,7 @@ def test_stats_returns_counts() -> None:
     payload = response.json()
     assert payload["source_count"] >= 5
     assert payload["faq_count"] >= 4
+    assert payload["ticket_count"] >= 0
 
 
 def test_create_faq_is_used_by_ask() -> None:
