@@ -38,7 +38,7 @@ function EmptyState({
           </svg>
         </div>
         <h2 className="mt-5 text-xl font-semibold text-ink-900">
-          医学知识智能问答
+          企业智能客服
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-500">
           输入问题查看前端预览效果。回答和引用均为本地示例数据。
@@ -86,7 +86,7 @@ export function ChatPanel({
         <div className="mx-auto flex max-w-3xl items-center justify-between">
           <div>
             <h1 className="text-base font-semibold text-ink-900">智能问答</h1>
-            <p className="mt-1 text-xs text-ink-500">基于本地示例资料的预览</p>
+            <p className="mt-1 text-xs text-ink-500">基于企业知识库的预览</p>
           </div>
           <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
             前端预览

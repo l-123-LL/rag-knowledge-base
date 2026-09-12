@@ -2,10 +2,10 @@ import { describe, expect, it } from 'vitest'
 import { findMockAnswer, mockConversations } from './mockData'
 
 describe('findMockAnswer', () => {
-  it('returns a matching sample for a known medical question', () => {
-    const result = findMockAnswer('成人流感的抗病毒治疗时机是什么？')
+  it('returns a matching sample for a known customer service question', () => {
+    const result = findMockAnswer('如何申请退货？')
 
-    expect(result?.id).toBe('flu-treatment')
+    expect(result?.id).toBe('return-policy')
     expect(result?.citations.length).toBeGreaterThan(0)
   })
 

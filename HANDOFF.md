@@ -56,6 +56,7 @@
 - 后端支持从 `backend/.env` 读取 `DEEPSEEK_API_KEY` 和 `HF_ENDPOINT`，示例见 `backend/.env.example`。
 - 后端新增 `POST /ask/stream`，使用 SSE 流式返回 DeepSeek 生成内容。
 - 检索流程已支持可选 rerank，通过环境变量 `RERANK_MODEL` 启用开源 BGE reranker。
+- 前后端提示词、标题和示例数据已从医学方向切换为企业智能客服方向。
 - 已用示例文本和真实 DeepSeek 完成一次端到端问答，返回了答案和引用。
 - FAISS 在每次导入后保存到 `data/faiss`，重启后可恢复。
 - 已加入检索评估指标和命令行运行器，示例评估结果为 `hit@1=1.0`、`MRR=1.0`。

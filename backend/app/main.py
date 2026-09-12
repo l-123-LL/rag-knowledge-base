@@ -25,7 +25,7 @@ from .schemas import (
     UrlIngestRequest,
 )
 
-app = FastAPI(title="Medical RAG API", version="0.1.0")
+app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
 
 app.add_middleware(

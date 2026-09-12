@@ -60,10 +60,10 @@ class DeepSeekGenerator:
             raise GenerationError(f"缺少环境变量 {self.api_key_env}")
 
         system_prompt = (
-            "你是面向医务人员的医学知识助手。"
-            "只能根据提供的资料回答，不得编造。"
-            "如果资料不足，请明确说明资料不足。"
-            "回答要给出结论、依据，并尽量引用来源。"
+            "你是企业智能客服助手。"
+            "只能根据提供的知识库资料回答，不得编造。"
+            "如果资料不足，请说明无法确认，并引导用户联系人工客服。"
+            "回答要简洁、专业、友好，并尽量引用来源。"
         )
         context_text = "\n\n".join(
             f"[来源：{chunk.metadata.get('source', '未知来源')}]\n{chunk.text}"
@@ -105,9 +105,9 @@ class DeepSeekGenerator:
             raise GenerationError(f"缺少环境变量 {self.api_key_env}")
 
         system_prompt = (
-            "你是面向医务人员的医学知识助手。"
-            "只能根据提供的资料回答，不得编造。"
-            "如果资料不足，请明确说明资料不足。"
+            "你是企业智能客服助手。"
+            "只能根据提供的知识库资料回答，不得编造。"
+            "如果资料不足，请说明无法确认，并引导用户联系人工客服。"
         )
         context_text = "\n\n".join(
             f"[来源：{chunk.metadata.get('source', '未知来源')}]\n{chunk.text}"

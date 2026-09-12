@@ -2,123 +2,110 @@ from .schemas import Citation, Source
 
 sources: list[Source] = [
     Source(
-        id="nhc-influenza-2025",
-        title="流行性感冒诊疗方案（2025年版）",
-        category="诊疗指南",
-        url="https://www.nhc.gov.cn/wjw/ylyjs/202501/ac113876c97c47a7bd8c03c3c05ffa08.shtml",
+        id="return-policy",
+        title="退换货政策说明",
+        category="售后政策",
+        url="https://example.com/support/returns",
         status="indexed",
-        updatedAt="2025-01-20",
-        description="国家卫生健康委发布的流感规范化诊疗方案，涵盖诊断、抗病毒治疗时机与重症识别。",
+        updatedAt="2026-09-01",
+        description="说明商品退换货条件、申请流程、运费规则和退款时效。",
     ),
     Source(
-        id="nhc-obesity-2024",
-        title="肥胖症诊疗指南（2024年版）",
-        category="诊疗指南",
-        url="https://www.gov.cn/zhengce/zhengceku/202410/content_6981734.htm",
+        id="shipping-policy",
+        title="订单与物流说明",
+        category="订单服务",
+        url="https://example.com/support/shipping",
         status="indexed",
-        updatedAt="2024-10-12",
-        description="国家卫生健康委制定的肥胖症诊疗指南，包含诊断标准、评估方法与综合干预策略。",
+        updatedAt="2026-09-02",
+        description="说明发货时间、物流查询方式、配送范围和异常处理。",
     ),
     Source(
-        id="basic-hypertension-guide",
-        title="国家基层高血压防治管理指南",
-        category="慢病防治",
-        url="https://www.nhc.gov.cn/",
+        id="invoice-policy",
+        title="发票申请说明",
+        category="财务服务",
+        url="https://example.com/support/invoice",
         status="pending",
-        updatedAt="待确认",
-        description="面向基层医疗机构的高血压防治与管理资料，用于展示待处理来源状态。",
+        updatedAt="待更新",
+        description="说明电子发票申请入口、开票信息填写和重开规则。",
     ),
     Source(
-        id="nmpa-drug-instructions",
-        title="国家药监局化学药品说明书",
-        category="药品说明",
-        url="https://www.nmpa.gov.cn/datasearch/",
-        status="failed",
-        updatedAt="导入失败",
-        description="国家药监局公开的药品说明书数据，用于展示来源导入失败状态。",
+        id="account-policy",
+        title="账号与会员说明",
+        category="账号服务",
+        url="https://example.com/support/account",
+        status="indexed",
+        updatedAt="2026-09-03",
+        description="说明账号注册、登录、密码找回和会员权益。",
     ),
     Source(
-        id="who-zh-health-topics",
-        title="世界卫生组织中文健康专题",
-        category="权威科普",
-        url="https://www.who.int/zh/news-room/fact-sheets",
+        id="human-service",
+        title="人工客服转接说明",
+        category="服务渠道",
+        url="https://example.com/support/human",
         status="pending",
         updatedAt="待处理",
-        description="世界卫生组织中文事实页与健康专题，可作为后续补充的公开科普来源。",
+        description="说明人工客服入口、服务时间和排队规则。",
     ),
 ]
 
 _mock_answers = [
     {
-        "id": "flu-treatment",
-        "keywords": ["流感", "抗病毒", "奥司他韦", "治疗时机"],
-        "answer": (
-            "根据示例资料，对于重症流感患者或有重症高危因素的患者，"
-            "应尽早给予抗流感病毒治疗，不必等待病毒检测结果。"
-            "轻症且无高危因素者可在医生评估后决定是否用药。"
-        ),
+        "id": "return-policy",
+        "keywords": ["退货", "退款", "退换货", "无理由"],
+        "answer": "根据资料，收到商品后 7 天内可申请无理由退货，商品需保持完好且不影响二次销售。",
         "citations": [
             Citation(
-                id="flu-cite-1",
-                title="流行性感冒诊疗方案（2025年版）",
-                url="https://www.nhc.gov.cn/wjw/ylyjs/202501/ac113876c97c47a7bd8c03c3c05ffa08.shtml",
-                location="抗病毒治疗章节",
-                snippet="重症或有重症流感高危因素的患者，应尽早给予抗流感病毒治疗，不必等待病毒检测结果。",
+                id="return-cite-1",
+                title="退换货政策说明",
+                url="https://example.com/support/returns",
+                location="退货流程章节",
+                snippet="收到商品后 7 天内可申请无理由退货，商品需保持完好且不影响二次销售。",
+                score=0.96,
+            )
+        ],
+    },
+    {
+        "id": "shipping-policy",
+        "keywords": ["发货", "物流", "配送", "订单"],
+        "answer": "根据资料，现货订单通常在工作日 24 小时内发出，发货后可在订单详情查看物流单号。",
+        "citations": [
+            Citation(
+                id="shipping-cite-1",
+                title="订单与物流说明",
+                url="https://example.com/support/shipping",
+                location="发货时效章节",
+                snippet="现货订单通常在工作日 24 小时内发出，发货后可在订单详情查看物流单号。",
                 score=0.94,
             )
         ],
     },
     {
-        "id": "hypertension-management",
-        "keywords": ["高血压", "降压", "血压", "管理"],
-        "answer": (
-            "示例资料显示，高血压管理应结合低盐饮食、规律运动、控制体重等"
-            "生活方式干预，并遵医嘱规范使用降压药物，同时定期监测血压和复诊。"
-        ),
+        "id": "invoice-policy",
+        "keywords": ["发票", "开票", "电子发票"],
+        "answer": "根据资料，订单完成后可在个人中心申请电子发票，开票信息需与订单抬头一致。",
         "citations": [
             Citation(
-                id="htn-cite-1",
-                title="国家基层高血压防治管理指南",
-                url="https://www.nhc.gov.cn/",
-                location="治疗与管理章节",
-                snippet="高血压管理应结合生活方式干预和规范药物治疗，定期随访并评估血压达标情况。",
-                score=0.91,
-            )
-        ],
-    },
-    {
-        "id": "medication-precautions",
-        "keywords": ["用药", "药品", "注意事项", "说明书"],
-        "answer": (
-            "示例资料提示，用药前应核对药品名称、适应症、用法用量、禁忌和不良反应，"
-            "避免自行加量或混用多种药物；出现严重不适时应及时停药并就医。"
-        ),
-        "citations": [
-            Citation(
-                id="drug-cite-1",
-                title="国家药监局化学药品说明书",
-                url="https://www.nmpa.gov.cn/datasearch/",
-                location="注意事项章节",
-                snippet="用药前应核对药品名称、适应症、用法用量与禁忌，出现严重不良反应应及时就医。",
-                score=0.89,
-            )
-        ],
-    },
-    {
-        "id": "obesity-diagnosis",
-        "keywords": ["肥胖", "bmi", "体重指数", "诊断"],
-        "answer": (
-            "示例资料显示，肥胖症的诊断需要综合体重指数、腰围以及血压、血糖、血脂等"
-            "代谢异常情况进行评估，而不是单纯依据体重数字判断。"
-        ),
-        "citations": [
-            Citation(
-                id="obesity-cite-1",
-                title="肥胖症诊疗指南（2024年版）",
-                url="https://www.gov.cn/zhengce/zhengceku/202410/content_6981734.htm",
-                location="诊断与评估章节",
-                snippet="肥胖症的诊断需综合体重指数、腰围及代谢异常等因素进行评估，而非仅凭体重判断。",
+                id="invoice-cite-1",
+                title="发票申请说明",
+                url="https://example.com/support/invoice",
+                location="电子发票章节",
+                snippet="订单完成后可在个人中心申请电子发票，开票信息需与订单抬头一致。",
                 score=0.92,
+            )
+        ],
+    },
+    {
+        "id": "human-service",
+        "keywords": ["人工客服", "转人工", "人工", "客服"],
+        "answer": "根据资料，如需人工客服，可在服务页面选择转人工，服务时间为工作日 9:00-18:00。",
+        "citations": [
+            Citation(
+                id="human-cite-1",
+                title="人工客服转接说明",
+                url="https://example.com/support/human",
+                location="人工服务章节",
+                snippet="如需人工客服，可在服务页面选择转人工，服务时间为工作日 9:00-18:00。",
+                score=0.9,
             )
         ],
     },

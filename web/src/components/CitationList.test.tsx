@@ -11,7 +11,7 @@ describe('CitationList', () => {
 
     expect(screen.getByText(citation.snippet)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /流行性感冒诊疗方案/ }))
+    fireEvent.click(screen.getByRole('button', { name: /退换货政策说明/ }))
 
     expect(screen.queryByText(citation.snippet)).not.toBeInTheDocument()
   })

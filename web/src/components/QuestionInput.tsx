@@ -33,7 +33,7 @@ export function QuestionInput({ disabled, onAsk }: QuestionInputProps) {
     >
       <div className="mx-auto flex max-w-3xl items-end gap-3">
         <label htmlFor="question" className="sr-only">
-          输入医学问题
+          输入客服问题
         </label>
         <textarea
           id="question"
@@ -45,7 +45,7 @@ export function QuestionInput({ disabled, onAsk }: QuestionInputProps) {
               submitQuestion()
             }
           }}
-          placeholder="输入医学问题，例如：成人流感的抗病毒治疗时机是什么？"
+          placeholder="输入客服问题，例如：如何申请退货？"
           rows={2}
           className="max-h-36 min-h-[52px] flex-1 resize-none rounded-xl border border-line bg-white px-4 py-3 text-sm leading-6 text-ink-900 outline-none transition placeholder:text-ink-500 focus:border-brand-500 focus:ring-2 focus:ring-brand-100"
         />

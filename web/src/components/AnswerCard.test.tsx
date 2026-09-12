@@ -24,7 +24,7 @@ describe('AnswerCard', () => {
   it('renders the loading state', () => {
     const conversation: Conversation = {
       id: 'loading',
-      question: '成人流感的抗病毒治疗时机是什么？',
+      question: '如何申请退货？',
       citations: [],
       status: 'loading',
     }

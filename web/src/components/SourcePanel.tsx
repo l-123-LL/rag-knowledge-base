@@ -66,8 +66,8 @@ export function SourcePanel({
       <div className="border-b border-line px-5 py-5">
         <div className="mb-2 flex items-center justify-between">
           <div>
-            <h2 className="text-base font-semibold text-ink-900">知识来源</h2>
-            <p className="mt-1 text-xs text-ink-500">示例资料列表</p>
+            <h2 className="text-base font-semibold text-ink-900">客服知识库</h2>
+            <p className="mt-1 text-xs text-ink-500">企业知识资料</p>
           </div>
           <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
             {sources.length} 条

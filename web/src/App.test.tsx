@@ -24,9 +24,9 @@ describe('App', () => {
     render(<App />)
     await act(async () => {})
 
-    const input = screen.getByLabelText('输入医学问题')
+    const input = screen.getByLabelText('输入客服问题')
     fireEvent.change(input, {
-      target: { value: '成人流感的抗病毒治疗时机是什么？' },
+      target: { value: '如何申请退货？' },
     })
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 
@@ -37,10 +37,10 @@ describe('App', () => {
     })
 
     expect(
-      screen.getByText(/轻症且无高危因素者可在医生评估后决定是否用药/),
+      screen.getByText(/根据示例资料，收到商品后 7 天内可申请无理由退货/),
     ).toBeInTheDocument()
     expect(
-      screen.getAllByText('流行性感冒诊疗方案（2025年版）').length,
+      screen.getAllByText('退换货政策说明').length,
     ).toBeGreaterThan(0)
   })
 
@@ -49,7 +49,7 @@ describe('App', () => {
     render(<App />)
     await act(async () => {})
 
-    const input = screen.getByLabelText('输入医学问题')
+    const input = screen.getByLabelText('输入客服问题')
     fireEvent.change(input, { target: { value: '今天天气如何' } })
     fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' })
 

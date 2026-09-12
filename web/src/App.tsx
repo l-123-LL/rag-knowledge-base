@@ -147,8 +147,8 @@ export default function App() {
             <DatabaseIcon className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold">医学知识库</p>
-            <p className="text-xs text-ink-500">RAG 前端预览</p>
+            <p className="text-sm font-semibold">企业智能客服</p>
+            <p className="text-xs text-ink-500">知识库问答预览</p>
           </div>
         </div>
         <div className="min-h-0 flex-1">
@@ -167,8 +167,8 @@ export default function App() {
             <DatabaseIcon className="h-5 w-5" />
           </div>
           <div>
-            <p className="text-sm font-semibold">医学知识库</p>
-            <p className="text-xs text-ink-500">RAG 前端预览</p>
+            <p className="text-sm font-semibold">企业智能客服</p>
+            <p className="text-xs text-ink-500">知识库问答预览</p>
           </div>
         </header>
 

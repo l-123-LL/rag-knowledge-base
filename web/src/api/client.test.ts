@@ -10,12 +10,12 @@ describe('api client', () => {
   it('returns a grounded mock answer for a matching question', async () => {
     vi.useFakeTimers()
 
-    const request = askQuestion('成人流感的抗病毒治疗时机是什么？')
+    const request = askQuestion('如何申请退货？')
     await vi.advanceTimersByTimeAsync(MOCK_DELAY_MS)
     const response = await request
 
     expect(response.status).toBe('done')
-    expect(response.answer).toContain('抗流感病毒治疗')
+    expect(response.answer).toContain('退货')
     expect(response.citations.length).toBeGreaterThan(0)
 
     vi.useRealTimers()
