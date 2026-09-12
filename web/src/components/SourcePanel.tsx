@@ -6,6 +6,11 @@ interface SourcePanelProps {
   sources: Source[]
   onUploadFile?: (file: File) => Promise<void>
   onIngestUrl?: (url: string) => Promise<void>
+  onCreateFaq?: (payload: {
+    question: string
+    answer: string
+    keywords: string[]
+  }) => Promise<void>
   uploadError?: string | null
   stats?: Stats
   metrics?: Metrics
@@ -21,6 +26,7 @@ export function SourcePanel({
   sources,
   onUploadFile,
   onIngestUrl,
+  onCreateFaq,
   uploadError,
   stats,
   metrics,
@@ -30,6 +36,10 @@ export function SourcePanel({
   const [isUploading, setIsUploading] = useState(false)
   const [isImportingUrl, setIsImportingUrl] = useState(false)
   const [url, setUrl] = useState('')
+  const [faqQuestion, setFaqQuestion] = useState('')
+  const [faqAnswer, setFaqAnswer] = useState('')
+  const [faqKeywords, setFaqKeywords] = useState('')
+  const [isSavingFaq, setIsSavingFaq] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const selected = sources.find((source) => source.id === selectedId) ?? null
 
@@ -62,6 +72,30 @@ export function SourcePanel({
       setUrl('')
     } finally {
       setIsImportingUrl(false)
+    }
+  }
+
+  async function handleFaqSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!onCreateFaq || !faqQuestion.trim() || !faqAnswer.trim()) {
+      return
+    }
+
+    setIsSavingFaq(true)
+    try {
+      await onCreateFaq({
+        question: faqQuestion.trim(),
+        answer: faqAnswer.trim(),
+        keywords: faqKeywords
+          .split(/[,，]/)
+          .map((keyword) => keyword.trim())
+          .filter(Boolean),
+      })
+      setFaqQuestion('')
+      setFaqAnswer('')
+      setFaqKeywords('')
+    } finally {
+      setIsSavingFaq(false)
     }
   }
 
@@ -207,6 +241,41 @@ export function SourcePanel({
       </div>
 
       <div className="border-t border-line px-5 py-4">
+        {onCreateFaq ? (
+          <details className="mb-3">
+            <summary className="cursor-pointer text-xs font-medium text-brand-600">
+              新增 FAQ
+            </summary>
+            <form onSubmit={handleFaqSubmit} className="mt-3 space-y-2">
+              <input
+                value={faqQuestion}
+                onChange={(event) => setFaqQuestion(event.target.value)}
+                placeholder="标准问题"
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand-500"
+              />
+              <textarea
+                value={faqAnswer}
+                onChange={(event) => setFaqAnswer(event.target.value)}
+                placeholder="标准答案"
+                rows={3}
+                className="w-full resize-none rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand-500"
+              />
+              <input
+                value={faqKeywords}
+                onChange={(event) => setFaqKeywords(event.target.value)}
+                placeholder="关键词，用逗号分隔"
+                className="w-full rounded-lg border border-line px-3 py-2 text-sm outline-none focus:border-brand-500"
+              />
+              <button
+                type="submit"
+                disabled={isSavingFaq || !faqQuestion.trim() || !faqAnswer.trim()}
+                className="w-full rounded-lg bg-brand-600 px-3 py-2 text-sm font-medium text-white transition hover:bg-brand-700 disabled:bg-slate-300"
+              >
+                {isSavingFaq ? '保存中…' : '保存 FAQ'}
+              </button>
+            </form>
+          </details>
+        ) : null}
         {onIngestUrl ? (
           <form onSubmit={handleUrlSubmit} className="mb-3">
             <label htmlFor="source-url" className="mb-1 block text-xs font-medium text-ink-500">

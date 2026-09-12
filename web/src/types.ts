@@ -25,6 +25,13 @@ export interface Metrics {
   total_cost: number
 }
 
+export interface FaqItem {
+  id: string
+  question: string
+  answer: string
+  keywords: string[]
+}
+
 export interface Citation {
   id: string
   title: string

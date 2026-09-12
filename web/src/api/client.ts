@@ -1,5 +1,5 @@
 import { findMockAnswer, mockSources } from '../data/mockData'
-import type { Citation, Metrics, Source, Stats } from '../types'
+import type { Citation, FaqItem, Metrics, Source, Stats } from '../types'
 
 export interface AskResponse {
   answer: string
@@ -121,6 +121,28 @@ export async function getMetrics(): Promise<Metrics> {
     total_tokens: 0,
     total_cost: 0,
   }
+}
+
+export async function createFaq(payload: {
+  question: string
+  answer: string
+  keywords: string[]
+}): Promise<FaqItem> {
+  const response = await requestBackend('/faqs', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ ...payload, source: '前端录入' }),
+  })
+
+  if (!response) {
+    throw new Error('后端不可用')
+  }
+
+  if (!response.ok) {
+    throw new Error('FAQ 创建失败')
+  }
+
+  return (await response.json()) as FaqItem
 }
 
 export async function ingestFile(file: File): Promise<IngestResponse> {

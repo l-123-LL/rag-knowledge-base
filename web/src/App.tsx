@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   askQuestion,
+  createFaq,
   ingestFile,
   ingestUrl,
   getMetrics,
@@ -97,6 +98,28 @@ export default function App() {
     await resetSession()
   }, [])
 
+  const handleCreateFaq = useCallback(
+    async (payload: {
+      question: string
+      answer: string
+      keywords: string[]
+    }) => {
+      setUploadError(null)
+      try {
+        await createFaq(payload)
+        const [statsData, metricsData] = await Promise.all([
+          getStats(),
+          getMetrics(),
+        ])
+        setStats(statsData)
+        setMetrics(metricsData)
+      } catch {
+        setUploadError('FAQ 保存失败，请确认后端正在运行。')
+      }
+    },
+    [],
+  )
+
   // 前端预览：先展示加载状态，再用本地示例数据模拟一次问答。
   const handleAsk = useCallback(async (rawQuestion: string) => {
     const question = rawQuestion.trim()
@@ -184,6 +207,7 @@ export default function App() {
             sources={sources}
             onUploadFile={handleFileUpload}
             onIngestUrl={handleUrlIngest}
+            onCreateFaq={handleCreateFaq}
             uploadError={uploadError}
             stats={stats}
             metrics={metrics}
@@ -207,6 +231,7 @@ export default function App() {
             sources={sources}
             onUploadFile={handleFileUpload}
             onIngestUrl={handleUrlIngest}
+            onCreateFaq={handleCreateFaq}
             uploadError={uploadError}
             stats={stats}
             metrics={metrics}
