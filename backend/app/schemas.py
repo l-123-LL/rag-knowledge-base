@@ -29,6 +29,13 @@ class FaqCreateRequest(BaseModel):
     source: str = Field(default="人工录入", min_length=1)
 
 
+class FeedbackRequest(BaseModel):
+    session_id: str | None = None
+    question: str = Field(min_length=1)
+    rating: Literal["up", "down"]
+    comment: str | None = None
+
+
 class IngestResponse(BaseModel):
     chunk_count: int
 

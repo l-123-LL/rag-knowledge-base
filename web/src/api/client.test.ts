@@ -5,6 +5,7 @@ import {
   MOCK_DELAY_MS,
   listSources,
   resetSession,
+  sendFeedback,
 } from './client'
 
 describe('api client', () => {
@@ -47,5 +48,11 @@ describe('api client', () => {
 
   it('resets the local session without backend errors', async () => {
     await expect(resetSession()).resolves.toBeUndefined()
+  })
+
+  it('reports feedback failures when backend is missing', async () => {
+    await expect(
+      sendFeedback({ question: '如何退货？', rating: 'up' }),
+    ).rejects.toThrow('后端不可用')
   })
 })

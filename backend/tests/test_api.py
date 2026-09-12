@@ -252,3 +252,16 @@ def test_archive_and_restore_source() -> None:
     assert archived.json()["archived"] is True
     assert restored.status_code == 200
     assert restored.json()["archived"] is False
+
+
+def test_feedback_endpoint() -> None:
+    response = client.post(
+        "/feedback",
+        json={
+            "question": "如何申请退货？",
+            "rating": "up",
+        },
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

@@ -56,3 +56,17 @@ def summarize_ask_log(log_path: str | Path | None = None) -> dict:
         "total_tokens": total_tokens,
         "total_cost": total_cost,
     }
+
+
+def log_feedback(
+    event: dict,
+    log_path: str | Path | None = None,
+) -> None:
+    path = Path(log_path or os.getenv("FEEDBACK_LOG_PATH", "data/logs/feedback.jsonl"))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        **event,
+    }
+    with path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(payload, ensure_ascii=False) + "\n")

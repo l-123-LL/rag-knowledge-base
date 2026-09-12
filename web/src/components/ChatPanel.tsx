@@ -10,6 +10,7 @@ interface ChatPanelProps {
   mockQuestions: MockConversation[]
   onAsk: (question: string) => void
   onNewSession?: () => void
+  onFeedback?: (question: string, rating: 'up' | 'down') => void
 }
 
 function EmptyState({
@@ -75,6 +76,7 @@ export function ChatPanel({
   mockQuestions,
   onAsk,
   onNewSession,
+  onFeedback,
 }: ChatPanelProps) {
   // 首屏没有对话时展示引导和示例问题。
   const showEmptyState = useMemo(
@@ -119,7 +121,15 @@ export function ChatPanel({
         ) : (
           <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-5 lg:px-6">
             {conversations.map((conversation) => (
-              <AnswerCard key={conversation.id} conversation={conversation} />
+              <AnswerCard
+                key={conversation.id}
+                conversation={conversation}
+                onFeedback={
+                  onFeedback
+                    ? (rating) => onFeedback(conversation.question, rating)
+                    : undefined
+                }
+              />
             ))}
           </div>
         )}

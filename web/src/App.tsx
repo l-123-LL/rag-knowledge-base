@@ -9,6 +9,7 @@ import {
   getStats,
   listSources,
   resetSession,
+  sendFeedback,
   streamAsk,
 } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
@@ -135,6 +136,17 @@ export default function App() {
         setMetrics(metricsData)
       } catch {
         setUploadError('来源状态更新失败，请确认后端正在运行。')
+      }
+    },
+    [],
+  )
+
+  const handleFeedback = useCallback(
+    async (question: string, rating: 'up' | 'down') => {
+      try {
+        await sendFeedback({ question, rating })
+      } catch {
+        setError('反馈提交失败，请稍后重试。')
       }
     },
     [],
@@ -268,6 +280,7 @@ export default function App() {
             mockQuestions={mockConversations}
             onAsk={handleAsk}
             onNewSession={handleNewSession}
+            onFeedback={handleFeedback}
           />
         </main>
       </div>

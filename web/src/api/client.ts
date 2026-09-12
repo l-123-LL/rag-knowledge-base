@@ -289,3 +289,22 @@ export async function archiveSource(
 
   return (await response.json()) as Source
 }
+
+export async function sendFeedback(payload: {
+  question: string
+  rating: 'up' | 'down'
+}): Promise<void> {
+  const response = await requestBackend('/feedback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response) {
+    throw new Error('后端不可用')
+  }
+
+  if (!response.ok) {
+    throw new Error('反馈提交失败')
+  }
+}

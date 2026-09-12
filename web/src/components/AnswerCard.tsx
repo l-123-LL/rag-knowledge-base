@@ -1,9 +1,11 @@
+import { useState } from 'react'
 import type { Conversation } from '../types'
 import { AlertIcon } from './icons'
 import { CitationList } from './CitationList'
 
 interface AnswerCardProps {
   conversation: Conversation
+  onFeedback?: (rating: 'up' | 'down') => void
 }
 
 function TypingIndicator() {
@@ -16,7 +18,8 @@ function TypingIndicator() {
   )
 }
 
-export function AnswerCard({ conversation }: AnswerCardProps) {
+export function AnswerCard({ conversation, onFeedback }: AnswerCardProps) {
+  const [feedback, setFeedback] = useState<'up' | 'down' | null>(null)
   // 没有命中示例资料时展示“资料不足”，而不是生成不确定答案。
   const isInsufficient = conversation.status === 'insufficient'
 
@@ -47,6 +50,31 @@ export function AnswerCard({ conversation }: AnswerCardProps) {
               {conversation.answer}
             </p>
             <CitationList citations={conversation.citations} />
+            {onFeedback ? (
+              <div className="mt-4 flex items-center gap-3 border-t border-line pt-3">
+                <span className="text-xs text-ink-500">这个回答有帮助吗？</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedback('up')
+                    onFeedback('up')
+                  }}
+                  className={`text-xs ${feedback === 'up' ? 'text-emerald-600' : 'text-ink-500'}`}
+                >
+                  有帮助
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFeedback('down')
+                    onFeedback('down')
+                  }}
+                  className={`text-xs ${feedback === 'down' ? 'text-rose-600' : 'text-ink-500'}`}
+                >
+                  没帮助
+                </button>
+              </div>
+            ) : null}
           </>
         )}
       </div>

@@ -13,7 +13,7 @@ from .cost import calculate_cost
 from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
-from .observability import log_ask_event, summarize_ask_log
+from .observability import log_ask_event, log_feedback, summarize_ask_log
 from .mock_data import add_faq, faq_count, faq_items, find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -24,6 +24,7 @@ from .schemas import (
     IngestRequest,
     IngestResponse,
     FaqCreateRequest,
+    FeedbackRequest,
     SessionResetRequest,
     Source,
     UrlIngestRequest,
@@ -185,6 +186,19 @@ def create_faq(request: FaqCreateRequest) -> dict:
         keywords=request.keywords,
         source=request.source,
     )
+
+
+@app.post("/feedback")
+def feedback(request: FeedbackRequest) -> dict:
+    log_feedback(
+        {
+            "session_id": request.session_id,
+            "question": request.question,
+            "rating": request.rating,
+            "comment": request.comment,
+        }
+    )
+    return {"status": "ok"}
 
 
 @app.post("/ask", response_model=AskResponse)
