@@ -48,7 +48,7 @@ sources: list[Source] = [
     ),
 ]
 
-_mock_answers = [
+faq_items: list[dict] = [
     {
         "id": "return-policy",
         "keywords": ["退货", "退款", "退换货", "无理由"],
@@ -115,7 +115,7 @@ _mock_answers = [
 def find_mock_answer(question: str) -> dict | None:
     normalized = question.lower().replace(" ", "")
 
-    for item in _mock_answers:
+    for item in faq_items:
         if any(
             keyword.lower().replace(" ", "") in normalized
             for keyword in item["keywords"]
@@ -126,4 +126,30 @@ def find_mock_answer(question: str) -> dict | None:
 
 
 def faq_count() -> int:
-    return len(_mock_answers)
+    return len(faq_items)
+
+
+def add_faq(
+    question: str,
+    answer: str,
+    keywords: list[str],
+    source: str = "人工录入",
+) -> dict:
+    item = {
+        "id": f"faq-{len(faq_items) + 1}",
+        "question": question,
+        "keywords": keywords or [question],
+        "answer": answer,
+        "citations": [
+            Citation(
+                id=f"faq-cite-{len(faq_items) + 1}",
+                title=source,
+                url="",
+                location="FAQ",
+                snippet=answer[:200],
+                score=1.0,
+            )
+        ],
+    }
+    faq_items.append(item)
+    return item

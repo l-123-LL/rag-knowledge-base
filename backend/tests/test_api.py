@@ -212,3 +212,25 @@ def test_stats_returns_counts() -> None:
     payload = response.json()
     assert payload["source_count"] >= 5
     assert payload["faq_count"] >= 4
+
+
+def test_create_faq_is_used_by_ask() -> None:
+    created = client.post(
+        "/faqs",
+        json={
+            "question": "如何修改收货地址？",
+            "answer": "订单发货前可在订单详情中修改收货地址。",
+            "keywords": ["修改地址", "收货地址"],
+            "source": "客服手册",
+        },
+    )
+
+    assert created.status_code == 200
+    response = client.post(
+        "/ask",
+        json={"question": "我想修改地址"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "faq"
+    assert "发货前" in response.json()["answer"]

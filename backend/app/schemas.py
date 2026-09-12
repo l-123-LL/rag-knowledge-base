@@ -22,6 +22,13 @@ class SessionResetRequest(BaseModel):
     session_id: str
 
 
+class FaqCreateRequest(BaseModel):
+    question: str = Field(min_length=1)
+    answer: str = Field(min_length=1)
+    keywords: list[str] = Field(default_factory=list)
+    source: str = Field(default="人工录入", min_length=1)
+
+
 class IngestResponse(BaseModel):
     chunk_count: int
 
