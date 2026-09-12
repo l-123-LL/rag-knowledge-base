@@ -4,6 +4,8 @@ import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
+
 
 def _ticket_dir(tenant_id: str = "default") -> Path:
     return Path(os.getenv("TICKET_DIR", "data/tickets")) / tenant_id
@@ -31,6 +33,7 @@ def create_ticket(
         json.dumps(ticket, ensure_ascii=False),
         encoding="utf-8",
     )
+    send_ticket_webhook(ticket)
     return ticket
 
 
@@ -50,3 +53,18 @@ def list_tickets(limit: int = 100, tenant_id: str = "default") -> list[dict]:
 def count_tickets(tenant_id: str = "default") -> int:
     directory = _ticket_dir(tenant_id)
     return len(list(directory.glob("T*.json"))) if directory.exists() else 0
+
+
+def send_ticket_webhook(ticket: dict) -> bool:
+    """可选工单外发：配置 TICKET_WEBHOOK_URL 后推送到 CRM 或客服平台。"""
+    url = os.getenv("TICKET_WEBHOOK_URL")
+    if not url:
+        return False
+
+    try:
+        response = httpx.post(url, json=ticket, timeout=10)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return False
+
+    return True
