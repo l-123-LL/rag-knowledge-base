@@ -21,6 +21,7 @@ class FakePipeline:
         top_k: int = 5,
         history: list[dict] | None = None,
         exclude_sources: set[str] | None = None,
+        tenant_id: str = "default",
     ) -> PipelineAnswer:
         if "流感" not in question:
             return PipelineAnswer(answer="当前资料不足。", contexts=[])
@@ -56,6 +57,7 @@ class FakeStreamingPipeline:
         question: str,
         top_k: int = 5,
         exclude_sources: set[str] | None = None,
+        tenant_id: str = "default",
     ) -> list[RetrievedChunk]:
         return [
             RetrievedChunk(

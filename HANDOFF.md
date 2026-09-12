@@ -79,6 +79,7 @@
 - 统计指标已加入工单数量，前端来源面板可查看当前工单数。
 - 已加入本地备份能力，管理员可调用 `POST /backup` 打包数据目录。
 - 扫描版 PDF 的 OCR 作为可选增强：开启 `OCR_ENABLED=true` 并安装 OCR 组件后生效。
+- 已加入多租户基础隔离：通过 `X-Tenant-ID` 隔离来源、FAQ、会话、工单和检索元数据。
 - 运行指标已聚合反馈数据，前端展示“有帮助率”。
 - 已加入后端、前端 Dockerfile 和 `docker-compose.yml`，可通过 Docker 启动完整服务。
 - 已加入 GitHub Actions CI，推送或提交 PR 时自动跑后端测试、前端测试、类型检查和构建。

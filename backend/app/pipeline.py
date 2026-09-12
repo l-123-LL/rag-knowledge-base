@@ -48,11 +48,13 @@ class RAGPipeline:
         top_k: int = 5,
         history: list[dict] | None = None,
         exclude_sources: set[str] | None = None,
+        tenant_id: str = "default",
     ) -> PipelineAnswer:
         contexts = self.retrieve(
             question,
             top_k=top_k,
             exclude_sources=exclude_sources,
+            tenant_id=tenant_id,
         )
         if not contexts:
             return PipelineAnswer(
@@ -80,11 +82,13 @@ class RAGPipeline:
         question: str,
         top_k: int = 5,
         exclude_sources: set[str] | None = None,
+        tenant_id: str = "default",
     ) -> list[RetrievedChunk]:
         contexts = self.retriever.search(
             question,
             top_k=top_k,
             exclude_sources=exclude_sources,
+            tenant_id=tenant_id,
         )
         return contexts
 

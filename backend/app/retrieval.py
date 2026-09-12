@@ -114,6 +114,7 @@ class HybridRetriever:
         query: str,
         top_k: int = 5,
         exclude_sources: set[str] | None = None,
+        tenant_id: str = "default",
     ) -> list[RetrievedChunk]:
         query_embedding = self.embedder.embed([query])[0]
         vector_hits = self.vector_store.query(query_embedding, top_k=len(self.doc_ids))
@@ -148,6 +149,7 @@ class HybridRetriever:
             candidate
             for candidate in candidates
             if candidate.metadata.get("source") not in excluded
+            and candidate.metadata.get("tenant_id", "default") == tenant_id
         ]
         candidates.sort(
             key=lambda item: item.combined_score,

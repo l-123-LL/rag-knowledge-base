@@ -5,14 +5,15 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 
-def _ticket_dir() -> Path:
-    return Path(os.getenv("TICKET_DIR", "data/tickets"))
+def _ticket_dir(tenant_id: str = "default") -> Path:
+    return Path(os.getenv("TICKET_DIR", "data/tickets")) / tenant_id
 
 
 def create_ticket(
     question: str,
     session_id: str | None = None,
     reason: str = "customer_service",
+    tenant_id: str = "default",
 ) -> dict:
     ticket_id = f"T{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:6].upper()}"
     ticket = {
@@ -21,9 +22,10 @@ def create_ticket(
         "session_id": session_id,
         "reason": reason,
         "status": "open",
+        "tenant_id": tenant_id,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }
-    directory = _ticket_dir()
+    directory = _ticket_dir(tenant_id)
     directory.mkdir(parents=True, exist_ok=True)
     (directory / f"{ticket_id}.json").write_text(
         json.dumps(ticket, ensure_ascii=False),
@@ -32,8 +34,8 @@ def create_ticket(
     return ticket
 
 
-def list_tickets(limit: int = 100) -> list[dict]:
-    directory = _ticket_dir()
+def list_tickets(limit: int = 100, tenant_id: str = "default") -> list[dict]:
+    directory = _ticket_dir(tenant_id)
     if not directory.exists():
         return []
 
@@ -45,6 +47,6 @@ def list_tickets(limit: int = 100) -> list[dict]:
     return tickets[:limit]
 
 
-def count_tickets() -> int:
-    directory = _ticket_dir()
+def count_tickets(tenant_id: str = "default") -> int:
+    directory = _ticket_dir(tenant_id)
     return len(list(directory.glob("T*.json"))) if directory.exists() else 0

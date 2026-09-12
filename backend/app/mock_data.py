@@ -63,6 +63,7 @@ faq_items: list[dict] = [
                 score=0.96,
             )
         ],
+        "tenant_id": "default",
     },
     {
         "id": "shipping-policy",
@@ -78,6 +79,7 @@ faq_items: list[dict] = [
                 score=0.94,
             )
         ],
+        "tenant_id": "default",
     },
     {
         "id": "invoice-policy",
@@ -93,6 +95,7 @@ faq_items: list[dict] = [
                 score=0.92,
             )
         ],
+        "tenant_id": "default",
     },
     {
         "id": "human-service",
@@ -108,14 +111,17 @@ faq_items: list[dict] = [
                 score=0.9,
             )
         ],
+        "tenant_id": "default",
     },
 ]
 
 
-def find_mock_answer(question: str) -> dict | None:
+def find_mock_answer(question: str, tenant_id: str = "default") -> dict | None:
     normalized = question.lower().replace(" ", "")
 
     for item in faq_items:
+        if item.get("tenant_id", "default") != tenant_id:
+            continue
         if any(
             keyword.lower().replace(" ", "") in normalized
             for keyword in item["keywords"]
@@ -125,8 +131,10 @@ def find_mock_answer(question: str) -> dict | None:
     return None
 
 
-def faq_count() -> int:
-    return len(faq_items)
+def faq_count(tenant_id: str = "default") -> int:
+    return sum(
+        1 for item in faq_items if item.get("tenant_id", "default") == tenant_id
+    )
 
 
 def add_faq(
@@ -134,6 +142,7 @@ def add_faq(
     answer: str,
     keywords: list[str],
     source: str = "人工录入",
+    tenant_id: str = "default",
 ) -> dict:
     item = {
         "id": f"faq-{len(faq_items) + 1}",
@@ -150,6 +159,7 @@ def add_faq(
                 score=1.0,
             )
         ],
+        "tenant_id": tenant_id,
     }
     faq_items.append(item)
     return item

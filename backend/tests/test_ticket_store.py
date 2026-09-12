@@ -10,7 +10,8 @@ def test_ticket_store_creates_and_lists_ticket(monkeypatch) -> None:
         ticket = create_ticket("如何退货？", reason="manual")
         tickets = list_tickets()
     finally:
-        (ticket_dir / f"{ticket['id']}.json").unlink(missing_ok=True)
+        (ticket_dir / "default" / f"{ticket['id']}.json").unlink(missing_ok=True)
+        (ticket_dir / "default").rmdir()
         ticket_dir.rmdir()
 
     assert ticket["status"] == "open"

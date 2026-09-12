@@ -47,8 +47,12 @@ async function requestBackend(
   try {
     const headers = new Headers(init?.headers)
     const adminApiKey = import.meta.env.VITE_ADMIN_API_KEY
+    const tenantId = import.meta.env.VITE_TENANT_ID || 'default'
     if (adminApiKey && !headers.has('X-API-Key')) {
       headers.set('X-API-Key', adminApiKey)
+    }
+    if (!headers.has('X-Tenant-ID')) {
+      headers.set('X-Tenant-ID', tenantId)
     }
     return await window.fetch(path, { ...init, headers })
   } catch {

@@ -74,6 +74,7 @@ class Source(BaseModel):
     updatedAt: str
     description: str
     archived: bool = False
+    tenant_id: str = "default"
 
 
 class HealthResponse(BaseModel):

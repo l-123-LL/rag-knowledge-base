@@ -44,6 +44,7 @@ from .session_store import (
     record_message,
 )
 from .security import require_admin_key
+from .tenant import get_tenant_id
 from .ticket_store import count_tickets, create_ticket, list_tickets
 
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
@@ -92,19 +93,22 @@ def health() -> HealthResponse:
 
 
 @app.get("/sources", response_model=list[Source])
-def list_sources() -> list[Source]:
-    return sources
+def list_sources(
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[Source]:
+    return [source for source in sources if source.tenant_id == tenant_id]
 
 
 @app.post("/ingest", response_model=IngestResponse)
 def ingest(
     request: IngestRequest,
+    tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_admin_key),
 ) -> IngestResponse:
     pipeline = get_pipeline()
     chunk_count = pipeline.ingest_text(
         request.text,
-        metadata={"source": request.source},
+        metadata={"source": request.source, "tenant_id": tenant_id},
     )
     sources.append(
         Source(
@@ -115,6 +119,7 @@ def ingest(
             status="indexed",
             updatedAt="刚刚",
             description=request.text[:100],
+            tenant_id=tenant_id,
         )
     )
     return IngestResponse(chunk_count=chunk_count)
@@ -123,6 +128,7 @@ def ingest(
 @app.post("/ingest/file", response_model=IngestResponse)
 async def ingest_file(
     file: UploadFile = File(...),
+    tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_admin_key),
 ) -> IngestResponse:
     content = await file.read()
@@ -130,7 +136,11 @@ async def ingest_file(
     pipeline = get_pipeline()
     chunk_count = pipeline.ingest_text(
         text,
-        metadata={"source": metadata["file_name"], "file_name": metadata["file_name"]},
+        metadata={
+            "source": metadata["file_name"],
+            "file_name": metadata["file_name"],
+            "tenant_id": tenant_id,
+        },
     )
     sources.append(
         Source(
@@ -141,6 +151,7 @@ async def ingest_file(
             status="indexed",
             updatedAt="刚刚",
             description=text[:100],
+            tenant_id=tenant_id,
         )
     )
     return IngestResponse(chunk_count=chunk_count)
@@ -149,13 +160,18 @@ async def ingest_file(
 @app.post("/ingest/url", response_model=IngestResponse)
 def ingest_url(
     request: UrlIngestRequest,
+    tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_admin_key),
 ) -> IngestResponse:
     text, metadata = fetch_url_text(request.url)
     pipeline = get_pipeline()
     chunk_count = pipeline.ingest_text(
         text,
-        metadata={"source": request.url, "file_name": request.url},
+        metadata={
+            "source": request.url,
+            "file_name": request.url,
+            "tenant_id": tenant_id,
+        },
     )
     sources.append(
         Source(
@@ -166,26 +182,30 @@ def ingest_url(
             status="indexed",
             updatedAt="刚刚",
             description=text[:100],
+            tenant_id=tenant_id,
         )
     )
     return IngestResponse(chunk_count=chunk_count)
 
 
 @app.post("/session/reset")
-def reset_session(request: SessionResetRequest) -> dict:
-    clear_session(request.session_id)
+def reset_session(
+    request: SessionResetRequest,
+    tenant_id: str = Depends(get_tenant_id),
+) -> dict:
+    clear_session(request.session_id, tenant_id=tenant_id)
     return {"status": "ok"}
 
 
 @app.get("/stats")
-def stats() -> dict:
+def stats(tenant_id: str = Depends(get_tenant_id)) -> dict:
     pipeline = app.state.pipeline
     return {
-        "source_count": len(sources),
+        "source_count": sum(1 for source in sources if source.tenant_id == tenant_id),
         "chunk_count": pipeline.chunk_count() if pipeline else 0,
-        "session_count": count_sessions(),
-        "faq_count": faq_count(),
-        "ticket_count": count_tickets(),
+        "session_count": count_sessions(tenant_id=tenant_id),
+        "faq_count": faq_count(tenant_id=tenant_id),
+        "ticket_count": count_tickets(tenant_id=tenant_id),
     }
 
 
@@ -201,23 +221,27 @@ def metrics() -> dict:
 def archive_source(
     source_id: str,
     archived: bool = True,
+    tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_admin_key),
 ) -> Source:
     for source in sources:
-        if source.id == source_id:
+        if source.id == source_id and source.tenant_id == tenant_id:
             source.archived = archived
             return source
     raise HTTPException(status_code=404, detail="来源不存在")
 
 
 @app.get("/faqs")
-def list_faqs() -> list[dict]:
-    return faq_items
+def list_faqs(tenant_id: str = Depends(get_tenant_id)) -> list[dict]:
+    return [
+        item for item in faq_items if item.get("tenant_id", "default") == tenant_id
+    ]
 
 
 @app.post("/faqs")
 def create_faq(
     request: FaqCreateRequest,
+    tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_admin_key),
 ) -> dict:
     return add_faq(
@@ -225,34 +249,46 @@ def create_faq(
         answer=request.answer,
         keywords=request.keywords,
         source=request.source,
+        tenant_id=tenant_id,
     )
 
 
 @app.post("/feedback")
-def feedback(request: FeedbackRequest) -> dict:
+def feedback(
+    request: FeedbackRequest,
+    tenant_id: str = Depends(get_tenant_id),
+) -> dict:
     log_feedback(
         {
             "session_id": request.session_id,
             "question": request.question,
             "rating": request.rating,
             "comment": request.comment,
+            "tenant_id": tenant_id,
         }
     )
     return {"status": "ok"}
 
 
 @app.post("/tickets")
-def create_ticket_endpoint(request: TicketCreateRequest) -> dict:
+def create_ticket_endpoint(
+    request: TicketCreateRequest,
+    tenant_id: str = Depends(get_tenant_id),
+) -> dict:
     return create_ticket(
         question=request.question,
         session_id=request.session_id,
         reason=request.reason,
+        tenant_id=tenant_id,
     )
 
 
 @app.get("/tickets")
-def get_tickets(limit: int = 100) -> list[dict]:
-    return list_tickets(limit=limit)
+def get_tickets(
+    limit: int = 100,
+    tenant_id: str = Depends(get_tenant_id),
+) -> list[dict]:
+    return list_tickets(limit=limit, tenant_id=tenant_id)
 
 
 @app.post("/backup")
@@ -262,20 +298,29 @@ def backup(_: None = Depends(require_admin_key)) -> dict:
 
 
 @app.post("/ask", response_model=AskResponse)
-def ask(request: AskRequest) -> AskResponse:
+def ask(
+    request: AskRequest,
+    tenant_id: str = Depends(get_tenant_id),
+) -> AskResponse:
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
         ticket = create_ticket(
             question=request.question,
             session_id=request.session_id,
             reason=intent.intent,
+            tenant_id=tenant_id,
         )
         answer_text = (
             f"{intent.message or '已转接人工客服。'}"
             f"（工单号：{ticket['id']}）"
         )
-        record_message(request.session_id, "user", request.question)
-        record_message(request.session_id, "assistant", answer_text)
+        record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+        record_message(
+            request.session_id,
+            "assistant",
+            answer_text,
+            tenant_id=tenant_id,
+        )
         log_ask_event(
             {
                 "route": "intent",
@@ -291,10 +336,15 @@ def ask(request: AskRequest) -> AskResponse:
             status="done",
         )
 
-    faq_match = find_mock_answer(request.question)
+    faq_match = find_mock_answer(request.question, tenant_id=tenant_id)
     if faq_match is not None:
-        record_message(request.session_id, "user", request.question)
-        record_message(request.session_id, "assistant", faq_match["answer"])
+        record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+        record_message(
+            request.session_id,
+            "assistant",
+            faq_match["answer"],
+            tenant_id=tenant_id,
+        )
         log_ask_event(
             {
                 "route": "faq",
@@ -312,15 +362,20 @@ def ask(request: AskRequest) -> AskResponse:
 
     pipeline = get_pipeline()
     started_at = time.perf_counter()
-    archived_sources = {source.title for source in sources if source.archived}
+    archived_sources = {
+        source.title
+        for source in sources
+        if source.archived and source.tenant_id == tenant_id
+    }
 
     try:
-        history = get_history(request.session_id)
+        history = get_history(request.session_id, tenant_id=tenant_id)
         result = pipeline.answer(
             request.question,
             top_k=request.top_k,
             history=history,
             exclude_sources=archived_sources,
+            tenant_id=tenant_id,
         )
     except GenerationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -328,11 +383,17 @@ def ask(request: AskRequest) -> AskResponse:
     latency_ms = int((time.perf_counter() - started_at) * 1000)
 
     if not result.contexts:
-        record_message(request.session_id, "user", request.question)
+        record_message(
+            request.session_id,
+            "user",
+            request.question,
+            tenant_id=tenant_id,
+        )
         record_message(
             request.session_id,
             "assistant",
             "当前示例资料不足，暂时无法给出可靠回答。",
+            tenant_id=tenant_id,
         )
         log_ask_event(
             {
@@ -352,8 +413,13 @@ def ask(request: AskRequest) -> AskResponse:
             latency_ms=latency_ms,
         )
 
-    record_message(request.session_id, "user", request.question)
-    record_message(request.session_id, "assistant", result.answer)
+    record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+    record_message(
+        request.session_id,
+        "assistant",
+        result.answer,
+        tenant_id=tenant_id,
+    )
     cost = calculate_cost(
         result.usage,
         input_price_per_million=float(
@@ -398,14 +464,22 @@ def ask(request: AskRequest) -> AskResponse:
 
 
 @app.post("/ask/stream")
-def ask_stream(request: AskRequest):
+def ask_stream(
+    request: AskRequest,
+    tenant_id: str = Depends(get_tenant_id),
+):
     pipeline = get_pipeline()
-    history = get_history(request.session_id)
-    archived_sources = {source.title for source in sources if source.archived}
+    history = get_history(request.session_id, tenant_id=tenant_id)
+    archived_sources = {
+        source.title
+        for source in sources
+        if source.archived and source.tenant_id == tenant_id
+    }
     contexts = pipeline.retrieve(
         request.question,
         top_k=request.top_k,
         exclude_sources=archived_sources,
+        tenant_id=tenant_id,
     )
 
     if not contexts:

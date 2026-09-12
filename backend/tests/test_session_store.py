@@ -14,7 +14,8 @@ def test_session_history_round_trip(monkeypatch) -> None:
         history = get_history(session_id)
         clear_session(session_id)
     finally:
-        (session_dir / "test-session.json").unlink(missing_ok=True)
+        (session_dir / "default" / "test-session.json").unlink(missing_ok=True)
+        (session_dir / "default").rmdir()
         session_dir.rmdir()
 
     assert history[0]["role"] == "user"
