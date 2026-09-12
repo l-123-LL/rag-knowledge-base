@@ -34,10 +34,15 @@ from .schemas import (
     Source,
     UrlIngestRequest,
 )
+from .session_store import (
+    clear_session,
+    count_sessions,
+    get_history,
+    record_message,
+)
 
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
-SESSION_HISTORY: dict[str, list[dict]] = {}
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,20 +54,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def get_history(session_id: str | None, max_messages: int = 8) -> list[dict]:
-    if not session_id:
-        return []
-    return SESSION_HISTORY.get(session_id, [])[-max_messages:]
-
-
-def record_message(session_id: str | None, role: str, content: str) -> None:
-    if not session_id:
-        return
-    SESSION_HISTORY.setdefault(session_id, []).append(
-        {"role": role, "content": content}
-    )
 
 
 def get_pipeline() -> RAGPipeline:
@@ -149,7 +140,7 @@ def ingest_url(request: UrlIngestRequest) -> IngestResponse:
 
 @app.post("/session/reset")
 def reset_session(request: SessionResetRequest) -> dict:
-    SESSION_HISTORY.pop(request.session_id, None)
+    clear_session(request.session_id)
     return {"status": "ok"}
 
 
@@ -159,7 +150,7 @@ def stats() -> dict:
     return {
         "source_count": len(sources),
         "chunk_count": pipeline.chunk_count() if pipeline else 0,
-        "session_count": len(SESSION_HISTORY),
+        "session_count": count_sessions(),
         "faq_count": faq_count(),
     }
 
