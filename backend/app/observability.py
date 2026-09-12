@@ -70,3 +70,28 @@ def log_feedback(
     }
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+
+
+def summarize_feedback(
+    log_path: str | Path | None = None,
+) -> dict:
+    path = Path(
+        log_path or os.getenv("FEEDBACK_LOG_PATH", "data/logs/feedback.jsonl")
+    )
+    if not path.exists():
+        return {"feedback_count": 0, "helpful_rate": 0.0, "up_count": 0, "down_count": 0}
+
+    events = [
+        json.loads(line)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.strip()
+    ]
+    up_count = sum(1 for event in events if event.get("rating") == "up")
+    down_count = sum(1 for event in events if event.get("rating") == "down")
+    feedback_count = up_count + down_count
+    return {
+        "feedback_count": feedback_count,
+        "up_count": up_count,
+        "down_count": down_count,
+        "helpful_rate": up_count / feedback_count if feedback_count else 0.0,
+    }

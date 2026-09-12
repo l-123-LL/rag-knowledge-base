@@ -24,6 +24,8 @@ export interface Metrics {
   avg_latency_ms: number
   total_tokens: number
   total_cost: number
+  feedback_count: number
+  helpful_rate: number
 }
 
 export interface FaqItem {

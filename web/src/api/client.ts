@@ -120,6 +120,8 @@ export async function getMetrics(): Promise<Metrics> {
     avg_latency_ms: 0,
     total_tokens: 0,
     total_cost: 0,
+    feedback_count: 0,
+    helpful_rate: 0,
   }
 }
 

@@ -13,7 +13,12 @@ from .cost import calculate_cost
 from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
-from .observability import log_ask_event, log_feedback, summarize_ask_log
+from .observability import (
+    log_ask_event,
+    log_feedback,
+    summarize_ask_log,
+    summarize_feedback,
+)
 from .mock_data import add_faq, faq_count, faq_items, find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -161,7 +166,10 @@ def stats() -> dict:
 
 @app.get("/metrics")
 def metrics() -> dict:
-    return summarize_ask_log()
+    return {
+        **summarize_ask_log(),
+        **summarize_feedback(),
+    }
 
 
 @app.post("/sources/{source_id}/archive", response_model=Source)

@@ -164,6 +164,14 @@ export function SourcePanel({
               <span>累计成本</span>
               <span>{metrics.total_cost.toFixed(4)}</span>
             </div>
+            <div className="flex justify-between">
+              <span>有帮助率</span>
+              <span>
+                {metrics.feedback_count > 0
+                  ? `${Math.round(metrics.helpful_rate * 100)}%`
+                  : '暂无'}
+              </span>
+            </div>
           </div>
         </div>
       ) : null}

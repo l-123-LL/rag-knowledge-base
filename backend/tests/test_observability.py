@@ -1,7 +1,12 @@
 import json
 from pathlib import Path
 
-from app.observability import log_ask_event, log_feedback, summarize_ask_log
+from app.observability import (
+    log_ask_event,
+    log_feedback,
+    summarize_ask_log,
+    summarize_feedback,
+)
 
 
 def test_log_ask_event_writes_jsonl() -> None:
@@ -58,3 +63,19 @@ def test_log_feedback_writes_jsonl() -> None:
 
     assert payload["rating"] == "up"
     assert payload["question"] == "如何退货？"
+
+
+def test_summarize_feedback() -> None:
+    path = Path("test_feedback_summary.jsonl")
+    try:
+        log_feedback({"rating": "up"}, path)
+        log_feedback({"rating": "up"}, path)
+        log_feedback({"rating": "down"}, path)
+        summary = summarize_feedback(path)
+    finally:
+        path.unlink(missing_ok=True)
+
+    assert summary["feedback_count"] == 3
+    assert summary["up_count"] == 2
+    assert summary["down_count"] == 1
+    assert round(summary["helpful_rate"], 2) == 0.67
