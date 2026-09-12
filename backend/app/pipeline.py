@@ -42,7 +42,12 @@ class RAGPipeline:
             save()
         return len(chunks)
 
-    def answer(self, question: str, top_k: int = 5) -> PipelineAnswer:
+    def answer(
+        self,
+        question: str,
+        top_k: int = 5,
+        history: list[dict] | None = None,
+    ) -> PipelineAnswer:
         contexts = self.retrieve(question, top_k=top_k)
         if not contexts:
             return PipelineAnswer(
@@ -50,7 +55,11 @@ class RAGPipeline:
                 contexts=[],
             )
 
-        result: GenerationResult = self.generator.generate(question, contexts)
+        result: GenerationResult = self.generator.generate(
+            question,
+            contexts,
+            history=history,
+        )
         return PipelineAnswer(
             answer=result.text,
             contexts=contexts,

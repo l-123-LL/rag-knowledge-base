@@ -26,6 +26,7 @@ class Generator(Protocol):
         self,
         question: str,
         contexts: list[RetrievedChunk],
+        history: list[dict] | None = None,
     ) -> GenerationResult:
         """根据问题和检索片段生成答案及用量信息。"""
 
@@ -33,6 +34,7 @@ class Generator(Protocol):
         self,
         question: str,
         contexts: list[RetrievedChunk],
+        history: list[dict] | None = None,
     ) -> Iterator[str]:
         """流式返回生成内容。"""
 
@@ -54,6 +56,7 @@ class DeepSeekGenerator:
         self,
         question: str,
         contexts: list[RetrievedChunk],
+        history: list[dict] | None = None,
     ) -> GenerationResult:
         api_key = os.getenv(self.api_key_env)
         if not api_key:
@@ -70,6 +73,10 @@ class DeepSeekGenerator:
             for chunk in contexts
         )
         user_prompt = f"资料：\n{context_text}\n\n问题：{question}"
+        messages = [{"role": "system", "content": system_prompt}]
+        for message in history or []:
+            messages.append(message)
+        messages.append({"role": "user", "content": user_prompt})
 
         with httpx.Client(timeout=self.timeout_seconds) as client:
             response = client.post(
@@ -77,10 +84,7 @@ class DeepSeekGenerator:
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    "messages": messages,
                     "temperature": 0.2,
                 },
             )
@@ -99,6 +103,7 @@ class DeepSeekGenerator:
         self,
         question: str,
         contexts: list[RetrievedChunk],
+        history: list[dict] | None = None,
     ) -> Iterator[str]:
         api_key = os.getenv(self.api_key_env)
         if not api_key:
@@ -114,6 +119,10 @@ class DeepSeekGenerator:
             for chunk in contexts
         )
         user_prompt = f"资料：\n{context_text}\n\n问题：{question}"
+        messages = [{"role": "system", "content": system_prompt}]
+        for message in history or []:
+            messages.append(message)
+        messages.append({"role": "user", "content": user_prompt})
 
         with httpx.Client(timeout=None) as client:
             with client.stream(
@@ -122,10 +131,7 @@ class DeepSeekGenerator:
                 headers={"Authorization": f"Bearer {api_key}"},
                 json={
                     "model": self.model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": user_prompt},
-                    ],
+                    "messages": messages,
                     "temperature": 0.2,
                     "stream": True,
                 },

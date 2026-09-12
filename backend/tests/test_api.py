@@ -15,7 +15,12 @@ class FakePipeline:
         self.text = text
         return 1
 
-    def answer(self, question: str, top_k: int = 5) -> PipelineAnswer:
+    def answer(
+        self,
+        question: str,
+        top_k: int = 5,
+        history: list[dict] | None = None,
+    ) -> PipelineAnswer:
         if "流感" not in question:
             return PipelineAnswer(answer="当前资料不足。", contexts=[])
 
@@ -31,7 +36,12 @@ class FakePipeline:
 
 
 class FakeStreamingGenerator:
-    def stream(self, question: str, contexts: list[RetrievedChunk]):
+    def stream(
+        self,
+        question: str,
+        contexts: list[RetrievedChunk],
+        history: list[dict] | None = None,
+    ):
         yield "应尽早"
         yield "给予抗流感病毒治疗。"
 

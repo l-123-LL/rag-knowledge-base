@@ -28,6 +28,7 @@ from .schemas import (
 
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
+SESSION_HISTORY: dict[str, list[dict]] = {}
 
 app.add_middleware(
     CORSMiddleware,
@@ -39,6 +40,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def get_history(session_id: str | None, max_messages: int = 8) -> list[dict]:
+    if not session_id:
+        return []
+    return SESSION_HISTORY.get(session_id, [])[-max_messages:]
+
+
+def record_message(session_id: str | None, role: str, content: str) -> None:
+    if not session_id:
+        return
+    SESSION_HISTORY.setdefault(session_id, []).append(
+        {"role": role, "content": content}
+    )
 
 
 def get_pipeline() -> RAGPipeline:
@@ -127,8 +142,11 @@ def ingest_url(request: UrlIngestRequest) -> IngestResponse:
 def ask(request: AskRequest) -> AskResponse:
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
+        answer_text = intent.message or "已转接人工客服。"
+        record_message(request.session_id, "user", request.question)
+        record_message(request.session_id, "assistant", answer_text)
         return AskResponse(
-            answer=intent.message or "已转接人工客服。",
+            answer=answer_text,
             citations=[],
             model="intent",
             status="done",
@@ -136,6 +154,8 @@ def ask(request: AskRequest) -> AskResponse:
 
     faq_match = find_mock_answer(request.question)
     if faq_match is not None:
+        record_message(request.session_id, "user", request.question)
+        record_message(request.session_id, "assistant", faq_match["answer"])
         return AskResponse(
             answer=faq_match["answer"],
             citations=faq_match["citations"],
@@ -147,13 +167,24 @@ def ask(request: AskRequest) -> AskResponse:
     started_at = time.perf_counter()
 
     try:
-        result = pipeline.answer(request.question, top_k=request.top_k)
+        history = get_history(request.session_id)
+        result = pipeline.answer(
+            request.question,
+            top_k=request.top_k,
+            history=history,
+        )
     except GenerationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
     latency_ms = int((time.perf_counter() - started_at) * 1000)
 
     if not result.contexts:
+        record_message(request.session_id, "user", request.question)
+        record_message(
+            request.session_id,
+            "assistant",
+            "当前示例资料不足，暂时无法给出可靠回答。",
+        )
         return AskResponse(
             answer="当前示例资料不足，暂时无法给出可靠回答。",
             citations=[],
@@ -162,6 +193,8 @@ def ask(request: AskRequest) -> AskResponse:
             latency_ms=latency_ms,
         )
 
+    record_message(request.session_id, "user", request.question)
+    record_message(request.session_id, "assistant", result.answer)
     return AskResponse(
         answer=result.answer,
         citations=[
@@ -194,6 +227,7 @@ def ask(request: AskRequest) -> AskResponse:
 @app.post("/ask/stream")
 def ask_stream(request: AskRequest):
     pipeline = get_pipeline()
+    history = get_history(request.session_id)
     contexts = pipeline.retrieve(request.question, top_k=request.top_k)
 
     if not contexts:
@@ -222,7 +256,7 @@ def ask_stream(request: AskRequest):
     def event_stream():
         yield f"data: {json.dumps({'type': 'sources', 'contexts': context_payload}, ensure_ascii=False)}\n\n"
         try:
-            for delta in generator(request.question, contexts):
+            for delta in generator(request.question, contexts, history):
                 yield f"data: {json.dumps({'type': 'delta', 'text': delta}, ensure_ascii=False)}\n\n"
         except GenerationError as exc:
             yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"

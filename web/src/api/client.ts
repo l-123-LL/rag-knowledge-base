@@ -20,6 +20,18 @@ interface StreamHandlers {
 // 模拟真实后端的响应时间，后续接 API 时只替换这个模块。
 export const MOCK_DELAY_MS = 650
 
+let sessionId: string | null = null
+
+function getSessionId() {
+  if (!sessionId) {
+    sessionId =
+      typeof crypto !== 'undefined' && 'randomUUID' in crypto
+        ? crypto.randomUUID()
+        : `${Date.now()}-${Math.random().toString(16).slice(2)}`
+  }
+  return sessionId
+}
+
 function wait(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms))
 }
@@ -43,7 +55,7 @@ export async function askQuestion(question: string): Promise<AskResponse> {
   const response = await requestBackend('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, session_id: getSessionId() }),
   })
 
   if (response?.ok) {
@@ -128,7 +140,7 @@ export async function streamAsk(
   const response = await window.fetch('/api/ask/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({ question, session_id: getSessionId() }),
   })
 
   if (!response.ok || !response.body) {

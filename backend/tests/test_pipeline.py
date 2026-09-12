@@ -9,6 +9,7 @@ class FakeGenerator(Generator):
         self,
         question: str,
         contexts: list[RetrievedChunk],
+        history: list[dict] | None = None,
     ) -> GenerationResult:
         return GenerationResult(
             text=f"根据资料回答：{contexts[0].text}",
