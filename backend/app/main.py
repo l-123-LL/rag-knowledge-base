@@ -9,6 +9,7 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException
 
 from . import config  # noqa: F401
+from .backup import create_backup
 from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
@@ -252,6 +253,12 @@ def create_ticket_endpoint(request: TicketCreateRequest) -> dict:
 @app.get("/tickets")
 def get_tickets(limit: int = 100) -> list[dict]:
     return list_tickets(limit=limit)
+
+
+@app.post("/backup")
+def backup(_: None = Depends(require_admin_key)) -> dict:
+    archive = create_backup()
+    return {"archive": str(archive)}
 
 
 @app.post("/ask", response_model=AskResponse)
