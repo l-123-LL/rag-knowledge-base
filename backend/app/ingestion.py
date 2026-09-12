@@ -33,6 +33,9 @@ def load_bytes(filename: str, content: bytes) -> tuple[str, dict]:
         text = "\n\n".join(
             page.extract_text() or "" for page in reader.pages
         )
+        table_text = extract_pdf_tables(content)
+        if table_text:
+            text = f"{text}\n\n{table_text}"
         metadata = {
             "source_path": filename,
             "file_name": filename,
@@ -51,6 +54,46 @@ def load_bytes(filename: str, content: bytes) -> tuple[str, dict]:
         "file_type": suffix,
     }
     return text, metadata
+
+
+def tables_to_markdown(tables: list[list[list[str | None]]]) -> str:
+    sections: list[str] = []
+
+    for table in tables:
+        rows = [
+            [str(cell or "").replace("\n", " ").strip() for cell in row]
+            for row in table
+            if row
+        ]
+        if len(rows) < 2:
+            continue
+
+        header = rows[0]
+        body = rows[1:]
+        lines = [
+            "| " + " | ".join(header) + " |",
+            "| " + " | ".join("---" for _ in header) + " |",
+        ]
+        lines.extend("| " + " | ".join(row) + " |" for row in body)
+        sections.append("\n".join(lines))
+
+    return "\n\n".join(sections)
+
+
+def extract_pdf_tables(content: bytes) -> str:
+    """提取文本层 PDF 表格并转为 Markdown，扫描版仍需要 OCR。"""
+    try:
+        import pdfplumber
+    except ImportError:
+        return ""
+
+    tables: list[list[list[str | None]]] = []
+    with pdfplumber.open(BytesIO(content)) as pdf:
+        for page in pdf.pages:
+            for table in page.extract_tables() or []:
+                tables.append(table)
+
+    return tables_to_markdown(tables)
 
 
 def fetch_url_text(url: str, timeout_seconds: float = 20.0) -> tuple[str, dict]:

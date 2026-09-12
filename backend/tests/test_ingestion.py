@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from app.ingestion import clean_html, load_text_file
+from app.ingestion import clean_html, load_text_file, tables_to_markdown
 
 
 def test_clean_html_removes_script_and_tags() -> None:
@@ -39,3 +39,17 @@ def test_load_pdf_returns_text() -> None:
 
     assert isinstance(text, str)
     assert metadata["file_name"] == "test_ingestion_tmp.pdf"
+
+
+def test_tables_to_markdown() -> None:
+    markdown = tables_to_markdown(
+        [
+            [
+                ["商品", "退货天数"],
+                ["普通商品", "7 天"],
+            ]
+        ]
+    )
+
+    assert "| 商品 | 退货天数 |" in markdown
+    assert "| 普通商品 | 7 天 |" in markdown
