@@ -322,3 +322,13 @@ def test_tickets_endpoint_returns_created_ticket() -> None:
     assert created.status_code == 200
     assert created.json()["id"].startswith("T")
     assert any(item["id"] == created.json()["id"] for item in tickets.json())
+
+
+def test_oidc_requires_bearer_token_when_configured(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("OIDC_JWKS_URL", "https://example.com/jwks")
+
+    response = client.post("/ask", json={"question": "如何申请退货？"})
+
+    assert response.status_code == 401

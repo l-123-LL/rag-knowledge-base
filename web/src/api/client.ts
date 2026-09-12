@@ -54,6 +54,10 @@ async function requestBackend(
     if (!headers.has('X-Tenant-ID')) {
       headers.set('X-Tenant-ID', tenantId)
     }
+    const authToken = import.meta.env.VITE_AUTH_TOKEN
+    if (authToken && !headers.has('Authorization')) {
+      headers.set('Authorization', `Bearer ${authToken}`)
+    }
     return await window.fetch(path, { ...init, headers })
   } catch {
     return null

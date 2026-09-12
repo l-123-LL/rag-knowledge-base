@@ -10,3 +10,4 @@ jieba>=0.42
 pypdf>=5.0
 python-multipart>=0.0.20
 pdfplumber>=0.11
+PyJWT[crypto]>=2.10

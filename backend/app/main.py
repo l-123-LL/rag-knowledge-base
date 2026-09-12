@@ -43,7 +43,7 @@ from .session_store import (
     get_history,
     record_message,
 )
-from .security import require_admin_key
+from .security import require_admin_key, require_user_token
 from .tenant import get_tenant_id
 from .ticket_store import count_tickets, create_ticket, list_tickets
 
@@ -301,6 +301,7 @@ def backup(_: None = Depends(require_admin_key)) -> dict:
 def ask(
     request: AskRequest,
     tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_user_token),
 ) -> AskResponse:
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
@@ -467,6 +468,7 @@ def ask(
 def ask_stream(
     request: AskRequest,
     tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_user_token),
 ):
     pipeline = get_pipeline()
     history = get_history(request.session_id, tenant_id=tenant_id)
