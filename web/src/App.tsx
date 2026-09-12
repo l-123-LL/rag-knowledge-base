@@ -223,43 +223,36 @@ export default function App() {
   }, [])
 
   return (
-    <div className="flex min-h-screen bg-mist text-ink-900">
-      <header className="hidden h-screen w-[300px] shrink-0 flex-col border-r border-line bg-surface lg:flex">
-        <div className="flex h-[72px] items-center gap-3 border-b border-line px-5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <DatabaseIcon className="h-5 w-5" />
+    <div className="min-h-screen bg-canvas text-ink-900">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-5 lg:px-8">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-950 text-white shadow-sm">
+              <DatabaseIcon className="h-5 w-5" />
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold tracking-tight text-ink-950">
+                企业智能客服
+              </p>
+              <p className="text-xs text-ink-500">
+                Enterprise Support Console
+              </p>
+            </div>
           </div>
-          <div>
-            <p className="text-sm font-semibold">企业智能客服</p>
-            <p className="text-xs text-ink-500">知识库问答预览</p>
+          <div className="flex items-center gap-3">
+            <div className="hidden items-center gap-2 rounded-full border border-line bg-mist px-3 py-1.5 text-xs text-ink-600 sm:flex">
+              <span className="h-2 w-2 rounded-full bg-success" />
+              服务在线
+            </div>
+            <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700">
+              默认租户
+            </span>
           </div>
-        </div>
-        <div className="min-h-0 flex-1">
-          <SourcePanel
-            sources={sources}
-            onUploadFile={handleFileUpload}
-            onIngestUrl={handleUrlIngest}
-            onCreateFaq={handleCreateFaq}
-            onToggleSource={handleToggleSource}
-            uploadError={uploadError}
-            stats={stats}
-            metrics={metrics}
-          />
         </div>
       </header>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-[72px] items-center gap-3 border-b border-line bg-surface px-5 lg:hidden">
-          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-brand-600 text-white">
-            <DatabaseIcon className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="text-sm font-semibold">企业智能客服</p>
-            <p className="text-xs text-ink-500">知识库问答预览</p>
-          </div>
-        </header>
-
-        <div className="h-72 border-b border-line lg:hidden">
+      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1600px]">
+        <aside className="hidden w-[340px] shrink-0 border-r border-line bg-surface lg:block">
           <SourcePanel
             sources={sources}
             onUploadFile={handleFileUpload}
@@ -270,19 +263,34 @@ export default function App() {
             stats={stats}
             metrics={metrics}
           />
-        </div>
+        </aside>
 
-        <main className="min-h-[620px] flex-1 lg:min-h-0">
-          <ChatPanel
-            conversations={conversations}
-            error={error}
-            isLoading={isLoading}
-            mockQuestions={mockConversations}
-            onAsk={handleAsk}
-            onNewSession={handleNewSession}
-            onFeedback={handleFeedback}
-          />
-        </main>
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="h-80 border-b border-line bg-surface lg:hidden">
+            <SourcePanel
+              sources={sources}
+              onUploadFile={handleFileUpload}
+              onIngestUrl={handleUrlIngest}
+              onCreateFaq={handleCreateFaq}
+              onToggleSource={handleToggleSource}
+              uploadError={uploadError}
+              stats={stats}
+              metrics={metrics}
+            />
+          </div>
+
+          <main className="min-h-[620px] flex-1 lg:min-h-0">
+            <ChatPanel
+              conversations={conversations}
+              error={error}
+              isLoading={isLoading}
+              mockQuestions={mockConversations}
+              onAsk={handleAsk}
+              onNewSession={handleNewSession}
+              onFeedback={handleFeedback}
+            />
+          </main>
+        </div>
       </div>
     </div>
   )

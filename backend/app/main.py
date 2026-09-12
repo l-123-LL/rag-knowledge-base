@@ -510,6 +510,49 @@ def ask_stream(
     tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_user_token),
 ):
+    def sse(payload: dict) -> str:
+        return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
+
+    def text_stream(text: str):
+        yield sse({"type": "sources", "contexts": []})
+        yield sse({"type": "delta", "text": text})
+        yield "data: [DONE]\n\n"
+
+    intent = classify_intent(request.question)
+    if intent.intent != "knowledge":
+        ticket = create_ticket(
+            question=request.question,
+            session_id=request.session_id,
+            reason=intent.intent,
+            tenant_id=tenant_id,
+        )
+        text = (
+            f"{intent.message or '已转接人工客服。'}"
+            f"（工单号：{ticket['id']}）"
+        )
+        record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+        record_message(
+            request.session_id,
+            "assistant",
+            text,
+            tenant_id=tenant_id,
+        )
+        return StreamingResponse(text_stream(text), media_type="text/event-stream")
+
+    faq_match = find_mock_answer(request.question, tenant_id=tenant_id)
+    if faq_match is not None:
+        record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+        record_message(
+            request.session_id,
+            "assistant",
+            faq_match["answer"],
+            tenant_id=tenant_id,
+        )
+        return StreamingResponse(
+            text_stream(faq_match["answer"]),
+            media_type="text/event-stream",
+        )
+
     pipeline = get_pipeline()
     history = get_history(request.session_id, tenant_id=tenant_id)
     archived_sources = {
@@ -525,14 +568,15 @@ def ask_stream(
     )
 
     if not contexts:
-        return JSONResponse(
-            status_code=200,
-            content={
-                "answer": "当前资料不足，暂时无法给出可靠回答。",
-                "citations": [],
-                "status": "insufficient",
-            },
+        text = "当前资料不足，暂时无法给出可靠回答。"
+        record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+        record_message(
+            request.session_id,
+            "assistant",
+            text,
+            tenant_id=tenant_id,
         )
+        return StreamingResponse(text_stream(text), media_type="text/event-stream")
 
     generator = getattr(pipeline.generator, "stream", None)
     if generator is None:
@@ -548,12 +592,12 @@ def ask_stream(
     ]
 
     def event_stream():
-        yield f"data: {json.dumps({'type': 'sources', 'contexts': context_payload}, ensure_ascii=False)}\n\n"
+        yield sse({"type": "sources", "contexts": context_payload})
         try:
             for delta in generator(request.question, contexts, history):
-                yield f"data: {json.dumps({'type': 'delta', 'text': delta}, ensure_ascii=False)}\n\n"
+                yield sse({"type": "delta", "text": delta})
         except GenerationError as exc:
-            yield f"data: {json.dumps({'type': 'error', 'message': str(exc)}, ensure_ascii=False)}\n\n"
+            yield sse({"type": "error", "message": str(exc)})
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

@@ -57,6 +57,6 @@ describe('App', () => {
       await vi.advanceTimersByTimeAsync(MOCK_DELAY_MS)
     })
 
-    expect(screen.getByText('示例资料不足')).toBeInTheDocument()
+    expect(screen.getByText('资料不足')).toBeInTheDocument()
   })
 })

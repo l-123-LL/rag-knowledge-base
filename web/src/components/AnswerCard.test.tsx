@@ -15,7 +15,7 @@ describe('AnswerCard', () => {
 
     render(<AnswerCard conversation={conversation} />)
 
-    expect(screen.getByText('示例资料不足')).toBeInTheDocument()
+    expect(screen.getByText('资料不足')).toBeInTheDocument()
     expect(
       screen.getByText('当前示例资料不足，暂时无法给出可靠回答。'),
     ).toBeInTheDocument()

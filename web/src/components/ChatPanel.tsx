@@ -21,9 +21,9 @@ function EmptyState({
   onAsk: (question: string) => void
 }) {
   return (
-    <div className="flex min-h-full items-center justify-center px-6 py-12">
-      <div className="w-full max-w-xl text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-brand-50 text-brand-600">
+    <div className="flex min-h-full items-center justify-center px-6 py-14">
+      <div className="w-full max-w-2xl text-center">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ink-950 text-white shadow-panel">
           <svg
             viewBox="0 0 24 24"
             className="h-6 w-6"
@@ -39,19 +39,19 @@ function EmptyState({
             />
           </svg>
         </div>
-        <h2 className="mt-5 text-xl font-semibold text-ink-900">
+        <h2 className="mt-6 text-3xl font-semibold tracking-tight text-ink-950">
           企业智能客服
         </h2>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-ink-500">
-          输入问题查看前端预览效果。回答和引用均为本地示例数据。
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-ink-500">
+          基于企业知识库的实时问答，支持 FAQ 优先命中、RAG 检索、引用来源和转人工工单。
         </p>
-        <div className="mt-7 flex flex-wrap justify-center gap-2">
+        <div className="mt-8 flex flex-wrap justify-center gap-2">
           {suggestions.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => onAsk(item.question)}
-              className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-600 transition hover:border-brand-500 hover:bg-brand-50 hover:text-brand-700"
+              className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-600 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
             >
               {item.question}
             </button>
@@ -78,40 +78,46 @@ export function ChatPanel({
   onNewSession,
   onFeedback,
 }: ChatPanelProps) {
-  // 首屏没有对话时展示引导和示例问题。
   const showEmptyState = useMemo(
     () => conversations.length === 0 && !error,
     [conversations.length, error],
   )
 
   return (
-    <section className="flex h-full min-h-0 flex-col bg-mist">
-      <div className="border-b border-line bg-surface px-5 py-4 lg:px-6">
-        <div className="mx-auto flex max-w-3xl items-center justify-between">
+    <section className="flex h-full min-h-0 flex-col bg-canvas">
+      <div className="border-b border-line bg-surface/90 px-5 py-4 backdrop-blur lg:px-8">
+        <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div>
-            <h1 className="text-base font-semibold text-ink-900">智能问答</h1>
-            <p className="mt-1 text-xs text-ink-500">基于企业知识库的预览</p>
+            <h1 className="text-base font-semibold tracking-tight text-ink-950">
+              智能问答工作台
+            </h1>
+            <p className="mt-1 text-xs text-ink-500">
+              基于企业知识库的实时回答
+            </p>
           </div>
           <div className="flex items-center gap-2">
+            <span className="hidden items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 sm:flex">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              流式输出
+            </span>
             {onNewSession ? (
               <button
                 type="button"
                 onClick={onNewSession}
-                className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-500 hover:text-brand-600"
+                className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-200 hover:text-brand-700"
               >
                 新会话
               </button>
             ) : null}
-            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
-              前端预览
-            </span>
           </div>
         </div>
       </div>
 
       {error ? (
-        <div className="mx-auto mt-5 w-full max-w-3xl rounded-card border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
-          {error}
+        <div className="mx-auto mt-5 w-full max-w-5xl px-5 lg:px-8">
+          <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+            {error}
+          </div>
         </div>
       ) : null}
 
@@ -119,7 +125,7 @@ export function ChatPanel({
         {showEmptyState ? (
           <EmptyState suggestions={mockQuestions} onAsk={onAsk} />
         ) : (
-          <div className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-5 lg:px-6">
+          <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-6 lg:px-8">
             {conversations.map((conversation) => (
               <AnswerCard
                 key={conversation.id}

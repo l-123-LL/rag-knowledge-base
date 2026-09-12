@@ -84,6 +84,7 @@
 - 新增 `GET /alerts`，按平均延迟和低有帮助率输出监控告警。
 - 工单支持可选 Webhook 外发，配置 `TICKET_WEBHOOK_URL` 后可推送到 CRM 或客服平台。
 - 日志和反馈支持可选监控 Webhook，配置 `OBSERVABILITY_WEBHOOK_URL` 后可接 Langfuse 或告警平台。
+- 前端已升级为企业客服工作台风格，并修复 `/api` 代理前缀，前端会真实连接后端数据。
 - 运行指标已聚合反馈数据，前端展示“有帮助率”。
 - 已加入后端、前端 Dockerfile 和 `docker-compose.yml`，可通过 Docker 启动完整服务。
 - 已加入 GitHub Actions CI，推送或提交 PR 时自动跑后端测试、前端测试、类型检查和构建。

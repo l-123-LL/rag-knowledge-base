@@ -15,8 +15,10 @@ export function CitationList({ citations }: CitationListProps) {
   }
 
   return (
-    <div className="mt-4 border-t border-line pt-4">
-      <div className="mb-2 text-xs font-medium text-ink-500">引用来源</div>
+    <div className="mt-5">
+      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">
+        引用来源
+      </div>
       <div className="space-y-2">
         {citations.map((citation) => {
           const isOpen = openId === citation.id
@@ -24,7 +26,7 @@ export function CitationList({ citations }: CitationListProps) {
           return (
             <div
               key={citation.id}
-              className="overflow-hidden rounded-lg border border-line bg-white"
+              className="overflow-hidden rounded-xl border border-line bg-white"
             >
               <button
                 type="button"
@@ -33,7 +35,7 @@ export function CitationList({ citations }: CitationListProps) {
                     current === citation.id ? null : citation.id,
                   )
                 }
-                className="flex w-full items-center justify-between gap-3 px-3.5 py-3 text-left"
+                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist"
               >
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-ink-900">
