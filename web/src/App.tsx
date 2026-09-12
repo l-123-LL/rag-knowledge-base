@@ -3,6 +3,7 @@ import {
   askQuestion,
   ingestFile,
   ingestUrl,
+  getStats,
   listSources,
   resetSession,
   streamAsk,
@@ -12,6 +13,7 @@ import { SourcePanel } from './components/SourcePanel'
 import { DatabaseIcon } from './components/icons'
 import { mockConversations, mockSources } from './data/mockData'
 import type { Conversation, Source } from './types'
+import type { Stats } from './types'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -27,14 +29,18 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [sources, setSources] = useState<Source[]>(mockSources)
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [stats, setStats] = useState<Stats | undefined>()
 
   useEffect(() => {
     let active = true
 
-    listSources()
-      .then((data) => {
-        if (active && data.length > 0) {
-          setSources(data)
+    Promise.all([listSources(), getStats()])
+      .then(([sourceData, statsData]) => {
+        if (active) {
+          if (sourceData.length > 0) {
+            setSources(sourceData)
+          }
+          setStats(statsData)
         }
       })
       .catch(() => {
@@ -51,8 +57,9 @@ export default function App() {
 
     try {
       await ingestFile(file)
-      const data = await listSources()
+      const [data, statsData] = await Promise.all([listSources(), getStats()])
       setSources(data)
+      setStats(statsData)
     } catch {
       setUploadError('上传失败，请确认后端正在运行。')
     }
@@ -63,8 +70,9 @@ export default function App() {
 
     try {
       await ingestUrl(url)
-      const data = await listSources()
+      const [data, statsData] = await Promise.all([listSources(), getStats()])
       setSources(data)
+      setStats(statsData)
     } catch {
       setUploadError('网页导入失败，请确认后端正在运行且链接可访问。')
     }
@@ -164,6 +172,7 @@ export default function App() {
             onUploadFile={handleFileUpload}
             onIngestUrl={handleUrlIngest}
             uploadError={uploadError}
+            stats={stats}
           />
         </div>
       </header>
@@ -185,6 +194,7 @@ export default function App() {
             onUploadFile={handleFileUpload}
             onIngestUrl={handleUrlIngest}
             uploadError={uploadError}
+            stats={stats}
           />
         </div>
 

@@ -20,6 +20,9 @@ class VectorStore(Protocol):
     def all_records(self) -> list["VectorRecord"]:
         ...
 
+    def count(self) -> int:
+        ...
+
 
 @dataclass
 class VectorRecord:
@@ -78,6 +81,9 @@ class InMemoryVectorStore:
 
     def all_records(self) -> list[VectorRecord]:
         return list(self._records)
+
+    def count(self) -> int:
+        return len(self._records)
 
     @staticmethod
     def _cosine(left: list[float], right: list[float]) -> float:
@@ -159,6 +165,9 @@ class FAISSVectorStore:
 
     def all_records(self) -> list[VectorRecord]:
         return list(self._records.values())
+
+    def count(self) -> int:
+        return self._next_id
 
     def save(self) -> None:
         if not self.persist_dir:

@@ -203,3 +203,12 @@ def test_session_reset_clears_history() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_stats_returns_counts() -> None:
+    response = client.get("/stats")
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["source_count"] >= 5
+    assert payload["faq_count"] >= 4

@@ -106,6 +106,9 @@ class HybridRetriever:
 
         self.bm25.finalize()
 
+    def count(self) -> int:
+        return len(self.doc_ids)
+
     def search(self, query: str, top_k: int = 5) -> list[RetrievedChunk]:
         query_embedding = self.embedder.embed([query])[0]
         vector_hits = self.vector_store.query(query_embedding, top_k=len(self.doc_ids))

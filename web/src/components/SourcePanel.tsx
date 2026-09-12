@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
-import type { Source } from '../types'
+import type { Source, Stats } from '../types'
 import { AlertIcon, CheckIcon, ChevronDownIcon, LinkIcon } from './icons'
 
 interface SourcePanelProps {
@@ -7,6 +7,7 @@ interface SourcePanelProps {
   onUploadFile?: (file: File) => Promise<void>
   onIngestUrl?: (url: string) => Promise<void>
   uploadError?: string | null
+  stats?: Stats
 }
 
 const statusMeta = {
@@ -20,6 +21,7 @@ export function SourcePanel({
   onUploadFile,
   onIngestUrl,
   uploadError,
+  stats,
 }: SourcePanelProps) {
   // 当前选中的来源，用于展开或收起详情。
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -74,6 +76,35 @@ export function SourcePanel({
           </span>
         </div>
       </div>
+
+      {stats ? (
+        <div className="grid grid-cols-2 gap-2 border-b border-line px-4 py-3">
+          <div className="rounded-lg bg-mist px-3 py-2">
+            <p className="text-xs text-ink-500">资料</p>
+            <p className="mt-1 text-sm font-semibold text-ink-900">
+              {stats.source_count}
+            </p>
+          </div>
+          <div className="rounded-lg bg-mist px-3 py-2">
+            <p className="text-xs text-ink-500">分片</p>
+            <p className="mt-1 text-sm font-semibold text-ink-900">
+              {stats.chunk_count}
+            </p>
+          </div>
+          <div className="rounded-lg bg-mist px-3 py-2">
+            <p className="text-xs text-ink-500">FAQ</p>
+            <p className="mt-1 text-sm font-semibold text-ink-900">
+              {stats.faq_count}
+            </p>
+          </div>
+          <div className="rounded-lg bg-mist px-3 py-2">
+            <p className="text-xs text-ink-500">会话</p>
+            <p className="mt-1 text-sm font-semibold text-ink-900">
+              {stats.session_count}
+            </p>
+          </div>
+        </div>
+      ) : null}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <div className="space-y-2">

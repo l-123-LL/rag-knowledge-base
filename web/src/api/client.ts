@@ -1,5 +1,5 @@
 import { findMockAnswer, mockSources } from '../data/mockData'
-import type { Citation, Source } from '../types'
+import type { Citation, Source, Stats } from '../types'
 
 export interface AskResponse {
   answer: string
@@ -90,6 +90,21 @@ export async function listSources(): Promise<Source[]> {
   }
 
   return mockSources
+}
+
+export async function getStats(): Promise<Stats> {
+  const response = await requestBackend('/api/stats')
+
+  if (response?.ok) {
+    return (await response.json()) as Stats
+  }
+
+  return {
+    source_count: mockSources.length,
+    chunk_count: 0,
+    session_count: 0,
+    faq_count: 0,
+  }
 }
 
 export async function ingestFile(file: File): Promise<IngestResponse> {

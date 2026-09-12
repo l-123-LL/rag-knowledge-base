@@ -14,7 +14,7 @@ from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
 from .observability import log_ask_event
-from .mock_data import find_mock_answer, sources
+from .mock_data import faq_count, find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
     AskRequest,
@@ -144,6 +144,17 @@ def ingest_url(request: UrlIngestRequest) -> IngestResponse:
 def reset_session(request: SessionResetRequest) -> dict:
     SESSION_HISTORY.pop(request.session_id, None)
     return {"status": "ok"}
+
+
+@app.get("/stats")
+def stats() -> dict:
+    pipeline = app.state.pipeline
+    return {
+        "source_count": len(sources),
+        "chunk_count": pipeline.chunk_count() if pipeline else 0,
+        "session_count": len(SESSION_HISTORY),
+        "faq_count": faq_count(),
+    }
 
 
 @app.post("/ask", response_model=AskResponse)

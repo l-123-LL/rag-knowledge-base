@@ -73,3 +73,6 @@ class RAGPipeline:
     def retrieve(self, question: str, top_k: int = 5) -> list[RetrievedChunk]:
         contexts = self.retriever.search(question, top_k=top_k)
         return contexts
+
+    def chunk_count(self) -> int:
+        return self.retriever.count()

@@ -10,6 +10,13 @@ export interface Source {
   description: string
 }
 
+export interface Stats {
+  source_count: number
+  chunk_count: number
+  session_count: number
+  faq_count: number
+}
+
 export interface Citation {
   id: string
   title: string

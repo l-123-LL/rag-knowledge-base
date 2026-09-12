@@ -123,3 +123,7 @@ def find_mock_answer(question: str) -> dict | None:
             return item
 
     return None
+
+
+def faq_count() -> int:
+    return len(_mock_answers)
