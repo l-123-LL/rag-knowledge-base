@@ -1,4 +1,5 @@
 import html
+import os
 import re
 from io import BytesIO
 from pathlib import Path
@@ -33,6 +34,8 @@ def load_bytes(filename: str, content: bytes) -> tuple[str, dict]:
         text = "\n\n".join(
             page.extract_text() or "" for page in reader.pages
         )
+        if not text.strip() and os.getenv("OCR_ENABLED", "false").lower() == "true":
+            text = ocr_pdf(content)
         table_text = extract_pdf_tables(content)
         if table_text:
             text = f"{text}\n\n{table_text}"
@@ -94,6 +97,23 @@ def extract_pdf_tables(content: bytes) -> str:
                 tables.append(table)
 
     return tables_to_markdown(tables)
+
+
+def ocr_pdf(content: bytes) -> str:
+    """可选 OCR：需要安装 pytesseract、pypdfium2 和系统 Tesseract。"""
+    try:
+        import pytesseract
+        import pypdfium2 as pdfium
+    except ImportError:
+        return ""
+
+    pdf = pdfium.PdfDocument(content)
+    pages: list[str] = []
+    for index in range(len(pdf)):
+        page = pdf[index]
+        image = page.render(scale=2).to_pil()
+        pages.append(pytesseract.image_to_string(image, lang="chi_sim+eng"))
+    return "\n\n".join(pages)
 
 
 def fetch_url_text(url: str, timeout_seconds: float = 20.0) -> tuple[str, dict]:
