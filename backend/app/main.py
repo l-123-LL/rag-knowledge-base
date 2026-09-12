@@ -12,6 +12,7 @@ from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
+from .intent import classify_intent
 from .mock_data import find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -124,6 +125,15 @@ def ingest_url(request: UrlIngestRequest) -> IngestResponse:
 
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
+    intent = classify_intent(request.question)
+    if intent.intent != "knowledge":
+        return AskResponse(
+            answer=intent.message or "已转接人工客服。",
+            citations=[],
+            model="intent",
+            status="done",
+        )
+
     faq_match = find_mock_answer(request.question)
     if faq_match is not None:
         return AskResponse(

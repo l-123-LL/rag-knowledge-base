@@ -157,3 +157,29 @@ def test_faq_question_returns_standard_answer_without_pipeline() -> None:
     assert response.status_code == 200
     assert response.json()["model"] == "faq"
     assert response.json()["status"] == "done"
+
+
+def test_complaint_intent_returns_transfer_message() -> None:
+    app.state.pipeline = None
+
+    response = client.post(
+        "/ask",
+        json={"question": "我要投诉你们的客服"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "intent"
+    assert "投诉" in response.json()["answer"]
+
+
+def test_human_intent_returns_transfer_message() -> None:
+    app.state.pipeline = None
+
+    response = client.post(
+        "/ask",
+        json={"question": "请帮我转人工客服"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "intent"
+    assert "转接人工" in response.json()["answer"]
