@@ -20,8 +20,13 @@ class RAGPipeline:
         embedder: Embedder,
         generator: Generator,
         vector_store: VectorStore | None = None,
+        reranker=None,
     ) -> None:
-        self.retriever = HybridRetriever(embedder, vector_store=vector_store)
+        self.retriever = HybridRetriever(
+            embedder,
+            vector_store=vector_store,
+            reranker=reranker,
+        )
         self.generator = generator
 
     def ingest_text(self, text: str, metadata: dict | None = None) -> int:

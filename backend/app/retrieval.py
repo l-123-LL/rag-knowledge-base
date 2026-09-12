@@ -16,6 +16,23 @@ class RetrievedChunk:
     dense_score: float = 0.0
     bm25_score: float = 0.0
     combined_score: float = 0.0
+    rerank_score: float = 0.0
+
+    def __init__(
+        self,
+        text: str,
+        metadata: dict | None = None,
+        dense_score: float = 0.0,
+        bm25_score: float = 0.0,
+        combined_score: float = 0.0,
+        rerank_score: float = 0.0,
+    ) -> None:
+        self.text = text
+        self.metadata = metadata or {}
+        self.dense_score = dense_score
+        self.bm25_score = bm25_score
+        self.combined_score = combined_score
+        self.rerank_score = rerank_score
 
 
 def _tokenize(text: str) -> list[str]:
@@ -49,9 +66,13 @@ class HybridRetriever:
         embedder: Embedder,
         vector_store: VectorStore | None = None,
         dense_weight: float = 0.7,
+        reranker=None,
+        rerank_top_k: int = 20,
     ) -> None:
         self.embedder = embedder
         self.dense_weight = dense_weight
+        self.reranker = reranker
+        self.rerank_top_k = rerank_top_k
         self.vector_store = vector_store or InMemoryVectorStore()
         self.bm25 = BM25Index()
         self.doc_ids: list[str] = []
@@ -118,4 +139,7 @@ class HybridRetriever:
             key=lambda item: item.combined_score,
             reverse=True,
         )
+        candidates = candidates[: self.rerank_top_k]
+        if self.reranker is not None:
+            candidates = self.reranker.rerank(query, candidates)
         return candidates[:top_k]
