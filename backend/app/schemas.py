@@ -36,6 +36,12 @@ class FeedbackRequest(BaseModel):
     comment: str | None = None
 
 
+class TicketCreateRequest(BaseModel):
+    question: str = Field(min_length=1)
+    session_id: str | None = None
+    reason: str = Field(default="customer_service", min_length=1)
+
+
 class IngestResponse(BaseModel):
     chunk_count: int
 

@@ -70,6 +70,7 @@
 - 答案卡片支持“有帮助/没帮助”反馈，反馈写入 `data/logs/feedback.jsonl`。
 - 会话记忆已持久化到 `data/sessions/`，服务重启后仍可恢复上下文。
 - 已加入可选管理员 API Key 和每分钟请求限流；默认不开启，不影响本地演示。
+- 投诉和转人工会自动创建本地工单，提供 `POST /tickets` 和 `GET /tickets`。
 - 运行指标已聚合反馈数据，前端展示“有帮助率”。
 - 已加入后端、前端 Dockerfile 和 `docker-compose.yml`，可通过 Docker 启动完整服务。
 - 已加入 GitHub Actions CI，推送或提交 PR 时自动跑后端测试、前端测试、类型检查和构建。

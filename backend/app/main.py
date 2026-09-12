@@ -33,6 +33,7 @@ from .schemas import (
     FeedbackRequest,
     SessionResetRequest,
     Source,
+    TicketCreateRequest,
     UrlIngestRequest,
 )
 from .session_store import (
@@ -42,6 +43,7 @@ from .session_store import (
     record_message,
 )
 from .security import require_admin_key
+from .ticket_store import create_ticket, list_tickets
 
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
@@ -237,11 +239,33 @@ def feedback(request: FeedbackRequest) -> dict:
     return {"status": "ok"}
 
 
+@app.post("/tickets")
+def create_ticket_endpoint(request: TicketCreateRequest) -> dict:
+    return create_ticket(
+        question=request.question,
+        session_id=request.session_id,
+        reason=request.reason,
+    )
+
+
+@app.get("/tickets")
+def get_tickets(limit: int = 100) -> list[dict]:
+    return list_tickets(limit=limit)
+
+
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
-        answer_text = intent.message or "已转接人工客服。"
+        ticket = create_ticket(
+            question=request.question,
+            session_id=request.session_id,
+            reason=intent.intent,
+        )
+        answer_text = (
+            f"{intent.message or '已转接人工客服。'}"
+            f"（工单号：{ticket['id']}）"
+        )
         record_message(request.session_id, "user", request.question)
         record_message(request.session_id, "assistant", answer_text)
         log_ask_event(

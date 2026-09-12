@@ -295,3 +295,27 @@ def test_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
 
     assert first.status_code == 200
     assert second.status_code == 429
+
+
+def test_intent_creates_ticket() -> None:
+    app.state.pipeline = None
+
+    response = client.post(
+        "/ask",
+        json={"question": "我要投诉", "session_id": "ticket-test"},
+    )
+
+    assert response.status_code == 200
+    assert "工单号" in response.json()["answer"]
+
+
+def test_tickets_endpoint_returns_created_ticket() -> None:
+    created = client.post(
+        "/tickets",
+        json={"question": "需要人工处理", "reason": "manual"},
+    )
+    tickets = client.get("/tickets")
+
+    assert created.status_code == 200
+    assert created.json()["id"].startswith("T")
+    assert any(item["id"] == created.json()["id"] for item in tickets.json())
