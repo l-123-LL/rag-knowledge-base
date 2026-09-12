@@ -13,7 +13,7 @@ def build_pipeline() -> RAGPipeline:
     embedder = SentenceTransformerEmbedder()
     vector_store = FAISSVectorStore(
         dimensions=1024,
-        persist_dir=Path("data/faiss"),
+        persist_dir=Path(os.getenv("FAISS_DIR", "data/faiss")),
     )
     rerank_model = os.getenv("RERANK_MODEL")
     reranker = BGEReranker(rerank_model) if rerank_model else None

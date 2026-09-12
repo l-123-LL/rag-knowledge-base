@@ -5,8 +5,10 @@ services:
     env_file:
       - ./backend/.env
     volumes:
-      - ./data:/app/data
+      - ./backend/data:/app/data
       - ./models:/app/models
+    environment:
+      HF_HOME: /app/models/huggingface
     ports:
       - "8000:8000"
 

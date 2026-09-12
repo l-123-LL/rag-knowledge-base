@@ -2,6 +2,7 @@ import json
 import time
 import os
 from collections import defaultdict, deque
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -200,13 +201,24 @@ def reset_session(
 @app.get("/stats")
 def stats(tenant_id: str = Depends(get_tenant_id)) -> dict:
     pipeline = app.state.pipeline
+    chunk_count = pipeline.chunk_count() if pipeline else persisted_chunk_count()
     return {
         "source_count": sum(1 for source in sources if source.tenant_id == tenant_id),
-        "chunk_count": pipeline.chunk_count() if pipeline else 0,
+        "chunk_count": chunk_count,
         "session_count": count_sessions(tenant_id=tenant_id),
         "faq_count": faq_count(tenant_id=tenant_id),
         "ticket_count": count_tickets(tenant_id=tenant_id),
     }
+
+
+def persisted_chunk_count() -> int:
+    records_path = Path(os.getenv("FAISS_DIR", "data/faiss")) / "records.json"
+    if not records_path.exists():
+        return 0
+    try:
+        return len(json.loads(records_path.read_text(encoding="utf-8")))
+    except (json.JSONDecodeError, OSError):
+        return 0
 
 
 @app.get("/metrics")

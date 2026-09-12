@@ -1,4 +1,6 @@
 import io
+import json
+from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -339,3 +341,22 @@ def test_alerts_endpoint_returns_status() -> None:
 
     assert response.status_code == 200
     assert response.json()["status"] in {"ok", "warning"}
+
+
+def test_persisted_chunk_count_reads_records(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import main
+
+    directory = Path("test_faiss_stats")
+    directory.mkdir(exist_ok=True)
+    records = directory / "records.json"
+    records.write_text(
+        json.dumps({"1": {}, "2": {}}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("FAISS_DIR", str(directory))
+
+    try:
+        assert main.persisted_chunk_count() == 2
+    finally:
+        records.unlink(missing_ok=True)
+        directory.rmdir()
