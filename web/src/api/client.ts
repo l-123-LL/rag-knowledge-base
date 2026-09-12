@@ -45,7 +45,12 @@ async function requestBackend(
   }
 
   try {
-    return await window.fetch(path, init)
+    const headers = new Headers(init?.headers)
+    const adminApiKey = import.meta.env.VITE_ADMIN_API_KEY
+    if (adminApiKey && !headers.has('X-API-Key')) {
+      headers.set('X-API-Key', adminApiKey)
+    }
+    return await window.fetch(path, { ...init, headers })
   } catch {
     return null
   }

@@ -1,8 +1,9 @@
 import json
 import time
 import os
+from collections import defaultdict, deque
 
-from fastapi import FastAPI, File, UploadFile
+from fastapi import Depends, FastAPI, File, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException
@@ -40,9 +41,11 @@ from .session_store import (
     get_history,
     record_message,
 )
+from .security import require_admin_key
 
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
+_request_times: dict[str, deque] = defaultdict(deque)
 
 app.add_middleware(
     CORSMiddleware,
@@ -54,6 +57,24 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    limit = int(os.getenv("RATE_LIMIT_PER_MINUTE", "120"))
+    if limit > 0 and request.url.path != "/health":
+        client = request.client.host if request.client else "unknown"
+        now = time.time()
+        history = _request_times[client]
+        while history and history[0] < now - 60:
+            history.popleft()
+        if len(history) >= limit:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": "请求过于频繁，请稍后重试"},
+            )
+        history.append(now)
+    return await call_next(request)
 
 
 def get_pipeline() -> RAGPipeline:
@@ -73,7 +94,10 @@ def list_sources() -> list[Source]:
 
 
 @app.post("/ingest", response_model=IngestResponse)
-def ingest(request: IngestRequest) -> IngestResponse:
+def ingest(
+    request: IngestRequest,
+    _: None = Depends(require_admin_key),
+) -> IngestResponse:
     pipeline = get_pipeline()
     chunk_count = pipeline.ingest_text(
         request.text,
@@ -94,7 +118,10 @@ def ingest(request: IngestRequest) -> IngestResponse:
 
 
 @app.post("/ingest/file", response_model=IngestResponse)
-async def ingest_file(file: UploadFile = File(...)) -> IngestResponse:
+async def ingest_file(
+    file: UploadFile = File(...),
+    _: None = Depends(require_admin_key),
+) -> IngestResponse:
     content = await file.read()
     text, metadata = load_bytes(file.filename or "upload.txt", content)
     pipeline = get_pipeline()
@@ -117,7 +144,10 @@ async def ingest_file(file: UploadFile = File(...)) -> IngestResponse:
 
 
 @app.post("/ingest/url", response_model=IngestResponse)
-def ingest_url(request: UrlIngestRequest) -> IngestResponse:
+def ingest_url(
+    request: UrlIngestRequest,
+    _: None = Depends(require_admin_key),
+) -> IngestResponse:
     text, metadata = fetch_url_text(request.url)
     pipeline = get_pipeline()
     chunk_count = pipeline.ingest_text(
@@ -164,7 +194,11 @@ def metrics() -> dict:
 
 
 @app.post("/sources/{source_id}/archive", response_model=Source)
-def archive_source(source_id: str, archived: bool = True) -> Source:
+def archive_source(
+    source_id: str,
+    archived: bool = True,
+    _: None = Depends(require_admin_key),
+) -> Source:
     for source in sources:
         if source.id == source_id:
             source.archived = archived
@@ -178,7 +212,10 @@ def list_faqs() -> list[dict]:
 
 
 @app.post("/faqs")
-def create_faq(request: FaqCreateRequest) -> dict:
+def create_faq(
+    request: FaqCreateRequest,
+    _: None = Depends(require_admin_key),
+) -> dict:
     return add_faq(
         question=request.question,
         answer=request.answer,

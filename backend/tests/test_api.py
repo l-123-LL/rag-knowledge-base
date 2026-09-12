@@ -265,3 +265,33 @@ def test_feedback_endpoint() -> None:
 
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
+
+
+def test_admin_key_is_enforced_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ADMIN_API_KEY", "secret-key")
+
+    denied = client.post(
+        "/faqs",
+        json={"question": "问题", "answer": "答案"},
+    )
+    allowed = client.post(
+        "/faqs",
+        headers={"X-API-Key": "secret-key"},
+        json={"question": "问题2", "answer": "答案2"},
+    )
+
+    assert denied.status_code == 401
+    assert allowed.status_code == 200
+
+
+def test_rate_limit_returns_429(monkeypatch: pytest.MonkeyPatch) -> None:
+    from app import main
+
+    monkeypatch.setenv("RATE_LIMIT_PER_MINUTE", "1")
+    main._request_times.clear()
+
+    first = client.get("/sources")
+    second = client.get("/sources")
+
+    assert first.status_code == 200
+    assert second.status_code == 429
