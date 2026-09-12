@@ -9,6 +9,7 @@ interface ChatPanelProps {
   isLoading: boolean
   mockQuestions: MockConversation[]
   onAsk: (question: string) => void
+  onNewSession?: () => void
 }
 
 function EmptyState({
@@ -73,6 +74,7 @@ export function ChatPanel({
   isLoading,
   mockQuestions,
   onAsk,
+  onNewSession,
 }: ChatPanelProps) {
   // 首屏没有对话时展示引导和示例问题。
   const showEmptyState = useMemo(
@@ -88,9 +90,20 @@ export function ChatPanel({
             <h1 className="text-base font-semibold text-ink-900">智能问答</h1>
             <p className="mt-1 text-xs text-ink-500">基于企业知识库的预览</p>
           </div>
-          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
-            前端预览
-          </span>
+          <div className="flex items-center gap-2">
+            {onNewSession ? (
+              <button
+                type="button"
+                onClick={onNewSession}
+                className="rounded-lg border border-line px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-500 hover:text-brand-600"
+              >
+                新会话
+              </button>
+            ) : null}
+            <span className="rounded-full bg-brand-50 px-2.5 py-1 text-xs font-medium text-brand-600">
+              前端预览
+            </span>
+          </div>
         </div>
       </div>
 

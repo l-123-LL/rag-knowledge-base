@@ -4,6 +4,7 @@ import {
   ingestFile,
   ingestUrl,
   listSources,
+  resetSession,
   streamAsk,
 } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
@@ -67,6 +68,12 @@ export default function App() {
     } catch {
       setUploadError('网页导入失败，请确认后端正在运行且链接可访问。')
     }
+  }, [])
+
+  const handleNewSession = useCallback(async () => {
+    setConversations([])
+    setError(null)
+    await resetSession()
   }, [])
 
   // 前端预览：先展示加载状态，再用本地示例数据模拟一次问答。
@@ -188,6 +195,7 @@ export default function App() {
             isLoading={isLoading}
             mockQuestions={mockConversations}
             onAsk={handleAsk}
+            onNewSession={handleNewSession}
           />
         </main>
       </div>

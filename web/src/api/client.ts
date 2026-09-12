@@ -201,3 +201,18 @@ export async function streamAsk(
     }
   }
 }
+
+export async function resetSession(): Promise<void> {
+  const currentSessionId = sessionId
+  sessionId = null
+
+  if (!currentSessionId) {
+    return
+  }
+
+  await requestBackend('/session/reset', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ session_id: currentSessionId }),
+  })
+}

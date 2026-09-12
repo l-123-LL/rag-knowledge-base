@@ -193,3 +193,13 @@ def test_human_intent_returns_transfer_message() -> None:
     assert response.status_code == 200
     assert response.json()["model"] == "intent"
     assert "转接人工" in response.json()["answer"]
+
+
+def test_session_reset_clears_history() -> None:
+    response = client.post(
+        "/session/reset",
+        json={"session_id": "test-session"},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {"status": "ok"}

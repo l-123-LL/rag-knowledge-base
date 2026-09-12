@@ -22,6 +22,7 @@ from .schemas import (
     HealthResponse,
     IngestRequest,
     IngestResponse,
+    SessionResetRequest,
     Source,
     UrlIngestRequest,
 )
@@ -136,6 +137,12 @@ def ingest_url(request: UrlIngestRequest) -> IngestResponse:
         )
     )
     return IngestResponse(chunk_count=chunk_count)
+
+
+@app.post("/session/reset")
+def reset_session(request: SessionResetRequest) -> dict:
+    SESSION_HISTORY.pop(request.session_id, None)
+    return {"status": "ok"}
 
 
 @app.post("/ask", response_model=AskResponse)

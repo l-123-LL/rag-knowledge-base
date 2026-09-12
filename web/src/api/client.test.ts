@@ -4,6 +4,7 @@ import {
   ingestUrl,
   MOCK_DELAY_MS,
   listSources,
+  resetSession,
 } from './client'
 
 describe('api client', () => {
@@ -42,5 +43,9 @@ describe('api client', () => {
 
   it('throws when URL ingestion has no backend', async () => {
     await expect(ingestUrl('https://example.com')).rejects.toThrow('后端不可用')
+  })
+
+  it('resets the local session without backend errors', async () => {
+    await expect(resetSession()).resolves.toBeUndefined()
   })
 })

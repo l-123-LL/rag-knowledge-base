@@ -18,6 +18,10 @@ class UrlIngestRequest(BaseModel):
     url: str = Field(min_length=1)
 
 
+class SessionResetRequest(BaseModel):
+    session_id: str
+
+
 class IngestResponse(BaseModel):
     chunk_count: int
 
