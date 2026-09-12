@@ -13,6 +13,7 @@ from .cost import calculate_cost
 from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
+from .observability import log_ask_event
 from .mock_data import find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -152,6 +153,14 @@ def ask(request: AskRequest) -> AskResponse:
         answer_text = intent.message or "已转接人工客服。"
         record_message(request.session_id, "user", request.question)
         record_message(request.session_id, "assistant", answer_text)
+        log_ask_event(
+            {
+                "route": "intent",
+                "session_id": request.session_id,
+                "question": request.question,
+                "model": "intent",
+            }
+        )
         return AskResponse(
             answer=answer_text,
             citations=[],
@@ -163,6 +172,14 @@ def ask(request: AskRequest) -> AskResponse:
     if faq_match is not None:
         record_message(request.session_id, "user", request.question)
         record_message(request.session_id, "assistant", faq_match["answer"])
+        log_ask_event(
+            {
+                "route": "faq",
+                "session_id": request.session_id,
+                "question": request.question,
+                "model": "faq",
+            }
+        )
         return AskResponse(
             answer=faq_match["answer"],
             citations=faq_match["citations"],
@@ -192,6 +209,16 @@ def ask(request: AskRequest) -> AskResponse:
             "assistant",
             "当前示例资料不足，暂时无法给出可靠回答。",
         )
+        log_ask_event(
+            {
+                "route": "rag",
+                "session_id": request.session_id,
+                "question": request.question,
+                "model": "deepseek-chat",
+                "status": "insufficient",
+                "latency_ms": latency_ms,
+            }
+        )
         return AskResponse(
             answer="当前示例资料不足，暂时无法给出可靠回答。",
             citations=[],
@@ -202,6 +229,28 @@ def ask(request: AskRequest) -> AskResponse:
 
     record_message(request.session_id, "user", request.question)
     record_message(request.session_id, "assistant", result.answer)
+    cost = calculate_cost(
+        result.usage,
+        input_price_per_million=float(
+            os.getenv("DEEPSEEK_INPUT_PRICE_PER_MILLION", "0")
+        ),
+        output_price_per_million=float(
+            os.getenv("DEEPSEEK_OUTPUT_PRICE_PER_MILLION", "0")
+        ),
+    )
+    log_ask_event(
+        {
+            "route": "rag",
+            "session_id": request.session_id,
+            "question": request.question,
+            "model": "deepseek-chat",
+            "status": "done",
+            "latency_ms": latency_ms,
+            "usage": result.usage,
+            "cost": cost,
+            "citation_count": len(result.contexts),
+        }
+    )
     return AskResponse(
         answer=result.answer,
         citations=[
@@ -219,15 +268,7 @@ def ask(request: AskRequest) -> AskResponse:
         status="done",
         latency_ms=latency_ms,
         usage=result.usage,
-        cost=calculate_cost(
-            result.usage,
-            input_price_per_million=float(
-                os.getenv("DEEPSEEK_INPUT_PRICE_PER_MILLION", "0")
-            ),
-            output_price_per_million=float(
-                os.getenv("DEEPSEEK_OUTPUT_PRICE_PER_MILLION", "0")
-            ),
-        ),
+        cost=cost,
     )
 
 
