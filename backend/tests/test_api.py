@@ -144,3 +144,16 @@ def test_ask_stream_returns_sse() -> None:
     assert response.status_code == 200
     assert "text/event-stream" in response.headers["content-type"]
     assert "应尽早给予抗流感病毒治疗" in response.text
+
+
+def test_faq_question_returns_standard_answer_without_pipeline() -> None:
+    app.state.pipeline = None
+
+    response = client.post(
+        "/ask",
+        json={"question": "如何申请退货？"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["model"] == "faq"
+    assert response.json()["status"] == "done"

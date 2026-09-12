@@ -12,7 +12,7 @@ from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
-from .mock_data import sources
+from .mock_data import find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
     AskRequest,
@@ -124,6 +124,15 @@ def ingest_url(request: UrlIngestRequest) -> IngestResponse:
 
 @app.post("/ask", response_model=AskResponse)
 def ask(request: AskRequest) -> AskResponse:
+    faq_match = find_mock_answer(request.question)
+    if faq_match is not None:
+        return AskResponse(
+            answer=faq_match["answer"],
+            citations=faq_match["citations"],
+            model="faq",
+            status="done",
+        )
+
     pipeline = get_pipeline()
     started_at = time.perf_counter()
 
