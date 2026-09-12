@@ -83,6 +83,7 @@
 - 已加入可选 OIDC/SSO 校验钩子：配置 `OIDC_JWKS_URL` 后，问答接口要求 Bearer Token。
 - 新增 `GET /alerts`，按平均延迟和低有帮助率输出监控告警。
 - 工单支持可选 Webhook 外发，配置 `TICKET_WEBHOOK_URL` 后可推送到 CRM 或客服平台。
+- 日志和反馈支持可选监控 Webhook，配置 `OBSERVABILITY_WEBHOOK_URL` 后可接 Langfuse 或告警平台。
 - 运行指标已聚合反馈数据，前端展示“有帮助率”。
 - 已加入后端、前端 Dockerfile 和 `docker-compose.yml`，可通过 Docker 启动完整服务。
 - 已加入 GitHub Actions CI，推送或提交 PR 时自动跑后端测试、前端测试、类型检查和构建。

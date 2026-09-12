@@ -1,6 +1,7 @@
 import json
 from pathlib import Path
 
+import app.observability as observability
 from app.observability import (
     log_ask_event,
     log_feedback,
@@ -79,3 +80,27 @@ def test_summarize_feedback() -> None:
     assert summary["up_count"] == 2
     assert summary["down_count"] == 1
     assert round(summary["helpful_rate"], 2) == 0.67
+
+
+def test_observability_webhook_is_forwarded(monkeypatch) -> None:
+    sent = {}
+
+    class FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+    def fake_post(url, json, timeout):
+        sent["url"] = url
+        sent["json"] = json
+        return FakeResponse()
+
+    monkeypatch.setenv("OBSERVABILITY_WEBHOOK_URL", "https://example.com/trace")
+    monkeypatch.setattr(observability.httpx, "post", fake_post)
+    path = Path("test_forward_log.jsonl")
+    try:
+        observability.log_ask_event({"question": "如何退货？"}, path)
+    finally:
+        path.unlink(missing_ok=True)
+
+    assert sent["url"] == "https://example.com/trace"
+    assert sent["json"]["question"] == "如何退货？"

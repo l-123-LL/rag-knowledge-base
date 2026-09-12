@@ -3,6 +3,23 @@ import os
 from datetime import datetime, timezone
 from pathlib import Path
 
+import httpx
+
+
+def forward_event(payload: dict) -> bool:
+    """可选外发：配置 OBSERVABILITY_WEBHOOK_URL 后可接 Langfuse 或告警平台。"""
+    url = os.getenv("OBSERVABILITY_WEBHOOK_URL")
+    if not url:
+        return False
+
+    try:
+        response = httpx.post(url, json=payload, timeout=10)
+        response.raise_for_status()
+    except httpx.HTTPError:
+        return False
+
+    return True
+
 
 def log_ask_event(event: dict, log_path: str | Path | None = None) -> None:
     """把问答事件追加到 JSONL 日志，后续可替换为 Langfuse。"""
@@ -14,6 +31,7 @@ def log_ask_event(event: dict, log_path: str | Path | None = None) -> None:
     }
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    forward_event(payload)
 
 
 def summarize_ask_log(log_path: str | Path | None = None) -> dict:
@@ -70,6 +88,7 @@ def log_feedback(
     }
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    forward_event(payload)
 
 
 def summarize_feedback(
