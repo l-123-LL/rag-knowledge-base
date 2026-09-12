@@ -60,6 +60,7 @@ class Source(BaseModel):
     status: Literal["indexed", "pending", "failed"]
     updatedAt: str
     description: str
+    archived: bool = False
 
 
 class HealthResponse(BaseModel):

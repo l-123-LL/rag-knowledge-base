@@ -47,8 +47,13 @@ class RAGPipeline:
         question: str,
         top_k: int = 5,
         history: list[dict] | None = None,
+        exclude_sources: set[str] | None = None,
     ) -> PipelineAnswer:
-        contexts = self.retrieve(question, top_k=top_k)
+        contexts = self.retrieve(
+            question,
+            top_k=top_k,
+            exclude_sources=exclude_sources,
+        )
         if not contexts:
             return PipelineAnswer(
                 answer="当前资料不足，暂时无法给出可靠回答。",
@@ -70,8 +75,17 @@ class RAGPipeline:
             },
         )
 
-    def retrieve(self, question: str, top_k: int = 5) -> list[RetrievedChunk]:
-        contexts = self.retriever.search(question, top_k=top_k)
+    def retrieve(
+        self,
+        question: str,
+        top_k: int = 5,
+        exclude_sources: set[str] | None = None,
+    ) -> list[RetrievedChunk]:
+        contexts = self.retriever.search(
+            question,
+            top_k=top_k,
+            exclude_sources=exclude_sources,
+        )
         return contexts
 
     def chunk_count(self) -> int:

@@ -11,6 +11,7 @@ interface SourcePanelProps {
     answer: string
     keywords: string[]
   }) => Promise<void>
+  onToggleSource?: (sourceId: string, archived: boolean) => Promise<void>
   uploadError?: string | null
   stats?: Stats
   metrics?: Metrics
@@ -27,6 +28,7 @@ export function SourcePanel({
   onUploadFile,
   onIngestUrl,
   onCreateFaq,
+  onToggleSource,
   uploadError,
   stats,
   metrics,
@@ -169,7 +171,9 @@ export function SourcePanel({
       <div className="min-h-0 flex-1 overflow-y-auto px-3 py-3">
         <div className="space-y-2">
           {sources.map((source) => {
-            const status = statusMeta[source.status]
+            const status = source.archived
+              ? { label: '已停用', className: 'bg-slate-100 text-slate-600' }
+              : statusMeta[source.status]
             const isSelected = source.id === selectedId
 
             return (
@@ -232,6 +236,17 @@ export function SourcePanel({
                       <LinkIcon className="h-4 w-4" />
                       查看来源
                     </a>
+                    {onToggleSource ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          void onToggleSource(source.id, !source.archived)
+                        }
+                        className="ml-3 text-xs font-medium text-rose-600 hover:text-rose-700"
+                      >
+                        {source.archived ? '恢复' : '停用'}
+                      </button>
+                    ) : null}
                   </div>
                 ) : null}
               </button>

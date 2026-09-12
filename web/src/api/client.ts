@@ -269,3 +269,23 @@ export async function resetSession(): Promise<void> {
     body: JSON.stringify({ session_id: currentSessionId }),
   })
 }
+
+export async function archiveSource(
+  sourceId: string,
+  archived: boolean,
+): Promise<Source> {
+  const response = await requestBackend(
+    `/sources/${encodeURIComponent(sourceId)}/archive?archived=${archived}`,
+    { method: 'POST' },
+  )
+
+  if (!response) {
+    throw new Error('后端不可用')
+  }
+
+  if (!response.ok) {
+    throw new Error('来源状态更新失败')
+  }
+
+  return (await response.json()) as Source
+}

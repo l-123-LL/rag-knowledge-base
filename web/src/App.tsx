@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
   askQuestion,
+  archiveSource,
   createFaq,
   ingestFile,
   ingestUrl,
@@ -120,6 +121,25 @@ export default function App() {
     [],
   )
 
+  const handleToggleSource = useCallback(
+    async (sourceId: string, archived: boolean) => {
+      try {
+        await archiveSource(sourceId, archived)
+        const [sourceData, statsData, metricsData] = await Promise.all([
+          listSources(),
+          getStats(),
+          getMetrics(),
+        ])
+        setSources(sourceData)
+        setStats(statsData)
+        setMetrics(metricsData)
+      } catch {
+        setUploadError('来源状态更新失败，请确认后端正在运行。')
+      }
+    },
+    [],
+  )
+
   // 前端预览：先展示加载状态，再用本地示例数据模拟一次问答。
   const handleAsk = useCallback(async (rawQuestion: string) => {
     const question = rawQuestion.trim()
@@ -208,6 +228,7 @@ export default function App() {
             onUploadFile={handleFileUpload}
             onIngestUrl={handleUrlIngest}
             onCreateFaq={handleCreateFaq}
+            onToggleSource={handleToggleSource}
             uploadError={uploadError}
             stats={stats}
             metrics={metrics}
@@ -232,6 +253,7 @@ export default function App() {
             onUploadFile={handleFileUpload}
             onIngestUrl={handleUrlIngest}
             onCreateFaq={handleCreateFaq}
+            onToggleSource={handleToggleSource}
             uploadError={uploadError}
             stats={stats}
             metrics={metrics}

@@ -20,6 +20,7 @@ class FakePipeline:
         question: str,
         top_k: int = 5,
         history: list[dict] | None = None,
+        exclude_sources: set[str] | None = None,
     ) -> PipelineAnswer:
         if "流感" not in question:
             return PipelineAnswer(answer="当前资料不足。", contexts=[])
@@ -54,6 +55,7 @@ class FakeStreamingPipeline:
         self,
         question: str,
         top_k: int = 5,
+        exclude_sources: set[str] | None = None,
     ) -> list[RetrievedChunk]:
         return [
             RetrievedChunk(
@@ -234,3 +236,19 @@ def test_create_faq_is_used_by_ask() -> None:
     assert response.status_code == 200
     assert response.json()["model"] == "faq"
     assert "发货前" in response.json()["answer"]
+
+
+def test_archive_and_restore_source() -> None:
+    archived = client.post(
+        "/sources/return-policy/archive",
+        params={"archived": True},
+    )
+    restored = client.post(
+        "/sources/return-policy/archive",
+        params={"archived": False},
+    )
+
+    assert archived.status_code == 200
+    assert archived.json()["archived"] is True
+    assert restored.status_code == 200
+    assert restored.json()["archived"] is False

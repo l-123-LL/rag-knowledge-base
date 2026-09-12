@@ -163,6 +163,15 @@ def metrics() -> dict:
     return summarize_ask_log()
 
 
+@app.post("/sources/{source_id}/archive", response_model=Source)
+def archive_source(source_id: str, archived: bool = True) -> Source:
+    for source in sources:
+        if source.id == source_id:
+            source.archived = archived
+            return source
+    raise HTTPException(status_code=404, detail="来源不存在")
+
+
 @app.get("/faqs")
 def list_faqs() -> list[dict]:
     return faq_items
@@ -221,6 +230,7 @@ def ask(request: AskRequest) -> AskResponse:
 
     pipeline = get_pipeline()
     started_at = time.perf_counter()
+    archived_sources = {source.title for source in sources if source.archived}
 
     try:
         history = get_history(request.session_id)
@@ -228,6 +238,7 @@ def ask(request: AskRequest) -> AskResponse:
             request.question,
             top_k=request.top_k,
             history=history,
+            exclude_sources=archived_sources,
         )
     except GenerationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
@@ -308,7 +319,12 @@ def ask(request: AskRequest) -> AskResponse:
 def ask_stream(request: AskRequest):
     pipeline = get_pipeline()
     history = get_history(request.session_id)
-    contexts = pipeline.retrieve(request.question, top_k=request.top_k)
+    archived_sources = {source.title for source in sources if source.archived}
+    contexts = pipeline.retrieve(
+        request.question,
+        top_k=request.top_k,
+        exclude_sources=archived_sources,
+    )
 
     if not contexts:
         return JSONResponse(

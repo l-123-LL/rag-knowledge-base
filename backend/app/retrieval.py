@@ -109,7 +109,12 @@ class HybridRetriever:
     def count(self) -> int:
         return len(self.doc_ids)
 
-    def search(self, query: str, top_k: int = 5) -> list[RetrievedChunk]:
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+        exclude_sources: set[str] | None = None,
+    ) -> list[RetrievedChunk]:
         query_embedding = self.embedder.embed([query])[0]
         vector_hits = self.vector_store.query(query_embedding, top_k=len(self.doc_ids))
         dense_by_id = {hit.id: hit.score for hit in vector_hits}
@@ -138,6 +143,12 @@ class HybridRetriever:
                 )
             )
 
+        excluded = exclude_sources or set()
+        candidates = [
+            candidate
+            for candidate in candidates
+            if candidate.metadata.get("source") not in excluded
+        ]
         candidates.sort(
             key=lambda item: item.combined_score,
             reverse=True,

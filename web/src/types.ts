@@ -8,6 +8,7 @@ export interface Source {
   status: SourceStatus
   updatedAt: string
   description: string
+  archived?: boolean
 }
 
 export interface Stats {
