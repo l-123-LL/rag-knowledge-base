@@ -3,6 +3,7 @@ import {
   askQuestion,
   ingestFile,
   ingestUrl,
+  getMetrics,
   getStats,
   listSources,
   resetSession,
@@ -13,7 +14,7 @@ import { SourcePanel } from './components/SourcePanel'
 import { DatabaseIcon } from './components/icons'
 import { mockConversations, mockSources } from './data/mockData'
 import type { Conversation, Source } from './types'
-import type { Stats } from './types'
+import type { Metrics, Stats } from './types'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -30,17 +31,19 @@ export default function App() {
   const [sources, setSources] = useState<Source[]>(mockSources)
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [stats, setStats] = useState<Stats | undefined>()
+  const [metrics, setMetrics] = useState<Metrics | undefined>()
 
   useEffect(() => {
     let active = true
 
-    Promise.all([listSources(), getStats()])
-      .then(([sourceData, statsData]) => {
+    Promise.all([listSources(), getStats(), getMetrics()])
+      .then(([sourceData, statsData, metricsData]) => {
         if (active) {
           if (sourceData.length > 0) {
             setSources(sourceData)
           }
           setStats(statsData)
+          setMetrics(metricsData)
         }
       })
       .catch(() => {
@@ -57,9 +60,14 @@ export default function App() {
 
     try {
       await ingestFile(file)
-      const [data, statsData] = await Promise.all([listSources(), getStats()])
+      const [data, statsData, metricsData] = await Promise.all([
+        listSources(),
+        getStats(),
+        getMetrics(),
+      ])
       setSources(data)
       setStats(statsData)
+      setMetrics(metricsData)
     } catch {
       setUploadError('上传失败，请确认后端正在运行。')
     }
@@ -70,9 +78,14 @@ export default function App() {
 
     try {
       await ingestUrl(url)
-      const [data, statsData] = await Promise.all([listSources(), getStats()])
+      const [data, statsData, metricsData] = await Promise.all([
+        listSources(),
+        getStats(),
+        getMetrics(),
+      ])
       setSources(data)
       setStats(statsData)
+      setMetrics(metricsData)
     } catch {
       setUploadError('网页导入失败，请确认后端正在运行且链接可访问。')
     }
@@ -173,6 +186,7 @@ export default function App() {
             onIngestUrl={handleUrlIngest}
             uploadError={uploadError}
             stats={stats}
+            metrics={metrics}
           />
         </div>
       </header>
@@ -195,6 +209,7 @@ export default function App() {
             onIngestUrl={handleUrlIngest}
             uploadError={uploadError}
             stats={stats}
+            metrics={metrics}
           />
         </div>
 

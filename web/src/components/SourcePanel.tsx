@@ -1,5 +1,5 @@
 import { useRef, useState, type FormEvent } from 'react'
-import type { Source, Stats } from '../types'
+import type { Metrics, Source, Stats } from '../types'
 import { AlertIcon, CheckIcon, ChevronDownIcon, LinkIcon } from './icons'
 
 interface SourcePanelProps {
@@ -8,6 +8,7 @@ interface SourcePanelProps {
   onIngestUrl?: (url: string) => Promise<void>
   uploadError?: string | null
   stats?: Stats
+  metrics?: Metrics
 }
 
 const statusMeta = {
@@ -22,6 +23,7 @@ export function SourcePanel({
   onIngestUrl,
   uploadError,
   stats,
+  metrics,
 }: SourcePanelProps) {
   // 当前选中的来源，用于展开或收起详情。
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -102,6 +104,30 @@ export function SourcePanel({
             <p className="mt-1 text-sm font-semibold text-ink-900">
               {stats.session_count}
             </p>
+          </div>
+        </div>
+      ) : null}
+
+      {metrics ? (
+        <div className="border-b border-line px-4 py-3">
+          <p className="mb-2 text-xs font-medium text-ink-500">运行指标</p>
+          <div className="space-y-1 text-xs text-ink-600">
+            <div className="flex justify-between">
+              <span>问答次数</span>
+              <span>{metrics.total_queries}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>平均延迟</span>
+              <span>{metrics.avg_latency_ms} ms</span>
+            </div>
+            <div className="flex justify-between">
+              <span>累计 token</span>
+              <span>{metrics.total_tokens}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>累计成本</span>
+              <span>{metrics.total_cost.toFixed(4)}</span>
+            </div>
           </div>
         </div>
       ) : null}

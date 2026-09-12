@@ -1,5 +1,5 @@
 import { findMockAnswer, mockSources } from '../data/mockData'
-import type { Citation, Source, Stats } from '../types'
+import type { Citation, Metrics, Source, Stats } from '../types'
 
 export interface AskResponse {
   answer: string
@@ -104,6 +104,22 @@ export async function getStats(): Promise<Stats> {
     chunk_count: 0,
     session_count: 0,
     faq_count: 0,
+  }
+}
+
+export async function getMetrics(): Promise<Metrics> {
+  const response = await requestBackend('/api/metrics')
+
+  if (response?.ok) {
+    return (await response.json()) as Metrics
+  }
+
+  return {
+    total_queries: 0,
+    route_counts: {},
+    avg_latency_ms: 0,
+    total_tokens: 0,
+    total_cost: 0,
   }
 }
 

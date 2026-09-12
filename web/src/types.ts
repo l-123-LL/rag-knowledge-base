@@ -17,6 +17,14 @@ export interface Stats {
   faq_count: number
 }
 
+export interface Metrics {
+  total_queries: number
+  route_counts: Record<string, number>
+  avg_latency_ms: number
+  total_tokens: number
+  total_cost: number
+}
+
 export interface Citation {
   id: string
   title: string

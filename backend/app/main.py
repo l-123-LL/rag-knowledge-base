@@ -13,7 +13,7 @@ from .cost import calculate_cost
 from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
-from .observability import log_ask_event
+from .observability import log_ask_event, summarize_ask_log
 from .mock_data import faq_count, find_mock_answer, sources
 from .pipeline import RAGPipeline
 from .schemas import (
@@ -155,6 +155,11 @@ def stats() -> dict:
         "session_count": len(SESSION_HISTORY),
         "faq_count": faq_count(),
     }
+
+
+@app.get("/metrics")
+def metrics() -> dict:
+    return summarize_ask_log()
 
 
 @app.post("/ask", response_model=AskResponse)
