@@ -78,6 +78,7 @@ export function ChatPanel({
   onNewSession,
   onFeedback,
 }: ChatPanelProps) {
+  // 首屏没有对话时展示引导，避免用户面对空白页面。
   const showEmptyState = useMemo(
     () => conversations.length === 0 && !error,
     [conversations.length, error],

@@ -19,6 +19,7 @@ function TypingIndicator() {
 }
 
 export function AnswerCard({ conversation, onFeedback }: AnswerCardProps) {
+  // 记录用户反馈状态，让按钮有明显选中反馈。
   const [feedback, setFeedback] = useState<'up' | 'down' | null>(null)
   const isInsufficient = conversation.status === 'insufficient'
 
@@ -41,6 +42,7 @@ export function AnswerCard({ conversation, onFeedback }: AnswerCardProps) {
           {conversation.status === 'loading' ? (
             <TypingIndicator />
           ) : isInsufficient ? (
+            // 无资料时明确提示，而不是强行给出不确定答案。
             <div className="flex items-start gap-3 rounded-xl border border-amber-100 bg-amber-50 px-4 py-3">
               <AlertIcon className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
               <div>

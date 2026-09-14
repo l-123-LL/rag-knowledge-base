@@ -11,6 +11,7 @@ _lock = threading.RLock()
 
 
 def _faq_path(tenant_id: str) -> Path:
+    """每个租户一个 FAQ 文件，避免不同企业数据互相覆盖。"""
     base = Path(os.getenv("FAQ_DIR", "data/faqs"))
     safe_tenant = re.sub(r"[^a-zA-Z0-9_-]", "_", tenant_id)
     return base / f"{safe_tenant}.json"
@@ -109,6 +110,7 @@ def _save(tenant_id: str, items: list[dict]) -> None:
 
 
 def list_faqs(tenant_id: str = "default") -> list[dict]:
+    # 首次访问默认租户时写入内置 FAQ，后续直接读磁盘。
     with _lock:
         items = _load(tenant_id)
         if not items and tenant_id == "default":
@@ -118,6 +120,7 @@ def list_faqs(tenant_id: str = "default") -> list[dict]:
 
 
 def find_faq_answer(question: str, tenant_id: str = "default") -> dict | None:
+    # FAQ 精确优先，先归一化空格，再按关键词包含匹配。
     normalized = question.lower().replace(" ", "")
     for item in list_faqs(tenant_id):
         if any(
@@ -139,6 +142,7 @@ def add_faq(
     source: str = "人工录入",
     tenant_id: str = "default",
 ) -> dict:
+    # 加锁写文件，防止多线程同时修改造成数据丢失。
     with _lock:
         items = list_faqs(tenant_id)
         item = {

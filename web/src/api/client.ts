@@ -40,12 +40,14 @@ async function requestBackend(
   path: string,
   init?: RequestInit,
 ): Promise<Response | null> {
+  // 测试环境没有 fetch 时返回 null，调用方会自动回退到 mock。
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
     return null
   }
 
   try {
     const headers = new Headers(init?.headers)
+    // 管理员 Key 和租户 ID 都通过请求头传入，不写死在 URL 中。
     const adminApiKey = import.meta.env.VITE_ADMIN_API_KEY
     const tenantId = import.meta.env.VITE_TENANT_ID || 'default'
     if (adminApiKey && !headers.has('X-API-Key')) {
@@ -65,6 +67,7 @@ async function requestBackend(
 }
 
 export async function askQuestion(question: string): Promise<AskResponse> {
+  // 先尝试真实后端，失败后回退本地示例，保证前端可以独立演示。
   const response = await requestBackend('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -243,6 +246,7 @@ export async function streamAsk(
   question: string,
   handlers: StreamHandlers,
 ): Promise<void> {
+  // 解析 SSE 事件流，把来源和增量文本实时交给页面。
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
     throw new Error('当前环境不支持流式输出')
   }
@@ -313,6 +317,7 @@ export async function streamAsk(
 }
 
 export async function resetSession(): Promise<void> {
+  // 先清空本地 session，再通知后端删除对应会话文件。
   const currentSessionId = sessionId
   sessionId = null
 

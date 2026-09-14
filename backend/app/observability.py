@@ -7,6 +7,7 @@ import httpx
 
 
 def forward_event(payload: dict) -> bool:
+    # 可选外发，默认只写本地日志，不因外部平台不可用影响主流程。
     """可选外发：配置 OBSERVABILITY_WEBHOOK_URL 后可接 Langfuse 或告警平台。"""
     url = os.getenv("OBSERVABILITY_WEBHOOK_URL")
     if not url:
@@ -22,6 +23,7 @@ def forward_event(payload: dict) -> bool:
 
 
 def log_ask_event(event: dict, log_path: str | Path | None = None) -> None:
+    """把一次问答的关键字段追加到 JSONL，方便离线分析和监控。"""
     """把问答事件追加到 JSONL 日志，后续可替换为 Langfuse。"""
     path = Path(log_path or os.getenv("ASK_LOG_PATH", "data/logs/ask.jsonl"))
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -35,6 +37,7 @@ def log_ask_event(event: dict, log_path: str | Path | None = None) -> None:
 
 
 def summarize_ask_log(log_path: str | Path | None = None) -> dict:
+    # 聚合日志用于 /metrics 和 /alerts，不加载大模型。
     path = Path(log_path or os.getenv("ASK_LOG_PATH", "data/logs/ask.jsonl"))
     if not path.exists():
         return {

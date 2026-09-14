@@ -9,6 +9,7 @@ interface QuestionInputProps {
 export function QuestionInput({ disabled, onAsk }: QuestionInputProps) {
   const [value, setValue] = useState('')
 
+  // 点击按钮和 Enter 都走同一个提交逻辑。
   function submitQuestion() {
     const question = value.trim()
 

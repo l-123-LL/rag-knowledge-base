@@ -28,6 +28,7 @@ function createId() {
 }
 
 export default function App() {
+  // 只有前端配置了管理员 Key 时才渲染管理功能。
   const isAdmin = Boolean(import.meta.env.VITE_ADMIN_API_KEY)
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [isLoading, setIsLoading] = useState(false)
@@ -38,6 +39,7 @@ export default function App() {
   const [metrics, setMetrics] = useState<Metrics | undefined>()
 
   useEffect(() => {
+    // 启动时并行拉取来源、统计和指标，避免请求瀑布。
     let active = true
 
     Promise.all([listSources(), getStats(), getMetrics()])
@@ -179,6 +181,7 @@ export default function App() {
     setConversations((current) => [...current, pendingConversation])
     setIsLoading(true)
 
+    // 优先流式回答，失败时回退到普通问答。
     try {
       await streamAsk(question, {
         onSources: (citations) => {

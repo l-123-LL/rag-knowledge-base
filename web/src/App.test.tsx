@@ -20,12 +20,14 @@ describe('App', () => {
   })
 
   it('hides admin management tools from normal users', async () => {
+    vi.stubEnv('VITE_ADMIN_API_KEY', '')
     render(<App />)
     await act(async () => {})
 
     expect(screen.queryAllByText('新增 FAQ')).toHaveLength(0)
     expect(screen.queryAllByText('导入网页')).toHaveLength(0)
     expect(screen.queryAllByText('上传资料')).toHaveLength(0)
+    vi.unstubAllEnvs()
   })
 
   it('returns a sample answer and citation for a matching question', async () => {

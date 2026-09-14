@@ -10,6 +10,12 @@ from app.pipeline import PipelineAnswer
 from app.retrieval import RetrievedChunk
 
 client = TestClient(app)
+client.headers.update({"X-API-Key": "test-admin-key"})
+
+
+@pytest.fixture(autouse=True)
+def configure_admin_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("ADMIN_API_KEY", "test-admin-key")
 
 
 class FakePipeline:
@@ -298,12 +304,13 @@ def test_feedback_endpoint() -> None:
 
 def test_admin_key_is_enforced_when_configured(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("ADMIN_API_KEY", "secret-key")
+    plain_client = TestClient(app)
 
-    denied = client.post(
+    denied = plain_client.post(
         "/faqs",
         json={"question": "问题", "answer": "答案"},
     )
-    allowed = client.post(
+    allowed = plain_client.post(
         "/faqs",
         headers={"X-API-Key": "secret-key"},
         json={"question": "问题2", "answer": "答案2"},

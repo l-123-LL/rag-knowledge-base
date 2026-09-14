@@ -17,6 +17,7 @@ def create_ticket(
     reason: str = "customer_service",
     tenant_id: str = "default",
 ) -> dict:
+    """创建本地工单并持久化，配置 Webhook 时同步外发。"""
     ticket_id = f"T{datetime.now().strftime('%Y%m%d')}{uuid.uuid4().hex[:6].upper()}"
     ticket = {
         "id": ticket_id,
@@ -56,6 +57,7 @@ def count_tickets(tenant_id: str = "default") -> int:
 
 
 def send_ticket_webhook(ticket: dict) -> bool:
+    # 外发失败不影响工单保存，保证客服主流程可用。
     """可选工单外发：配置 TICKET_WEBHOOK_URL 后推送到 CRM 或客服平台。"""
     url = os.getenv("TICKET_WEBHOOK_URL")
     if not url:

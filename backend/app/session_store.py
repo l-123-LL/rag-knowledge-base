@@ -16,6 +16,7 @@ def get_history(
     max_messages: int = 8,
     tenant_id: str = "default",
 ) -> list[dict]:
+    """只取最近 N 条消息，避免上下文无限膨胀。"""
     if not session_id:
         return []
 
@@ -33,6 +34,7 @@ def record_message(
     content: str,
     tenant_id: str = "default",
 ) -> None:
+    # 先读后写，保持单会话 JSON 结构简单、可恢复。
     if not session_id:
         return
 

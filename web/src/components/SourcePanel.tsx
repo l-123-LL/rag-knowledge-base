@@ -185,6 +185,7 @@ export function SourcePanel({
         </div>
         <div className="space-y-2">
           {sources.map((source) => {
+            // 停用状态优先显示，方便管理员快速识别禁用资料。
             const status = source.archived
               ? {
                   label: '已停用',
@@ -277,6 +278,7 @@ export function SourcePanel({
       </div>
 
       <div className="border-t border-line bg-mist/60 px-5 py-4">
+        {/* 管理操作全部按管理员身份条件渲染，普通用户不会看到。 */}
         {onCreateFaq ? (
         <details className="mb-3">
           <summary className="cursor-pointer text-xs font-semibold text-brand-700">
