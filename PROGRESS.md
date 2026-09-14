@@ -1,0 +1,248 @@
+# 项目当前进度（PROGRESS）
+
+> 最后更新：2026-09-14
+> 这份文档只记录"现在做到哪、怎么验证、下一步做什么"，是每次开工的第一入口。
+> 稳定内容（项目目标、架构、文件地图、决策原因、不可违反的约束）见 `HANDOFF.md`。
+
+---
+
+## 0. 下次会话怎么续接
+
+新开会话时，第一句话直接说：
+
+```text
+先完整阅读 AGENTS.md、PROGRESS.md、HANDOFF.md，然后从 PROGRESS.md 第 5 节
+「下一步计划」里优先级最高的一项开始做，不要依赖以前的聊天记录。
+```
+
+固定约定（来自 `AGENTS.md`）：
+
+- 每次改动都要创建一个对应的 Git commit。
+- 每次改动都要编写或更新测试，交付前所有测试和验证必须通过。
+- 任何 API Key、密码、token 都不能写进代码、文档、日志或 Git。
+
+---
+
+## 1. 一句话状态
+
+企业智能客服 RAG 问答系统已打通真实闭环：资料导入 → 清洗切分 → BGE 向量 + FAISS + BM25 混合检索 → 可选 rerank → DeepSeek 生成（支持流式）→ 引用展示 → 反馈/工单/监控。
+
+前后端可以在本机联调运行，向量索引和模型都已落盘。按功能口径完成度约 **95%**，剩下的主要是「导入真实企业资料 + 文档补齐 + 量化指标产出」这一类收尾工作，代码主干已经不需要再重写。
+
+---
+
+## 2. 仓库与环境事实（本次已实测确认）
+
+| 项目 | 现状 |
+| --- | --- |
+| 仓库路径 | `D:\rag知识库`（本地 Git，分支 `master`，**没有配置远程仓库**） |
+| 提交数 | 65 个提交，最新为 `9410abe docs: add key code comments`（2026-09-14） |
+| 工作区 | 干净，`git status` 无未提交改动 |
+| 前端 | React 18 + Vite 5 + TypeScript 5 + Tailwind CSS 3，开发端口 `5173` |
+| 后端 | FastAPI + Uvicorn，端口 `8000` |
+| Python | 项目虚拟环境 `.venv`，版本 3.12.14 |
+| Node / npm | Node v24.15.0，npm 11.12.1 |
+| 嵌入模型 | `BAAI/bge-large-zh-v1.5`，权重已下载到 `models/huggingface/hub/models--BAAI--bge-large-zh-v1.5` |
+| 向量库 | FAISS 本地索引，落盘在 `backend/data/faiss/`（`index.faiss` + `records.json`） |
+| 生成模型 | DeepSeek `deepseek-chat`，Key 在本机 `backend/.env`，未提交 |
+| 管理端开关 | 前端读 `VITE_ADMIN_API_KEY`，存在时显示管理功能，不存在时就是普通用户视图 |
+
+被 Git 忽略的运行时目录：`.venv/`、`data/`、`models/`、`backups/`、`.env`、`backend/.env`。
+这些目录里是模型权重、索引、会话、日志和密钥，属于可再生成或敏感内容，**不要提交**。
+
+---
+
+## 3. 验证结果（本次运行的实测输出，不是估算）
+
+### 后端测试
+
+```bash
+cd backend
+..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q
+```
+
+结果：**54 passed**（覆盖切分、检索、向量库、生成、管线、FAQ 存储、会话、工单、观测、备份、评估等）。
+
+### 前端测试
+
+```bash
+cd web
+npm test
+```
+
+结果：**6 个测试文件 / 18 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
+
+### 检索评估（企业客服 50 条问题集）
+
+```bash
+cd backend
+..\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0,'.'); from evaluation.enterprise_eval import run_enterprise_evaluation; print(run_enterprise_evaluation()['average'])"
+```
+
+结果：
+
+| 指标 | 数值 |
+| --- | --- |
+| hit@1 | 0.90 |
+| hit@3 | 0.98 |
+| hit@5 | 1.00 |
+| MRR | 0.945 |
+
+评估集定义在 `backend/evaluation/enterprise_eval.py`：8 个客服主题 × 5 条问法 = 50 条。
+
+### 本机运行时数据规模
+
+| 数据 | 位置 | 当前量级 |
+| --- | --- | --- |
+| 问答日志 | `backend/data/logs/ask.jsonl` | 222 条 |
+| 反馈日志 | `backend/data/logs/feedback.jsonl` | 28 条 |
+| FAQ | `backend/data/faqs/default.json` | 14 条 |
+| 工单 | `backend/data/tickets/` | 约 100 个 JSON，多数由测试产生 |
+| 会话记忆 | `backend/data/sessions/` | 若干 JSON |
+| 向量索引 | `backend/data/faiss/records.json` | 仍是示例级小规模，**未导入真实企业资料** |
+
+---
+
+## 4. 已完成能力清单
+
+### 检索与生成
+
+- 文本切分：按段落聚合 + 窗口切分，可配置块大小和重叠。
+- 嵌入：`BAAI/bge-large-zh-v1.5`，`normalize_embeddings=True`，内积检索。
+- 向量库：`VectorStore` 接口 + `FAISSVectorStore` 实现，元数据与索引分离落盘，重启可恢复。
+- 关键词检索：`rank-bm25` + `jieba` 中文分词。
+- 混合检索：向量与 BM25 融合，`top_k` 可传参（默认 5）。
+- 可选 rerank：配置 `RERANK_MODEL` 后启用 BGE reranker。
+- 生成：DeepSeek 客户端，支持普通与 SSE 流式两种调用。
+- 兜底：检索不到可靠内容时返回「资料不足」而不是编造。
+
+### 企业客服业务逻辑
+
+- FAQ 优先命中：命中标准问题直接返回标准答案，不调用大模型。
+- 意图路由：识别投诉、转人工，返回对应话术。
+- 转人工/投诉自动建工单，支持 `GET /tickets` 查询与可选 Webhook 外发。
+- 会话记忆：前端自动带 `session_id`，后端持久化最近对话。
+- 多租户隔离：`X-Tenant-ID` 隔离来源、FAQ、会话、工单和检索元数据。
+- 资料可停用/恢复，停用后自动排除出检索结果。
+
+### 知识库管理
+
+- 导入 TXT / Markdown / HTML / 文本层 PDF；PDF 表格可提取为 Markdown。
+- 网页 URL 抓取导入并清洗正文。
+- FAQ 增删改查 + 版本号，本地持久化。
+- 扫描版 PDF 的 OCR 作为可选钩子（`OCR_ENABLED=true` 需装 OCR 组件）。
+
+### 可观测与运维
+
+- `/stats` 资料数、分片数、会话数、FAQ 数、工单数。
+- `/metrics` 查询量、平均延迟、总 token、成本、有帮助率。
+- `/alerts` 按延迟和低有帮助率输出告警。
+- 结构化 JSONL 日志 + 可选观测 Webhook（可接 Langfuse 类平台）。
+- 管理员 API Key + 每分钟限流（默认关闭）。
+- 可选 OIDC/SSO 校验钩子（`OIDC_JWKS_URL`）。
+- 管理员备份接口 `POST /backup`。
+
+### 工程化
+
+- 前端企业客服工作台界面，管理功能仅管理员可见。
+- 前端错误边界、mock 回退、流式失败自动降级。
+- 后端 / 前端 Dockerfile + `docker-compose.yml`。
+- GitHub Actions CI：推送或 PR 时跑后端测试、前端测试、类型检查、构建。
+
+---
+
+## 5. 下一步计划（按优先级，从上往下做）
+
+### P0-1 导入真实企业资料，跑通真实问答
+
+要做什么：准备若干份真实客服资料（FAQ 表格、产品手册、售后政策 PDF/Markdown），通过 `/ingest`、`/ingest/file` 或前端「上传资料」导入，然后用 10~20 个真实问题验证回答质量。
+涉及：`backend/app/ingestion.py`、`backend/app/main.py`、`backend/data/`（运行时产生）。
+产出：真实索引规模 + 一组真实问答记录。
+
+### P0-2 补齐项目说明文档
+
+要做什么：新增 `README.md`（是什么、怎么启动、界面截图位、接口列表），新增 `docs/ROADMAP.md`（已完成/进行中/未开始）和 `docs/RAG_DESIGN.md`（数据、切分、Embedding、向量库、检索、Prompt、评估的选型与理由）。
+涉及：新增 `README.md`、`docs/ROADMAP.md`、`docs/RAG_DESIGN.md`。
+
+### P1-1 清理医学阶段遗留内容
+
+要做什么：`backend/evaluation/sample_corpus.json`、`backend/evaluation/sample_questions.json` 仍是医学问题，`backend/app/__init__.py` 的 docstring 还写着「医学知识库」。统一改成企业客服样例，或明确标注为历史样例。
+涉及：`backend/evaluation/`、`backend/app/__init__.py`、`backend/tests/test_evaluation.py`。
+
+### P1-2 产出延迟与成本量化数字
+
+要做什么：在 `backend/.env` 填入 DeepSeek 单价（`DEEPSEEK_INPUT_PRICE_PER_MILLION`、`DEEPSEEK_OUTPUT_PRICE_PER_MILLION`），跑一批问题，从 `ask.jsonl` 汇总平均延迟、首 token 延迟、单次查询成本，写进 `README.md` 或评估报告。
+涉及：`backend/.env`（本地，不提交）、`backend/app/cost.py`、`backend/data/logs/ask.jsonl`。
+
+### P1-3 验证 rerank 的实际收益
+
+要做什么：设置 `RERANK_MODEL=BAAI/bge-reranker-v2-m3`，用同一套 50 条问题做开关对比，记录 hit@1 / MRR 变化，并记录额外延迟。
+涉及：`backend/app/reranker.py`、`backend/evaluation/enterprise_eval.py`。
+
+### P2-1 代码规范与部署验证
+
+要做什么：加 ESLint + Prettier（前端）与 ruff/black（后端）；实际执行一次 `docker compose up` 验证两个镜像能构建并连通。
+涉及：`web/package.json`、`backend/requirements.txt`、`docker-compose.yml`、`.github/workflows/ci.yml`。
+
+### P2-2 扩充评估集
+
+要做什么：把 50 条扩到 200 条左右，补上生成质量（faithfulness / relevance）报告，做成可重复运行的脚本。
+涉及：`backend/evaluation/enterprise_eval.py`、`backend/evaluation/generation_eval.py`、`backend/app/judge.py`。
+
+---
+
+## 6. 已知问题与风险
+
+- **索引里还是示例文本**：`backend/data/faiss/records.json` 规模很小，真实资料尚未导入，因此现有指标只代表示例语料，不能当作真实业务效果。
+- **成本数字缺失**：`DEEPSEEK_*_PRICE_PER_MILLION` 目前为 0，`/metrics` 的成本字段没有实际意义。
+- **rerank 未实测**：代码路径存在，但从未开启对比过效果。
+- **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。
+- **Docker 未实测构建**：文件齐全，但没有在本机跑过 `docker compose up`。
+- **评估集偏小且偏理想**：50 条问题都来自少量短文本，hit@1=0.90 不能代表真实长文档场景。
+- **没有 lint / format 脚本**，靠人工约定风格。
+- **没有 README 和设计文档**，新人只能靠 `HANDOFF.md` + `PROGRESS.md`。
+- **移动端只做过手动检查**，没有自动化浏览器回归。
+- **鉴权是可选钩子**：默认单机演示无鉴权，上生产前必须配置 `ADMIN_API_KEY` 和 OIDC。
+- **本机密钥**：`backend/.env` 里有真实 DeepSeek Key；换机器时需要重新配置，且绝不能提交。
+- **没有远程仓库**：目前只在本地，代码没有异地备份。
+
+---
+
+## 7. 常用命令速查
+
+```bash
+# 启动后端（端口 8000）
+cd backend
+..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
+
+# 启动前端（端口 5173，已配置 /api 代理到 8000）
+cd web
+npm run dev
+
+# 后端测试
+cd backend
+..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q
+
+# 前端测试 / 类型检查 / 构建
+cd web
+npm test
+npm run typecheck
+npm run build
+
+# 检索评估
+cd backend
+..\.venv\Scripts\python.exe -m evaluation.enterprise_eval
+```
+
+前端普通用户视图：直接访问 `http://127.0.0.1:5173/`（`web/.env` 里没有 `VITE_ADMIN_API_KEY` 时看不到管理功能）。
+管理视图：在 `web/.env` 里设置 `VITE_ADMIN_API_KEY`（值与后端 `ADMIN_API_KEY` 一致）后重启前端。
+
+---
+
+## 8. 待用户确认的事
+
+- 第一批要导入哪些真实资料（行业、格式、大概多少份）。
+- 是否需要把仓库推到 GitHub 作为远程备份。
+- 单次查询成本和延迟的目标阈值是多少。
+- 是否要正式做 OCR 和复杂表格解析。
+- 是否会真的上线（决定要不要把鉴权、限额、备份做成必选而不是可选）。
