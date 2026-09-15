@@ -70,4 +70,19 @@ describe('App', () => {
 
     expect(screen.getByText('资料不足')).toBeInTheDocument()
   })
+
+  it('offers one-click transfer to a human agent', async () => {
+    vi.useFakeTimers()
+    render(<App />)
+    await act(async () => {})
+
+    // 输入框旁边必须有明确的转人工入口，用户不需要自己想办法。
+    fireEvent.click(screen.getByRole('button', { name: '转人工' }))
+
+    expect(screen.getByText('我要转人工客服')).toBeInTheDocument()
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(MOCK_DELAY_MS)
+    })
+  })
 })

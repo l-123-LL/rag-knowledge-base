@@ -226,6 +226,11 @@ export default function App() {
     }
   }, [])
 
+  // 一键转人工：复用问答链路，后端意图路由会直接建工单并返回工单号。
+  const handleTransferToHuman = useCallback(() => {
+    void handleAsk('我要转人工客服')
+  }, [handleAsk])
+
   return (
     <div className="min-h-screen bg-canvas text-ink-900">
       <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
@@ -290,6 +295,7 @@ export default function App() {
               isLoading={isLoading}
               mockQuestions={mockConversations}
               onAsk={handleAsk}
+              onTransfer={handleTransferToHuman}
               onNewSession={handleNewSession}
               onFeedback={handleFeedback}
             />

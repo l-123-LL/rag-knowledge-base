@@ -14,6 +14,8 @@ class RetrievedChunk:
     text: str
     metadata: dict = field(default_factory=dict)
     dense_score: float = 0.0
+    # 归一化前的原始余弦相似度，用于绝对阈值判断（归一化分数永远有最大值 1.0）
+    raw_dense_score: float = 0.0
     bm25_score: float = 0.0
     combined_score: float = 0.0
     rerank_score: float = 0.0
@@ -23,6 +25,7 @@ class RetrievedChunk:
         text: str,
         metadata: dict | None = None,
         dense_score: float = 0.0,
+        raw_dense_score: float = 0.0,
         bm25_score: float = 0.0,
         combined_score: float = 0.0,
         rerank_score: float = 0.0,
@@ -30,6 +33,7 @@ class RetrievedChunk:
         self.text = text
         self.metadata = metadata or {}
         self.dense_score = dense_score
+        self.raw_dense_score = raw_dense_score
         self.bm25_score = bm25_score
         self.combined_score = combined_score
         self.rerank_score = rerank_score
@@ -136,6 +140,7 @@ class HybridRetriever:
                     text=self.doc_texts[index],
                     metadata=self.doc_metadata[index],
                     dense_score=dense_score,
+                    raw_dense_score=dense_scores[index],
                     bm25_score=bm25_score,
                     combined_score=(
                         self.dense_weight * dense_score

@@ -120,6 +120,50 @@ def test_ask_returns_insufficient_for_unknown_question() -> None:
     assert response.json()["citations"] == []
 
 
+def test_insufficient_answer_escalates_to_human() -> None:
+    # 检索不到资料时不能只回一句“不知道”，要给出转人工出口和工单号。
+    app.state.pipeline = FakePipeline()
+
+    response = client.post("/ask", json={"question": "今天天气如何"})
+
+    payload = response.json()
+    assert payload["status"] == "insufficient"
+    assert "转交人工客服" in payload["answer"]
+    assert "工单号" in payload["answer"]
+
+
+def test_insufficient_answer_creates_ticket_with_reason() -> None:
+    app.state.pipeline = FakePipeline()
+
+    response = client.post("/ask", json={"question": "今天天气如何"})
+    ticket_id = response.json()["answer"].split("工单号：")[1].rstrip("）")
+    tickets = client.get("/tickets").json()
+
+    ticket = next(item for item in tickets if item["id"] == ticket_id)
+    assert ticket["reason"] == "insufficient_context"
+
+
+def test_informational_agent_question_is_answered_by_faq() -> None:
+    app.state.pipeline = None
+
+    response = client.post("/ask", json={"question": "怎么联系人工客服？"})
+
+    payload = response.json()
+    assert payload["model"] == "faq"
+    assert "9:00-18:00" in payload["answer"]
+
+
+def test_asked_not_to_transfer_is_not_transferred() -> None:
+    app.state.pipeline = None
+
+    response = client.post(
+        "/ask",
+        json={"question": "我不想转人工，你们几点发货？"},
+    )
+
+    assert response.json()["model"] != "intent"
+
+
 def test_sources_returns_sample_list() -> None:
     response = client.get("/sources")
 

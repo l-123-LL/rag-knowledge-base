@@ -4,9 +4,14 @@ import { SendIcon } from './icons'
 interface QuestionInputProps {
   disabled?: boolean
   onAsk: (question: string) => void
+  onTransfer?: () => void
 }
 
-export function QuestionInput({ disabled, onAsk }: QuestionInputProps) {
+export function QuestionInput({
+  disabled,
+  onAsk,
+  onTransfer,
+}: QuestionInputProps) {
   const [value, setValue] = useState('')
 
   // 点击按钮和 Enter 都走同一个提交逻辑。
@@ -50,6 +55,17 @@ export function QuestionInput({ disabled, onAsk }: QuestionInputProps) {
             rows={2}
             className="max-h-40 min-h-[52px] flex-1 resize-none border-0 bg-transparent px-3 py-2.5 text-sm leading-6 text-ink-900 outline-none placeholder:text-ink-400"
           />
+          {onTransfer ? (
+            // 一键转人工：走同一条问答链路，由后端意图路由建单并返回工单号。
+            <button
+              type="button"
+              onClick={onTransfer}
+              disabled={disabled}
+              className="mb-0.5 inline-flex h-11 shrink-0 items-center rounded-xl border border-line bg-white px-3.5 text-xs font-medium text-ink-600 transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700 disabled:cursor-not-allowed disabled:border-line disabled:bg-white disabled:text-slate-300"
+            >
+              转人工
+            </button>
+          ) : null}
           <button
             type="submit"
             disabled={disabled || !value.trim()}

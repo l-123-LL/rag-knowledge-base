@@ -9,6 +9,7 @@ interface ChatPanelProps {
   isLoading: boolean
   mockQuestions: MockConversation[]
   onAsk: (question: string) => void
+  onTransfer?: () => void
   onNewSession?: () => void
   onFeedback?: (question: string, rating: 'up' | 'down') => void
 }
@@ -75,6 +76,7 @@ export function ChatPanel({
   isLoading,
   mockQuestions,
   onAsk,
+  onTransfer,
   onNewSession,
   onFeedback,
 }: ChatPanelProps) {
@@ -142,7 +144,11 @@ export function ChatPanel({
         )}
       </div>
 
-      <QuestionInput disabled={isLoading} onAsk={onAsk} />
+      <QuestionInput
+        disabled={isLoading}
+        onAsk={onAsk}
+        onTransfer={onTransfer}
+      />
     </section>
   )
 }

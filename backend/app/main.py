@@ -97,6 +97,28 @@ def get_pipeline() -> RAGPipeline:
     return app.state.pipeline
 
 
+# 拒答与转人工共用同一句话术来源，避免 /ask 与 /ask/stream 说法不一致。
+INSUFFICIENT_ANSWER = "当前资料不足，暂时无法确认答案。"
+INSUFFICIENT_ESCALATION = "当前资料不足，暂时无法确认答案，已为您转交人工客服跟进。"
+
+
+def escalate_to_human(
+    question: str,
+    session_id: str | None,
+    reason: str,
+    tenant_id: str,
+    prefix: str,
+) -> str:
+    """统一转人工出口：建工单并返回带工单号的引导话术。"""
+    ticket = create_ticket(
+        question=question,
+        session_id=session_id,
+        reason=reason,
+        tenant_id=tenant_id,
+    )
+    return f"{prefix}（工单号：{ticket['id']}）"
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     return HealthResponse(status="ok")
@@ -394,15 +416,12 @@ def ask(
 ) -> AskResponse:
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
-        ticket = create_ticket(
+        answer_text = escalate_to_human(
             question=request.question,
             session_id=request.session_id,
             reason=intent.intent,
             tenant_id=tenant_id,
-        )
-        answer_text = (
-            f"{intent.message or '已转接人工客服。'}"
-            f"（工单号：{ticket['id']}）"
+            prefix=intent.message or "已为您转接人工客服，请稍候。",
         )
         record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
         record_message(
@@ -473,6 +492,14 @@ def ask(
     latency_ms = int((time.perf_counter() - started_at) * 1000)
 
     if not result.contexts:
+        # 找不到可靠资料时不再只是拒答：建工单并引导转人工，避免用户卡在死循环里。
+        answer_text = escalate_to_human(
+            question=request.question,
+            session_id=request.session_id,
+            reason="insufficient_context",
+            tenant_id=tenant_id,
+            prefix=INSUFFICIENT_ESCALATION,
+        )
         record_message(
             request.session_id,
             "user",
@@ -482,7 +509,7 @@ def ask(
         record_message(
             request.session_id,
             "assistant",
-            "当前示例资料不足，暂时无法给出可靠回答。",
+            answer_text,
             tenant_id=tenant_id,
         )
         log_ask_event(
@@ -492,11 +519,12 @@ def ask(
                 "question": request.question,
                 "model": "deepseek-chat",
                 "status": "insufficient",
+                "escalated": True,
                 "latency_ms": latency_ms,
             }
         )
         return AskResponse(
-            answer="当前示例资料不足，暂时无法给出可靠回答。",
+            answer=answer_text,
             citations=[],
             model="deepseek-chat",
             status="insufficient",
@@ -569,15 +597,12 @@ def ask_stream(
 
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
-        ticket = create_ticket(
+        text = escalate_to_human(
             question=request.question,
             session_id=request.session_id,
             reason=intent.intent,
             tenant_id=tenant_id,
-        )
-        text = (
-            f"{intent.message or '已转接人工客服。'}"
-            f"（工单号：{ticket['id']}）"
+            prefix=intent.message or "已为您转接人工客服，请稍候。",
         )
         record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
         record_message(
@@ -617,7 +642,14 @@ def ask_stream(
     )
 
     if not contexts:
-        text = "当前资料不足，暂时无法给出可靠回答。"
+        # 流式路径保持与 /ask 一致：资料不足同样建单并引导转人工。
+        text = escalate_to_human(
+            question=request.question,
+            session_id=request.session_id,
+            reason="insufficient_context",
+            tenant_id=tenant_id,
+            prefix=INSUFFICIENT_ESCALATION,
+        )
         record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
         record_message(
             request.session_id,
