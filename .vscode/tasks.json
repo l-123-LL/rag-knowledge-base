@@ -1,0 +1,33 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "启动全部（后端 + 管理端 + 用户端）",
+      "type": "shell",
+      "command": "${workspaceFolder}\\start-all.bat",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "启动后端（端口 8000）",
+      "type": "shell",
+      "command": "${workspaceFolder}\\start-backend.bat",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "启动管理员前端（端口 5173）",
+      "type": "shell",
+      "command": "${workspaceFolder}\\start-admin-web.bat",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    },
+    {
+      "label": "启动用户前端（端口 5174）",
+      "type": "shell",
+      "command": "${workspaceFolder}\\start-user-web.bat",
+      "presentation": { "reveal": "always", "panel": "dedicated" },
+      "problemMatcher": []
+    }
+  ]
+}

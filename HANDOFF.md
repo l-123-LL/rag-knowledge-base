@@ -56,6 +56,9 @@
 - `PROGRESS.md`：当前进度、实测数字、下一步计划（每次开工先读）。
 - `HANDOFF.md`：本文件，稳定背景与约定。
 - `INTERVIEW.md`：面试材料（电梯陈述、简历条目、选型问答、踩坑故事、数字口径），数字变化时要同步更新。
+- `start-all.bat`：一键启动后端 + 管理员前端 + 用户前端（双击即可）。
+- `start-backend.bat`、`start-admin-web.bat`、`start-user-web.bat`：单独启动某个服务。
+- `.vscode/tasks.json`：VS Code 任务，等价于上面几个启动脚本。
 - `docker-compose.yml`：后端 + 前端两个服务的编排。
 - `.gitignore`：忽略 `.venv/`、`data/`、`models/`、`backups/`、`.env`、`backend/.env`。
 - `.github/workflows/ci.yml`：CI，推送或 PR 时跑后端测试、前端测试、类型检查、构建。
@@ -107,6 +110,7 @@
 
 - `web/index.html`：HTML 入口。
 - `web/vite.config.js`：开发服务器（端口 5173）与 `/api` 到 `127.0.0.1:8000` 的代理，以及 Vitest 配置。
+- `web/.env.user`：用户视图模式的环境文件，把 `VITE_ADMIN_API_KEY` 置空，配合 `npm run dev -- --mode user --port 5174` 使用（不含密钥，可以提交）。
 - `web/package.json`：依赖与脚本（`dev` / `build` / `test` / `typecheck` / `preview`）。
 - `web/Dockerfile` / `web/nginx.conf`：前端镜像与静态托管 + 反向代理。
 
@@ -269,6 +273,16 @@
 ---
 
 ## 7. 运行与验证方法
+
+### 一键启动（推荐）
+
+双击项目根目录的 `start-all.bat`，或在 VS Code 里运行任务「启动全部（后端 + 管理端 + 用户端）」。启动后：
+
+- 后端接口文档 `http://127.0.0.1:8000/docs`
+- 管理员版前端 `http://127.0.0.1:5173/`（带上传、导入、FAQ 管理等入口）
+- 用户版前端 `http://127.0.0.1:5174/`（只有问答和转人工按钮）
+
+窗口关闭即停止服务。手动启动的等价命令见本节下方。
 
 ### 环境信息（本机实测）
 

@@ -259,6 +259,22 @@ cd backend
 
 ## 7. 常用命令速查
 
+### 一键启动（推荐给演示和非开发场景）
+
+双击项目根目录的 `start-all.bat`，会自动开三个窗口并启动：
+
+| 服务 | 地址 |
+| --- | --- |
+| 后端接口文档 | `http://127.0.0.1:8000/docs` |
+| 管理员版前端 | `http://127.0.0.1:5173/` |
+| 用户版前端 | `http://127.0.0.1:5174/` |
+
+关掉那三个窗口即停止服务。也可以单独双击 `start-backend.bat` / `start-admin-web.bat` / `start-user-web.bat`。
+
+在 VS Code 里等价的操作：`终端 → 运行任务`，选「启动全部（后端 + 管理端 + 用户端）」，任务定义在 `.vscode/tasks.json`。
+
+两个前端的区别来自环境变量：管理员版读 `web/.env` 里的 `VITE_ADMIN_API_KEY`；用户版用 `--mode user`，由 `web/.env.user` 把该变量置空（`web/.env.user` 不含密钥，可以提交）。两个脚本都加了 `--strictPort`，端口被占用会直接报错，不会偷偷换端口。
+
 ```bash
 # 启动后端（端口 8000）
 cd backend
