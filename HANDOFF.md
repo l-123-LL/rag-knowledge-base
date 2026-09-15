@@ -55,6 +55,7 @@
 - `AGENTS.md`：强制规则，新 AI 必须先读。
 - `PROGRESS.md`：当前进度、实测数字、下一步计划（每次开工先读）。
 - `HANDOFF.md`：本文件，稳定背景与约定。
+- `INTERVIEW.md`：面试材料（电梯陈述、简历条目、选型问答、踩坑故事、数字口径），数字变化时要同步更新。
 - `docker-compose.yml`：后端 + 前端两个服务的编排。
 - `.gitignore`：忽略 `.venv/`、`data/`、`models/`、`backups/`、`.env`、`backend/.env`。
 - `.github/workflows/ci.yml`：CI，推送或 PR 时跑后端测试、前端测试、类型检查、构建。
@@ -215,6 +216,7 @@
 
 - 向量索引里目前只有示例级文本，真实企业资料尚未导入，现有指标不能代表真实业务效果。
 - 50 条评估集规模偏小、文本偏短且理想化，hit@1 = 0.90 属于乐观数字。
+- 评估入口 `run_retrieval_evaluation` 默认注入测试替身 `HashEmbedder`，命令行输出的是替身成绩（hit@1 = 0.90）；真实 `bge-large-zh-v1.5` 复测为 hit@1 = 0.96、MRR = 0.98。对外引用必须用真实模型口径，代码待修。
 - 扫描版 PDF 和复杂表格只留了 OCR 钩子，未实测。
 - rerank 代码路径存在，但从未做开关对比。
 
@@ -226,6 +228,7 @@
 ### 工程质量
 
 - 没有 lint / format 脚本（ESLint、Prettier、ruff、black 都未接入）。
+- `BM25Index.score` 每次调用都重算全量分数，`HybridRetriever.search` 逐文档调用，复杂度 O(N²)：512 条文档时循环打分 88.3 ms，一次性打分只要 0.38 ms，索引变大后检索会明显变慢。
 - 没有 `README.md`、`docs/ROADMAP.md`、`docs/RAG_DESIGN.md`。
 - Docker 文件齐全，但未在本机实测构建与启动。
 - 前端移动端只做手动检查，没有自动化浏览器回归。

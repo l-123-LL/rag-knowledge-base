@@ -21,6 +21,8 @@
 - 每次改动都要编写或更新测试，交付前所有测试和验证必须通过。
 - 任何 API Key、密码、token 都不能写进代码、文档、日志或 Git。
 
+面试材料在 `INTERVIEW.md`：里面有电梯陈述、简历条目、口述版、选型问答、踩坑故事和数字口径。**每次进度或数字变化后，要同步更新它**，否则面试时引用的数字会和项目对不上。
+
 ---
 
 ## 1. 一句话状态
@@ -79,25 +81,45 @@ cd backend
 ..\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0,'.'); from evaluation.enterprise_eval import run_enterprise_evaluation; print(run_enterprise_evaluation()['average'])"
 ```
 
-结果：
+注意：这个入口用的嵌入是测试替身 `HashEmbedder`（64 维），**不是线上链路**，它得到的 hit@1 = 0.90、hit@3 = 0.98、hit@5 = 1.00、MRR = 0.945 只代表替身水平。用真实 `BAAI/bge-large-zh-v1.5` 复测的同一套问题是：
 
-| 指标 | 数值 |
+| 指标 | 真实 BGE（应对外引用这个） | HashEmbedder（旧口径） |
+| --- | --- | --- |
+| hit@1 | 0.96 | 0.90 |
+| hit@3 | 1.00 | 0.98 |
+| hit@5 | 1.00 | 1.00 |
+| MRR | 0.98 | 0.945 |
+
+评估集定义在 `backend/evaluation/enterprise_eval.py`：10 个客服主题 × 5 条问法 = 50 条，语料是 10 条短文本。这个规模只适合做回归基线，不能代表真实长文档效果。
+
+### 端到端延迟与 token（真实 DeepSeek 调用，3 个问题）
+
+| 指标 | 实测值 |
 | --- | --- |
-| hit@1 | 0.90 |
-| hit@3 | 0.98 |
-| hit@5 | 1.00 |
-| MRR | 0.945 |
+| 检索耗时（含查询向量化，CPU） | 80.6 / 81.6 / 95.6 ms |
+| 首 token 延迟（SSE 流式） | 2510 / 2510 / 2967 ms |
+| 流式回答总耗时 | 2642 / 2689 / 3128 ms |
+| 非流式单次调用 | 5945 ms，输入 153 + 输出 34 = 187 tokens |
 
-评估集定义在 `backend/evaluation/enterprise_eval.py`：8 个客服主题 × 5 条问法 = 50 条。
+### 本机性能实测（CPU）
+
+| 指标 | 实测值 | 口径 |
+| --- | --- | --- |
+| 单次检索延迟 | avg 73.9 ms、p50 73.4 ms、p95 79.5 ms | 10 条 chunk 索引，50 条问题 |
+| 单次检索延迟 | avg 370.9 ms、p95 444.3 ms | 512 条 chunk 索引 |
+| 嵌入吞吐 | 512 条 chunk 用 72.6 s（约 142 ms/chunk） | bge-large-zh-v1.5，CPU |
+| 模型冷加载 | 11.1 s | 已缓存权重 |
+| FAISS + BM25 建索引 | 0.83 s | 512 条，向量已算好 |
+| BM25 热点 | 循环打分 88.3 ms vs 一次性打分 0.38 ms | 512 条文档，相差约 233 倍 |
 
 ### 本机运行时数据规模
 
 | 数据 | 位置 | 当前量级 |
 | --- | --- | --- |
-| 问答日志 | `backend/data/logs/ask.jsonl` | 222 条 |
-| 反馈日志 | `backend/data/logs/feedback.jsonl` | 28 条 |
+| 问答日志 | `backend/data/logs/ask.jsonl` | 250 条 |
+| 反馈日志 | `backend/data/logs/feedback.jsonl` | 32 条 |
 | FAQ | `backend/data/faqs/default.json` | 14 条 |
-| 工单 | `backend/data/tickets/` | 约 100 个 JSON，多数由测试产生 |
+| 工单 | `backend/data/tickets/` | 112 个 JSON，多数由测试产生 |
 | 会话记忆 | `backend/data/sessions/` | 若干 JSON |
 | 向量索引 | `backend/data/faiss/records.json` | 仍是示例级小规模，**未导入真实企业资料** |
 
@@ -153,6 +175,16 @@ cd backend
 
 ## 5. 下一步计划（按优先级，从上往下做）
 
+### P0-0 修掉评估口径和 BM25 性能热点（本次新发现，建议先做）
+
+要做什么：
+
+1. `backend/app/evaluation.py` 的 `run_retrieval_evaluation` 默认注入 `HashEmbedder`，导致 `python -m evaluation.enterprise_eval` 输出的是测试替身成绩（hit@1 = 0.90），和线上链路（BGE，hit@1 = 0.96）不是一个口径。改成可传入 embedder，命令行默认用真实模型，测试里显式传替身。
+2. `backend/app/retrieval.py` 的 `BM25Index.score(query, index)` 内部每次重算全量分数，`HybridRetriever.search` 逐文档调用它，复杂度 O(N²)。实测 512 条文档下循环调用 88.3 ms、一次性打分 0.38 ms（233 倍差距），索引越大检索越慢。
+
+涉及：`backend/app/evaluation.py`、`backend/app/retrieval.py`、`backend/evaluation/enterprise_eval.py`、`backend/tests/test_evaluation.py`、`backend/tests/test_retrieval.py`。
+验收：评估入口默认走真实模型；512 条索引下检索 p95 明显下降；原有测试全绿并补新测试。
+
 ### P0-1 导入真实企业资料，跑通真实问答
 
 要做什么：准备若干份真实客服资料（FAQ 表格、产品手册、售后政策 PDF/Markdown），通过 `/ingest`、`/ingest/file` 或前端「上传资料」导入，然后用 10~20 个真实问题验证回答质量。
@@ -171,7 +203,7 @@ cd backend
 
 ### P1-2 产出延迟与成本量化数字
 
-要做什么：在 `backend/.env` 填入 DeepSeek 单价（`DEEPSEEK_INPUT_PRICE_PER_MILLION`、`DEEPSEEK_OUTPUT_PRICE_PER_MILLION`），跑一批问题，从 `ask.jsonl` 汇总平均延迟、首 token 延迟、单次查询成本，写进 `README.md` 或评估报告。
+已实测的部分：首 token 2.51 / 2.51 / 2.97 s，流式总耗时 2.64 / 2.69 / 3.13 s，单次查询 187 tokens（输入 153 + 输出 34）。剩下来要做的：在 `backend/.env` 填入 DeepSeek 单价（`DEEPSEEK_INPUT_PRICE_PER_MILLION`、`DEEPSEEK_OUTPUT_PRICE_PER_MILLION`），把 token 折算成金额并写进 `README.md`；样本量也要从 3 个问题扩到几十个。
 涉及：`backend/.env`（本地，不提交）、`backend/app/cost.py`、`backend/data/logs/ask.jsonl`。
 
 ### P1-3 验证 rerank 的实际收益
@@ -194,11 +226,13 @@ cd backend
 ## 6. 已知问题与风险
 
 - **索引里还是示例文本**：`backend/data/faiss/records.json` 规模很小，真实资料尚未导入，因此现有指标只代表示例语料，不能当作真实业务效果。
+- **评估入口口径不一致**：`run_retrieval_evaluation` 默认用 `HashEmbedder`，命令行跑出来的是替身成绩（hit@1 = 0.90），真实 BGE 是 0.96。对外引用必须用真实模型的数字，代码待修。
+- **BM25 检索是 O(N²)**：`BM25Index.score` 每次重算全量分数，512 条文档时循环打分 88.3 ms、一次性打分只要 0.38 ms，索引越大越慢，待优化。
 - **成本数字缺失**：`DEEPSEEK_*_PRICE_PER_MILLION` 目前为 0，`/metrics` 的成本字段没有实际意义。
 - **rerank 未实测**：代码路径存在，但从未开启对比过效果。
 - **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。
 - **Docker 未实测构建**：文件齐全，但没有在本机跑过 `docker compose up`。
-- **评估集偏小且偏理想**：50 条问题都来自少量短文本，hit@1=0.90 不能代表真实长文档场景。
+- **评估集偏小且偏理想**：50 条问题都来自 10 条短文本，hit@1 = 0.96 不能代表真实长文档场景。
 - **没有 lint / format 脚本**，靠人工约定风格。
 - **没有 README 和设计文档**，新人只能靠 `HANDOFF.md` + `PROGRESS.md`。
 - **移动端只做过手动检查**，没有自动化浏览器回归。
