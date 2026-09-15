@@ -59,6 +59,8 @@
 - `start-all.bat`：一键启动后端 + 管理员前端 + 用户前端（双击即可）。
 - `start-backend.bat`、`start-admin-web.bat`、`start-user-web.bat`：单独启动某个服务。
 - `.vscode/tasks.json`：VS Code 任务，等价于上面几个启动脚本。
+- `docs/architecture-modules.md`：模块划分图（Mermaid）与各层职责表。
+- `docs/architecture-modules.svg` / `.png`：模块划分图矢量版与位图版，可直接放进 PPT 或文档。
 - `docker-compose.yml`：后端 + 前端两个服务的编排。
 - `.gitignore`：忽略 `.venv/`、`data/`、`models/`、`backups/`、`.env`、`backend/.env`。
 - `.github/workflows/ci.yml`：CI，推送或 PR 时跑后端测试、前端测试、类型检查、构建。

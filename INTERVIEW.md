@@ -59,6 +59,8 @@
 
 ## 5. 系统架构与数据流
 
+模块划分图见 `docs/architecture-modules.svg`（矢量）和 `docs/architecture-modules.png`（位图），文字与 Mermaid 版见 `docs/architecture-modules.md`。整张图按六层组织：前端 → 接口 → 编排 → 检索与生成 → 存储 → 横切能力。
+
 ### 数据流（导入侧）
 
 ```text

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="1160" viewBox="0 0 1480 1160" font-family="Segoe UI, Microsoft YaHei, sans-serif">
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+    </marker>
+    <style>
+      .h1 { font-size: 28px; font-weight: 700; fill: #0F172A; }
+      .sub { font-size: 14px; fill: #64748B; }
+      .layer { font-size: 15px; font-weight: 700; }
+      .box { fill: #FFFFFF; stroke: #E2E8F0; stroke-width: 1.4; rx: 8; }
+      .blue { fill: #EFF6FF; stroke: #BFDBFE; }
+      .teal { fill: #F0FDFA; stroke: #99F6E4; }
+      .amber { fill: #FFFBEB; stroke: #FDE68A; }
+      .rose { fill: #FFF1F2; stroke: #FECDD3; }
+      .slate { fill: #F8FAFC; stroke: #E2E8F0; }
+      .title { font-size: 15px; font-weight: 700; }
+      .t-blue { fill: #1E40AF; }
+      .t-teal { fill: #115E59; }
+      .t-amber { fill: #B45309; }
+      .t-rose { fill: #BE123C; }
+      .t-slate { fill: #0F172A; }
+      .body { font-size: 12.5px; fill: #334155; }
+      .muted { font-size: 12px; fill: #64748B; }
+      .mono { font-family: Consolas, Consolas, monospace; font-size: 12px; fill: #475569; }
+      .flow { stroke: #475569; stroke-width: 1.6; fill: none; marker-end: url(#arrow); }
+      .dash { stroke: #94A3B8; stroke-width: 1.5; fill: none; stroke-dasharray: 5 4; marker-end: url(#arrow); }
+    </style>
+  </defs>
+
+  <rect width="1480" height="1160" fill="#FFFFFF" />
+
+  <text class="h1" x="48" y="54">企业智能客服 RAG · 模块划分图</text>
+  <text class="sub" x="48" y="80">六层结构：前端 → 接口 → 编排 → 检索与生成 → 存储 → 横切能力；括号内为文件路径</text>
+  <text class="sub" x="48" y="100">实线箭头 = 请求主流程 ｜ 虚线箭头 = 读写 / 可选路径</text>
+
+  <!-- Layer 1 -->
+  <text class="layer" x="48" y="136" fill="#1E40AF">① 前端层 · React 18 + Vite + TypeScript + Tailwind</text>
+  <rect class="box blue" x="48" y="146" width="660" height="92" />
+  <text class="title t-blue" x="68" y="172">用户视图 · Customer</text>
+  <text class="body" x="68" y="196">问答对话 · 引用逐条展开 · 有帮助 / 没帮助反馈 · 一键转人工</text>
+  <text class="mono" x="68" y="220">web/src/App.tsx（VITE_ADMIN_API_KEY 为空）</text>
+  <rect class="box blue" x="772" y="146" width="660" height="92" />
+  <text class="title t-blue" x="792" y="172">管理员视图 · Admin</text>
+  <text class="body" x="792" y="196">上传资料 · 导入网页 · FAQ 增删改 · 停用资料 · 工单与统计</text>
+  <text class="mono" x="792" y="220">web/src/App.tsx（VITE_ADMIN_API_KEY 存在）</text>
+
+  <rect class="box slate" x="48" y="250" width="1384" height="66" />
+  <text class="title t-slate" x="68" y="274">前端基础</text>
+  <text class="body" x="68" y="296">api/client.ts 统一封装请求与租户/管理员头 ｜ types.ts 类型定义 ｜ data/mockData.ts 后端不可用时降级 ｜ components/ErrorBoundary.tsx 渲染兜底 ｜ components/ 对话、引用、来源面板</text>
+
+  <path class="flow" d="M 740 316 L 740 350" />
+
+  <!-- Layer 2 -->
+  <text class="layer" x="48" y="376" fill="#1E40AF">② 接口层 · FastAPI（backend/app/main.py ＋ schemas.py）</text>
+  <rect class="box blue" x="48" y="386" width="1384" height="86" />
+  <text class="mono" x="68" y="412">/ask 　 /ask/stream（SSE 流式）</text>
+  <text class="mono" x="530" y="412">/ingest 　 /ingest/file 　 /ingest/url</text>
+  <text class="mono" x="1000" y="412">/sources 　 /stats 　 /metrics 　 /alerts</text>
+  <text class="mono" x="68" y="438">/faqs 　 /tickets 　 /feedback</text>
+  <text class="mono" x="530" y="438">/backup 　 /session/reset 　 /health</text>
+  <text class="mono" x="1000" y="438">统一前置：鉴权 → 限流 → 租户识别 → 路由分发</text>
+  <text class="muted" x="68" y="462">所有接口共用同一套响应模型，前端只需要认识 Answer / Citation / Source 三种结构</text>
+
+  <path class="flow" d="M 740 472 L 740 506" />
+
+  <!-- Layer 3 -->
+  <text class="layer" x="48" y="532" fill="#BE123C">③ 编排层 · 规则先于模型，命中即短路</text>
+  <rect class="box rose" x="48" y="542" width="334" height="120" />
+  <text class="title t-rose" x="66" y="568">规则意图路由</text>
+  <text class="mono" x="66" y="590">intent.py</text>
+  <text class="body" x="66" y="612">投诉 / 明确要求转人工</text>
+  <text class="body" x="66" y="632">否定词防误判：「不想转人工」正常走问答</text>
+
+  <rect class="box blue" x="398" y="542" width="334" height="120" />
+  <text class="title t-blue" x="416" y="568">FAQ 优先命中</text>
+  <text class="mono" x="416" y="590">faq_store.py</text>
+  <text class="body" x="416" y="612">关键词命中直接返回标准答案＋引用</text>
+  <text class="body" x="416" y="632">零模型成本、零生成延迟，支持热更新</text>
+
+  <rect class="box teal" x="748" y="542" width="334" height="120" />
+  <text class="title t-teal" x="766" y="568">RAG 编排</text>
+  <text class="mono" x="766" y="590">pipeline.py ＋ factory.py</text>
+  <text class="body" x="766" y="612">检索 → 相关性阈值判定 → 生成</text>
+  <text class="body" x="766" y="632">依赖注入，测试可替换模型与向量库</text>
+
+  <rect class="box rose" x="1098" y="542" width="334" height="120" />
+  <text class="title t-rose" x="1116" y="568">转人工统一出口</text>
+  <text class="mono" x="1116" y="590">escalate_to_human ＋ ticket_store.py</text>
+  <text class="body" x="1116" y="612">投诉 / 转人工 / 检索为空 / 低于阈值</text>
+  <text class="body" x="1116" y="632">→ 建工单 ＋ 返回带工单号的话术</text>
+
+  <path class="flow" d="M 740 662 L 740 696" />
+
+  <!-- Layer 4 -->
+  <text class="layer" x="48" y="722" fill="#115E59">④ 检索与生成</text>
+  <rect class="box teal" x="48" y="732" width="900" height="170" />
+  <text class="title t-teal" x="68" y="758">混合检索 · retrieval.py</text>
+  <rect class="box" x="68" y="772" width="276" height="122" />
+  <text class="body" x="82" y="796" font-weight="600">向量路（稠密）</text>
+  <text class="mono" x="82" y="818">embeddings.py ＋ vector_store.py</text>
+  <text class="body" x="82" y="840">BAAI/bge-large-zh-v1.5</text>
+  <text class="body" x="82" y="860">1024 维归一化 → FAISS IndexFlatIP</text>
+  <text class="body" x="82" y="878">原始余弦分用于阈值判定</text>
+
+  <rect class="box" x="360" y="772" width="276" height="122" />
+  <text class="body" x="374" y="796" font-weight="600">关键词路（稀疏）</text>
+  <text class="mono" x="374" y="818">retrieval.py（jieba ＋ rank-bm25）</text>
+  <text class="body" x="374" y="840">中文分词后做 BM25 打分</text>
+  <text class="body" x="374" y="860">型号、订单号、条款名等精确词</text>
+  <text class="body" x="374" y="878">小语料下 IDF 会退化，需注意</text>
+
+  <rect class="box" x="652" y="772" width="276" height="122" />
+  <text class="body" x="666" y="796" font-weight="600">融合与排序</text>
+  <text class="mono" x="666" y="818">retrieval.py（HybridRetriever）</text>
+  <text class="body" x="666" y="840">两路分数 min-max 归一化后加权</text>
+  <text class="body" x="666" y="860">0.7 × 向量 ＋ 0.3 × BM25 → top-k</text>
+  <text class="body" x="666" y="878">可选 reranker.py（BGE，默认关闭）</text>
+
+  <path class="flow" d="M 948 817 L 972 817" />
+
+  <rect class="box amber" x="972" y="732" width="460" height="170" />
+  <text class="title t-amber" x="992" y="758">生成 · generation.py</text>
+  <text class="body" x="992" y="786">DeepSeek　deepseek-chat　temperature 0.2</text>
+  <text class="body" x="992" y="810">提示词约束：只能依据资料回答，不足则拒答</text>
+  <text class="body" x="992" y="834">普通调用 ＋ SSE 流式两种模式，失败自动降级</text>
+  <text class="body" x="992" y="858">回传 token 用量 → cost.py 估算单次成本</text>
+  <text class="body" x="992" y="882">引用由后端从检索结果结构化生成，不靠模型自觉</text>
+
+  <path class="dash" d="M 740 902 L 740 936" />
+
+  <!-- Layer 5 -->
+  <text class="layer" x="48" y="928" fill="#15803D">⑤ 数据与存储（可落盘、重启可恢复）</text>
+  <rect class="box" x="48" y="938" width="1384" height="104" fill="#F0FDF4" stroke="#BBF7D0" />
+  <text class="body" x="68" y="966">• data/faiss/　向量索引 ＋ 元数据 JSON</text>
+  <text class="body" x="530" y="966">• data/faqs/*.json　FAQ 与版本号</text>
+  <text class="body" x="1000" y="966">• data/sessions/　会话记忆</text>
+  <text class="body" x="68" y="996">• data/tickets/　工单 JSON（可按租户分目录）</text>
+  <text class="body" x="530" y="996">• data/logs/ask.jsonl ＋ feedback.jsonl　问答与反馈日志</text>
+  <text class="body" x="1000" y="996">• models/huggingface　BGE 权重缓存（不入库）</text>
+  <text class="muted" x="68" y="1024">以上目录全部加入 .gitignore：可再生成，且不含密钥</text>
+
+  <!-- Layer 6 -->
+  <text class="layer" x="48" y="1074" fill="#475569">⑥ 横切能力（被接口层 / 编排层 / 检索层共同调用）</text>
+  <rect class="box slate" x="48" y="1084" width="1384" height="58" />
+  <text class="body" x="68" y="1108">• tenant.py 多租户隔离（X-Tenant-ID）</text>
+  <text class="body" x="530" y="1108">• security.py 管理员 Key · 限流 · OIDC 钩子</text>
+  <text class="body" x="1000" y="1108">• observability.py 结构化日志 · 告警 · Webhook</text>
+  <text class="body" x="68" y="1132">• evaluation/ 50 条检索评估</text>
+  <text class="body" x="530" y="1132">• judge.py 生成质量打分（faithfulness / relevance）</text>
+  <text class="body" x="1000" y="1132">• backup.py 数据打包 · cost.py 成本估算</text>
+</svg>
