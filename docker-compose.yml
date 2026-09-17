@@ -9,13 +9,31 @@ services:
       - ./models:/app/models
     environment:
       HF_HOME: /app/models/huggingface
+      TRACE_DIR: /app/data/traces
+      FAQ_DIR: /app/data/faqs
+      SESSION_DIR: /app/data/sessions
+      TICKET_DIR: /app/data/tickets
     ports:
       - "8000:8000"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   web:
     build:
       context: ./web
     depends_on:
-      - backend
+      backend:
+        condition: service_healthy
     ports:
       - "5173:80"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3

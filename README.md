@@ -73,6 +73,14 @@ npm run dev -- --mode user --port 5174
 
 环境变量示例见 `backend/.env.example`，真实 Key 只放在未被跟踪的 `backend/.env`。
 
+### Docker Compose（配置已就绪，尚未实机验证）
+
+```bash
+docker compose up --build
+```
+
+后端在 8000、前端在 5173；`web` 会等 `backend` 健康检查通过再启动。模型权重与数据目录通过 bind mount 挂载。完整步骤、验证清单、回滚与故障排查见 `docs/DEPLOYMENT.md`。
+
 ## 评测
 
 ### RAG 检索评测（真实 BGE，50 条）
@@ -149,3 +157,4 @@ start-*.bat              一键启动脚本
 - `docs/PHASE0-最小改动方案.md`：本阶段改造方案
 - `docs/CASE-STUDY.md`：一页项目案例
 - `docs/FAILURE-CASES.md`：真实故障与排查记录
+- `docs/DEPLOYMENT.md`：Docker 部署、验证清单、回滚与故障排查
