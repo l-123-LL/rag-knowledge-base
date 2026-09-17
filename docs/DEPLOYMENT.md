@@ -3,6 +3,29 @@
 > 现状：Docker 相关文件已就绪并做过静态检查，但**本机尚未安装 Docker，没有实机验证过**。
 > 下面每一步都写了预期输出，装好 Docker 后按顺序执行即可。
 
+## 安装记录（2026-09-17）
+
+| 项目 | 状态 |
+| --- | --- |
+| Docker Desktop 安装包 | 已下载到 `D:\DockerDesktopInstaller.exe`（598.9 MB） |
+| 安装位置 | `D:\Docker`（静默安装，退出码 0） |
+| 版本 | Docker 29.8.0 / Docker Compose v5.5.1（`D:\Docker\resources\bin\docker.exe`） |
+| WSL2 组件 | 已执行 `wsl --install --no-distribution`，系统已标记 `RebootPending`，**需要重启电脑后才能用** |
+| 引擎状态 | 重启前无法启动（`Docker Desktop is unable to start`），属预期 |
+
+**重启后的验证顺序**：
+
+```powershell
+$docker = "D:\Docker\resources\bin\docker.exe"
+wsl --status                                   # 能看到 WSL 版本信息即正常
+Start-Process "D:\Docker\Docker Desktop.exe"   # 首次启动可能弹出引导页，接受即可
+& $docker info --format "{{.ServerVersion}}"   # 打印出版本号即引擎就绪
+cd D:\rag知识库
+& $docker compose up --build                   # 首次会拉基础镜像并安装依赖，约 2-3 GB，耗时 10-40 分钟
+```
+
+首次 `up --build` 之后按第 2 节的验证清单逐条检查。
+
 ## 0. 前置
 
 1. 安装 Docker Desktop（Windows），确认 `docker --version` 可用；
