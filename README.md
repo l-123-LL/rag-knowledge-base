@@ -109,8 +109,8 @@ cd backend
 ### 单元与集成测试
 
 ```bash
-cd backend && ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 98 passed
-cd web && npm test && npm run typecheck && npm run build                     # 21 passed
+cd backend && ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 101 passed
+cd web && npm test && npm run typecheck && npm run build                     # 22 passed
 ```
 
 ## 关键设计决策
@@ -135,7 +135,7 @@ cd web && npm test && npm run typecheck && npm run build                     # 2
 backend/app/             FastAPI 接口、检索、生成、工具、工作流、轨迹、工单、会话、租户
 backend/mock/            本地模拟订单与物流数据
 backend/evaluation/      检索评测、Agent 评测、评测报告
-backend/tests/           98 个 pytest 用例
+backend/tests/           101 个 pytest 用例
 web/src/                 React 前端（管理端 / 用户端、Trace 面板）
 docs/                    架构图、阶段方案、案例与失败复盘
 start-*.bat              一键启动脚本

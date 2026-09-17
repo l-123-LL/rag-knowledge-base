@@ -63,7 +63,7 @@ cd backend
 ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q
 ```
 
-结果：**98 passed**（新增工具层、工作流、执行轨迹、Agent 评测四组测试；覆盖切分、检索、向量库、生成、管线、意图、工具、工作流、轨迹、FAQ 存储、会话、工单、观测、备份、评估等）。
+结果：**101 passed**（新增工具层、工作流、执行轨迹、Agent 评测与评测口径五组测试；覆盖切分、检索、向量库、生成、管线、意图、工具、工作流、轨迹、FAQ 存储、会话、工单、观测、备份、评估等）。
 
 ### 前端测试
 
@@ -72,7 +72,7 @@ cd web
 npm test
 ```
 
-结果：**7 个测试文件 / 21 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
+结果：**7 个测试文件 / 22 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
 
 ### 检索评估（企业客服 50 条问题集）
 
