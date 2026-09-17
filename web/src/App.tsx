@@ -5,6 +5,7 @@ import {
   createFaq,
   ingestFile,
   ingestUrl,
+  getTrace,
   getMetrics,
   getStats,
   listSources,
@@ -14,10 +15,12 @@ import {
 } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
 import { SourcePanel } from './components/SourcePanel'
+import { TraceTimeline } from './components/TraceTimeline'
 import { DatabaseIcon } from './components/icons'
 import { mockConversations, mockSources } from './data/mockData'
 import type { Conversation, Source } from './types'
 import type { Metrics, Stats } from './types'
+import type { TraceRecord, WorkflowMode } from './types'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -37,6 +40,10 @@ export default function App() {
   const [uploadError, setUploadError] = useState<string | null>(null)
   const [stats, setStats] = useState<Stats | undefined>()
   const [metrics, setMetrics] = useState<Metrics | undefined>()
+  // 可选工具工作流：默认 rag，保持与升级前一致。
+  const [workflowMode, setWorkflowMode] = useState<WorkflowMode>('rag')
+  const [trace, setTrace] = useState<TraceRecord | null>(null)
+  const [showTrace, setShowTrace] = useState(false)
 
   useEffect(() => {
     // 启动时并行拉取来源、统计和指标，避免请求瀑布。
@@ -181,6 +188,32 @@ export default function App() {
     setConversations((current) => [...current, pendingConversation])
     setIsLoading(true)
 
+    // 工具工作流走非流式接口：需要一次拿到 trace_id，再回读完整执行轨迹。
+    if (workflowMode === 'tools') {
+      try {
+        const response = await askQuestion(question, 'tools')
+        setConversations((current) =>
+          current.map((item) =>
+            item.id === pendingConversation.id
+              ? {
+                  ...item,
+                  answer: response.answer,
+                  citations: response.citations,
+                  status: response.status,
+                }
+              : item,
+          ),
+        )
+        setTrace(response.trace_id ? await getTrace(response.trace_id) : null)
+        setShowTrace(true)
+      } catch {
+        setError('工具工作流调用失败，请确认后端正在运行。')
+      } finally {
+        setIsLoading(false)
+      }
+      return
+    }
+
     // 优先流式回答，失败时回退到普通问答。
     try {
       await streamAsk(question, {
@@ -224,7 +257,7 @@ export default function App() {
     } finally {
       setIsLoading(false)
     }
-  }, [])
+  }, [workflowMode])
 
   // 一键转人工：复用问答链路，后端意图路由会直接建工单并返回工单号。
   const handleTransferToHuman = useCallback(() => {
@@ -249,6 +282,31 @@ export default function App() {
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <div className="flex items-center rounded-lg border border-line bg-white p-0.5 text-xs">
+              {(['rag', 'tools'] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => setWorkflowMode(mode)}
+                  className={
+                    workflowMode === mode
+                      ? 'rounded-md bg-ink-950 px-3 py-1.5 font-medium text-white'
+                      : 'rounded-md px-3 py-1.5 text-ink-600 transition hover:text-ink-900'
+                  }
+                >
+                  {mode === 'rag' ? 'RAG 问答' : '工具工作流'}
+                </button>
+              ))}
+            </div>
+            {trace || showTrace ? (
+              <button
+                type="button"
+                onClick={() => setShowTrace((current) => !current)}
+                className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-200 hover:text-brand-700"
+              >
+                Trace
+              </button>
+            ) : null}
             <div className="hidden items-center gap-2 rounded-full border border-line bg-mist px-3 py-1.5 text-xs text-ink-600 sm:flex">
               <span className="h-2 w-2 rounded-full bg-success" />
               服务在线
@@ -299,6 +357,11 @@ export default function App() {
               onNewSession={handleNewSession}
               onFeedback={handleFeedback}
             />
+            {showTrace ? (
+              <div className="border-t border-line bg-surface">
+                <TraceTimeline trace={trace} onClose={() => setShowTrace(false)} />
+              </div>
+            ) : null}
           </main>
         </div>
       </div>

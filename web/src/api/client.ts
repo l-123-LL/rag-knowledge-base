@@ -1,11 +1,22 @@
 import { findMockAnswer, mockSources } from '../data/mockData'
-import type { Citation, FaqItem, Metrics, Source, Stats } from '../types'
+import type {
+  Citation,
+  FaqItem,
+  Metrics,
+  Source,
+  Stats,
+  TraceRecord,
+  TraceStep,
+  WorkflowMode,
+} from '../types'
 
 export interface AskResponse {
   answer: string
   citations: Citation[]
   model: string
   status: 'done' | 'insufficient'
+  trace_id?: string | null
+  steps?: TraceStep[] | null
 }
 
 export interface IngestResponse {
@@ -66,12 +77,19 @@ async function requestBackend(
   }
 }
 
-export async function askQuestion(question: string): Promise<AskResponse> {
+export async function askQuestion(
+  question: string,
+  workflowMode: WorkflowMode = 'rag',
+): Promise<AskResponse> {
   // 先尝试真实后端，失败后回退本地示例，保证前端可以独立演示。
   const response = await requestBackend('/api/ask', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, session_id: getSessionId() }),
+    body: JSON.stringify({
+      question,
+      session_id: getSessionId(),
+      workflow_mode: workflowMode,
+    }),
   })
 
   if (response?.ok) {
@@ -96,6 +114,17 @@ export async function askQuestion(question: string): Promise<AskResponse> {
     model: 'mock',
     status: 'done',
   }
+}
+
+export async function getTrace(traceId: string): Promise<TraceRecord | null> {
+  // 轨迹只用于展示：取不到就返回 null，不能影响问答主流程。
+  const response = await requestBackend(`/api/traces/${traceId}`)
+
+  if (response?.ok) {
+    return (await response.json()) as TraceRecord
+  }
+
+  return null
 }
 
 export async function listSources(): Promise<Source[]> {
@@ -245,6 +274,7 @@ export async function ingestUrl(url: string): Promise<IngestResponse> {
 export async function streamAsk(
   question: string,
   handlers: StreamHandlers,
+  workflowMode: WorkflowMode = 'rag',
 ): Promise<void> {
   // 解析 SSE 事件流，把来源和增量文本实时交给页面。
   if (typeof window === 'undefined' || typeof window.fetch !== 'function') {
@@ -254,7 +284,11 @@ export async function streamAsk(
   const response = await window.fetch('/api/ask/stream', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ question, session_id: getSessionId() }),
+    body: JSON.stringify({
+      question,
+      session_id: getSessionId(),
+      workflow_mode: workflowMode,
+    }),
   })
 
   if (!response.ok || !response.body) {

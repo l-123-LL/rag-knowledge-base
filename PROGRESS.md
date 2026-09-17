@@ -72,7 +72,7 @@ cd web
 npm test
 ```
 
-结果：**6 个测试文件 / 19 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
+结果：**7 个测试文件 / 21 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
 
 ### 检索评估（企业客服 50 条问题集）
 
@@ -167,6 +167,7 @@ cd backend
 - 最小状态机：规则意图 → 订单/物流工具 → FAQ → 知识检索 → 转人工；最多 3 次业务工具调用，转人工不占步骤预算；总超时默认 15 s，超时或连续失败一律降级。
 - 订单查不到时不再回退到宽泛 FAQ（避免误导），改为知识检索，仍无结果才转人工。
 - 执行轨迹：`trace_id` + 按天 JSONL + `GET /traces/{trace_id}`，写入前对手机号、邮箱、证件号、疑似 Key 脱敏。
+- 前端（阶段 2 已完成）：顶部「RAG 问答 / 工具工作流」切换、Trace 面板（步骤、工具、重试、token、成本、转人工原因），工具模式走非流式接口以拿到 `trace_id`。
 - mock 数据位于 `backend/mock/orders.json`（20 条订单 + 10 条物流，含 acme 租户样本用于隔离验证），刻意不放被 gitignore 的 `data/`。
 
 ### 知识库管理

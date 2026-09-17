@@ -48,6 +48,40 @@ export interface Citation {
 
 export type ConversationStatus = 'loading' | 'done' | 'insufficient'
 
+export type WorkflowMode = 'rag' | 'tools'
+
+export interface TraceStep {
+  step: number
+  action: string
+  tool?: string
+  status?: string
+  code?: string
+  attempts?: number
+  duration_ms?: number
+  input_summary?: string
+  intent?: string
+  matched?: string
+  reason?: string
+}
+
+export interface TraceRecord {
+  trace_id: string
+  tenant_id: string
+  question: string
+  intent?: string
+  mode?: string
+  model?: string
+  steps: TraceStep[]
+  tool_calls?: number
+  citation_count?: number
+  usage?: Record<string, number> | null
+  cost?: number | null
+  latency_ms?: number
+  status?: string
+  handoff_reason?: string | null
+  created_at?: string
+}
+
 export interface Conversation {
   id: string
   question: string
