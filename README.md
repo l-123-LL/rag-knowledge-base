@@ -15,6 +15,20 @@
 
 六层结构：前端 → 接口 → 编排 → 检索与生成 → 存储 → 横切能力。矢量版 `docs/architecture-modules.svg`，文字版 `docs/architecture-modules.md`。
 
+## 界面
+
+管理员控制台（来源管理、统计、Trace 入口）：
+
+![管理员控制台](docs/screenshots/01-admin-console.png)
+
+执行轨迹（意图 → 工具 → 结果，含重试、耗时、token 与成本）：
+
+![执行轨迹](docs/screenshots/02-trace-timeline.png)
+
+用户视图（只保留问答与转人工）：
+
+![用户视图](docs/screenshots/03-user-view.png)
+
 ## 核心能力
 
 | 能力 | 说明 |

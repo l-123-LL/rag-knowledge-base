@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import App from './App'
+import App, { readTraceId } from './App'
 import { MOCK_DELAY_MS } from './api/client'
 
 describe('App', () => {
@@ -84,5 +84,11 @@ describe('App', () => {
     await act(async () => {
       await vi.advanceTimersByTimeAsync(MOCK_DELAY_MS)
     })
+  })
+
+  it('reads a shared trace id from the url', () => {
+    expect(readTraceId('?trace=tr_abc123')).toBe('tr_abc123')
+    expect(readTraceId('?trace=%20')).toBeNull()
+    expect(readTraceId('')).toBeNull()
   })
 })

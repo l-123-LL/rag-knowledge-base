@@ -30,6 +30,12 @@ function createId() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`
 }
 
+/** 从 URL 读取要分享的 trace_id，例如 /?trace=tr_abc。 */
+export function readTraceId(search: string): string | null {
+  const value = new URLSearchParams(search).get('trace')
+  return value && value.trim() ? value.trim() : null
+}
+
 export default function App() {
   // 只有前端配置了管理员 Key 时才渲染管理功能。
   const isAdmin = Boolean(import.meta.env.VITE_ADMIN_API_KEY)
@@ -62,6 +68,27 @@ export default function App() {
       .catch(() => {
         // 后端不可用时继续使用本地 mock 来源。
       })
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    // 支持用 ?trace=xxx 直接打开某次执行轨迹，方便分享与截图。
+    const sharedTraceId = readTraceId(window.location.search)
+    if (!sharedTraceId) {
+      return
+    }
+
+    let active = true
+    getTrace(sharedTraceId).then((record) => {
+      if (active && record) {
+        setTrace(record)
+        setShowTrace(true)
+        setWorkflowMode('tools')
+      }
+    })
 
     return () => {
       active = false
