@@ -6,3 +6,4 @@ backend/.env
 data/
 models/
 backups/
+.pytest-tmp/
