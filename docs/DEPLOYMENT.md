@@ -105,8 +105,41 @@ Copy-Item backend\data "D:\backup\rag-data-$(Get-Date -Format yyyyMMdd)" -Recurs
 | 前端打不开接口 | Nginx 反代目标写死为 `backend:8000` | 确认两个服务在同一 compose 网络内、服务名就是 `backend` |
 | 5173 或 8000 被占用 | 本机已有服务在跑 | 改 compose 端口映射，或先停掉本地 dev server |
 
-## 6. 尚未验证的部分（如实说明）
+## 6. 实机验证结果（2026-09-17）
 
-- 镜像构建与 `docker compose up` 未实机执行（本机无 Docker）；
-- 健康检查、条件启动、非 root 运行都只是静态配置，需要实机确认；
-- 未做并发压测与容器故障注入，这两项在审计里列为待办。
+| 检查项 | 结果 |
+| --- | --- |
+| `docker compose up --build` | 通过；`rag-backend` 与 `rag-web` 均构建成功 |
+| 容器状态 | `rag-backend` Up **healthy**；`rag-web` Up |
+| `/health` | `{"status":"ok"}` |
+| **订单工具（验证 mock 已打进镜像）** | `model=order_lookup`，返回真实订单数据 → `COPY mock ./mock` 生效 |
+| `GET /traces/{id}` | 通过，`mode=tools`、`tool_calls=1`、延迟 3 ms |
+| 前端 `http://127.0.0.1:5173/` | HTTP 200，页面正常挂载 |
+| 容器内运行用户 | `uid=1000(app)`，非 root |
+| 镜像体积 | `rag-backend` 2.27 GB（CPU 版 torch）、`rag-web` 73.9 MB |
+
+## 7. 实机踩到的三个坑（已修）
+
+**坑一：Docker Desktop 反复报 `unable to start`，日志里是 socket 无法重命名**
+
+```
+starting services: initializing Ingest server: listening on unix://C:/Users/.../Docker/run/sailor-ingest.sock:
+rename ...sailor-ingest.sock ...sailor-ingest.sock.stale: The file cannot be accessed by the system.
+```
+
+原因是 Docker 非正常退出后留下的 AF_UNIX socket 文件无法被重命名或删除。修法：结束所有 Docker 进程 → 把 `%LOCALAPPDATA%\Docker` 和 `%LOCALAPPDATA%\docker-secrets-engine` 整个目录改名移开（Docker 会重建）→ 重新启动。注意设置文件 `settings-store.json` 在 `%LOCALAPPDATA%\Docker` 下，移开后首次启动需要重新接受一次服务协议。
+
+**坑二：WSL2 需要重启才生效**
+
+`wsl --install --no-distribution` 之后系统会标记 `RebootPending`，重启前 Docker 引擎无法启动；重启后还需要 `wsl --set-default-version 2`。
+
+**坑三：Linux 上默认装的是 CUDA 版 torch**
+
+`pip install sentence-transformers` 会连带拉入 `nvidia-*` 系列（数 GB），而这些在这个项目里完全用不到。Dockerfile 里改成先用 `--index-url https://download.pytorch.org/whl/cpu` 装 CPU 版 torch，再装其余依赖；镜像因此只有 2.27 GB。
+
+另外注意 pip 源：本机实测**清华源不可达**，而容器内访问官方 `pypi.org` 正常（1.6 秒），所以 `PIP_INDEX_URL` 默认留空走官方源，需要时再覆盖。
+
+## 8. 尚未验证的部分（如实说明）
+
+- 未做并发压测与容器故障注入（审计里列为待办）；
+- 未验证容器在多实例/重启后的索引恢复（数据卷挂载已就位，但没有实测重启恢复）。

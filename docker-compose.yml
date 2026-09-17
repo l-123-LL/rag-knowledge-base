@@ -2,6 +2,10 @@ services:
   backend:
     build:
       context: ./backend
+      args:
+        # 默认走官方 PyPI。本机实测容器内访问 pypi.org 正常（1.6s），
+        # 而部分国内镜像在本网络下不可达，因此默认留空，需要时再覆盖。
+        PIP_INDEX_URL: ${PIP_INDEX_URL:-}
     env_file:
       - ./backend/.env
     volumes:
