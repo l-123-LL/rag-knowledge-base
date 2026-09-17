@@ -79,16 +79,16 @@ npm run dev -- --mode user --port 5174
 
 ```bash
 cd backend
-..\.venv\Scripts\python.exe -m evaluation.enterprise_eval
+..\.venv\Scripts\python.exe -m evaluation.enterprise_eval --offline
 ```
 
-实测：hit@1 = 0.96、hit@3 = 1.00、hit@5 = 1.00、MRR = 0.98（真实嵌入口径；测试替身 HashEmbedder 口径为 0.90）。
+命令行默认走真实嵌入模型（`--embedder bge`），`--embedder hash` 只用于快速回归；`--offline` 表示模型已缓存、跳过联网校验（150 秒 → 17 秒）。实测：hit@1 = 0.96、hit@3 = 1.00、hit@5 = 1.00、MRR = 0.98。
 
 ### Agent 任务评测（100 条，零 API 花费）
 
 ```bash
 cd backend
-..\.venv\Scripts\python.exe -m evaluation.agent_eval --tag full --use-real-embedder
+..\.venv\Scripts\python.exe -m evaluation.agent_eval --tag full --use-real-embedder --offline
 ```
 
 15 秒跑完，默认用确定性生成器，因此测的是路由、工具、参数、转人工与降级这些不依赖生成质量的指标。评测集 = 50 条新增 Agent 任务（订单 15 / 物流 10 / 政策 10 / 投诉转人工 8 / 拒答与注入 7）+ 50 条知识问答。

@@ -1,4 +1,4 @@
-from app.evaluation import run_retrieval_evaluation
+from app.evaluation import resolve_embedder, run_retrieval_evaluation
 
 
 TOPICS = [
@@ -125,12 +125,35 @@ def build_evaluation_data() -> tuple[list[dict], list[dict]]:
     return corpus, questions
 
 
-def run_enterprise_evaluation() -> dict:
+def run_enterprise_evaluation(embedder_name: str = "hash") -> dict:
+    """默认用测试替身以保持单测快速；命令行入口会显式切到真实模型。"""
     corpus, questions = build_evaluation_data()
-    return run_retrieval_evaluation(corpus, questions)
+    return run_retrieval_evaluation(
+        corpus,
+        questions,
+        embedder=resolve_embedder(embedder_name),
+    )
 
 
 if __name__ == "__main__":
+    import argparse
     import json
+    import os
 
-    print(json.dumps(run_enterprise_evaluation()["average"], ensure_ascii=False, indent=2))
+    parser = argparse.ArgumentParser(description="企业客服检索评测")
+    parser.add_argument("--embedder", default="bge", choices=["bge", "hash"])
+    parser.add_argument("--offline", action="store_true", help="模型已缓存时跳过联网校验，避免重试拖时间")
+    args = parser.parse_args()
+    if args.offline:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
+
+    label = "bge-large-zh-v1.5（线上口径）" if args.embedder == "bge" else "hash-embedder（测试替身）"
+    print(f"嵌入器：{label}")
+    print(
+        json.dumps(
+            run_enterprise_evaluation(args.embedder)["average"],
+            ensure_ascii=False,
+            indent=2,
+        )
+    )

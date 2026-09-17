@@ -323,11 +323,11 @@ A：三件事。第一，先定评估集再做实现，把「指标口径和线�
 
 ### 检索指标（真实 BGE）
 
-当前 `run_retrieval_evaluation` 的默认实现注入的是测试替身 `HashEmbedder`，所以直接跑 `python -m evaluation.enterprise_eval` 得到的是旧口径（hit@1 = 0.90）。要复现真实口径，用下面这段：
+命令行现在默认走真实模型，直接跑下面这条就是线上口径（`--embedder hash` 才是快速回归用的替身口径，hit@1 = 0.90）：
 
 ```bash
 cd backend
-..\.venv\Scripts\python.exe -c "import sys; sys.path.insert(0,'.'); from evaluation.enterprise_eval import build_evaluation_data; from app.embeddings import SentenceTransformerEmbedder; from app.retrieval import HybridRetriever; from app.evaluation import evaluate_retrieval; from app.chunking import Chunk; corpus, questions = build_evaluation_data(); r = HybridRetriever(SentenceTransformerEmbedder()); r.add_chunks([Chunk(text=c['text'], metadata={'id': c['id']}) for c in corpus]); per = [evaluate_retrieval(r.search(q['question'], top_k=5), q['relevant_ids']) for q in questions]; print({k: round(sum(p[k] for p in per)/len(per), 4) for k in per[0]})"
+..\.venv\Scripts\python.exe -m evaluation.enterprise_eval --offline
 ```
 
 ### 测试

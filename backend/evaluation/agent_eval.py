@@ -324,8 +324,12 @@ def main() -> None:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--use-real-model", action="store_true")
     parser.add_argument("--use-real-embedder", action="store_true")
+    parser.add_argument("--offline", action="store_true", help="模型已缓存时跳过联网校验")
     parser.add_argument("--out", default=None)
     args = parser.parse_args()
+    if args.offline:
+        os.environ["HF_HUB_OFFLINE"] = "1"
+        os.environ["TRANSFORMERS_OFFLINE"] = "1"
 
     report = run_evaluation(
         limit=args.limit,

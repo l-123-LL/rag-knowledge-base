@@ -1,9 +1,24 @@
 from collections.abc import Iterable
 
+from . import config  # noqa: F401  加载 backend/.env（HF_HOME 等），保证能取到本地模型权重
 from .chunking import Chunk
 from .embeddings import HashEmbedder
 from .retrieval import RetrievedChunk
 from .retrieval import HybridRetriever
+
+
+def resolve_embedder(name: str = "bge"):
+    """按名称构造嵌入器。
+
+    - `bge`：线上口径（BAAI/bge-large-zh-v1.5），命令行默认使用；
+    - `hash`：测试替身，只用于快速回归，绝不能拿来对外报指标。
+    """
+    if name == "hash":
+        return HashEmbedder()
+
+    from .embeddings import SentenceTransformerEmbedder
+
+    return SentenceTransformerEmbedder()
 
 
 def hit_at_k(
@@ -43,9 +58,14 @@ def run_retrieval_evaluation(
     corpus: list[dict],
     questions: list[dict],
     k_values: tuple[int, ...] = (1, 3, 5),
+    embedder=None,
 ) -> dict:
-    """用小规模语料和 HashEmbedder 跑一遍检索评估，方便离线验证。"""
-    retriever = HybridRetriever(HashEmbedder())
+    """跑一遍检索评估。
+
+    `embedder` 不传时退回测试替身 HashEmbedder（仅用于单元测试）；
+    命令行入口默认注入真实模型，保证对外指标与线上链路一致。
+    """
+    retriever = HybridRetriever(embedder or HashEmbedder())
     for item in corpus:
         retriever.add_chunks(
             [Chunk(text=item["text"], metadata={"id": item["id"]})]
