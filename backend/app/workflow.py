@@ -26,6 +26,31 @@ DIGITS_PATTERN = re.compile(r"\d{6,}")
 LOGISTICS_KEYWORDS = ("物流", "快递", "包裹", "运单", "配送", "签收", "派送", "运输")
 ORDER_KEYWORDS = ("订单", "下单", "发货", "什么时候发", "订单状态", "买了", "退款到哪")
 
+# 多轮追问的指代线索：当前问题没带订单号、但仍在问订单/物流相关的事时，
+# 回看最近几轮用户消息里出现过的订单号。（不含这些词的问题不会误复用。）
+FOLLOW_UP_HINTS = (
+    "它",
+    "这个订单",
+    "该订单",
+    "那单",
+    "那个订单",
+    "订单",
+    "物流",
+    "快递",
+    "包裹",
+    "运单",
+    "发货",
+    "签收",
+    "配送",
+    "退款",
+    "到哪",
+    "状态",
+    "进度",
+    "多久",
+    "什么时候",
+    "还有",
+)
+
 # 最小输入护栏：命中这些模式直接转人工，避免提示词越权、密钥探测与跨租户尝试。
 INJECTION_PATTERNS = (
     "忽略以上",
@@ -71,6 +96,22 @@ def extract_order_id(question: str) -> str | None:
         digits = DIGITS_PATTERN.search(question)
         if digits:
             return digits.group(0)
+    return None
+
+
+def reuse_order_id_from_history(question: str, history: list[dict] | None) -> str | None:
+    """多轮指代消解：从最近几轮用户消息里取上一个订单号。"""
+    if not history:
+        return None
+    if not any(hint in question for hint in FOLLOW_UP_HINTS):
+        return None
+
+    for message in reversed(history[-6:]):
+        if message.get("role") != "user":
+            continue
+        found = extract_order_id(str(message.get("content", "")))
+        if found:
+            return found
     return None
 
 
@@ -207,6 +248,10 @@ def run_tool_workflow(
     #    否则会被 FAQ 里"订单"这类宽泛关键词截走，拿不到实时状态。
     if not answer:
         order_id = extract_order_id(question)
+        from_history = False
+        if not order_id:
+            order_id = reuse_order_id_from_history(question, history)
+            from_history = order_id is not None
         wants_logistics = any(keyword in question for keyword in LOGISTICS_KEYWORDS)
         wants_order = any(keyword in question for keyword in ORDER_KEYWORDS)
 
@@ -214,6 +259,8 @@ def run_tool_workflow(
         # 否则「SOxxx 还没付款吗」这类问法会掉到知识检索。
         if order_id and tool_calls < max_steps:
             tool_name = "logistics_track" if wants_logistics else "order_lookup"
+            if from_history:
+                record("resolve", order_id=order_id, source="history")
             result, duration_ms = _run_tool(
                 tool_name, {"order_id": order_id}, context, deadline - time.perf_counter()
             )
@@ -226,6 +273,7 @@ def run_tool_workflow(
                 attempts=result.attempts,
                 duration_ms=duration_ms,
                 input_summary=order_id,
+                reused_from_history=from_history,
             )
             if result.ok:
                 payload = result.data["order"] if tool_name == "order_lookup" else result.data["logistics"]

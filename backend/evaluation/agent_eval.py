@@ -93,6 +93,7 @@ def load_tasks() -> list[dict]:
     for task in knowledge_tasks:
         if task["question"] in explicit_handoff:
             task["must_escalate"] = True
+            task["expected_route"] = "human_handoff"
     return new_tasks + knowledge_tasks
 
 
@@ -166,6 +167,7 @@ def evaluate_task(task: dict, pipeline: EvalPipeline) -> dict:
         pipeline=pipeline,
         tenant_id="default",
         session_id="agent-eval",
+        history=task.get("history"),
     )
     predicted = _predicted_route(outcome)
     answer = outcome.answer or ""

@@ -166,3 +166,26 @@ def test_injection_request_is_guarded() -> None:
     assert outcome.handoff_reason == "unsafe_request"
     assert "工单号" in outcome.answer
     assert "系统提示词" not in outcome.answer
+
+
+def test_follow_up_question_reuses_order_id_from_history() -> None:
+    # 多轮指代：追问里没有订单号，但从上一轮用户消息里能取到。
+    outcome = run("它的物流到哪了", history=[{"role": "user", "content": "订单 SO20260901001 现在什么状态"}])
+
+    assert outcome.model == "logistics_track"
+    assert "运输中" in outcome.answer
+    tool_steps = [step for step in outcome.steps if step.get("tool")]
+    assert tool_steps[0]["input_summary"] == "SO20260901001"
+    assert tool_steps[0]["reused_from_history"] is True
+    assert any(step["action"] == "resolve" for step in outcome.steps)
+
+
+def test_unrelated_question_does_not_reuse_history_order() -> None:
+    outcome = run(
+        "今天天气如何",
+        pipeline=FakePipeline(evidence=False),
+        history=[{"role": "user", "content": "订单 SO20260901001 现在什么状态"}],
+    )
+
+    assert outcome.handoff_reason == "insufficient_context"
+    assert all(step.get("tool") != "order_lookup" for step in outcome.steps)

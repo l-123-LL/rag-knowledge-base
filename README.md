@@ -84,32 +84,32 @@ cd backend
 
 命令行默认走真实嵌入模型（`--embedder bge`），`--embedder hash` 只用于快速回归；`--offline` 表示模型已缓存、跳过联网校验（150 秒 → 17 秒）。实测：hit@1 = 0.96、hit@3 = 1.00、hit@5 = 1.00、MRR = 0.98。
 
-### Agent 任务评测（100 条，零 API 花费）
+### Agent 任务评测（110 条，零 API 花费）
 
 ```bash
 cd backend
 ..\.venv\Scripts\python.exe -m evaluation.agent_eval --tag full --use-real-embedder --offline
 ```
 
-15 秒跑完，默认用确定性生成器，因此测的是路由、工具、参数、转人工与降级这些不依赖生成质量的指标。评测集 = 50 条新增 Agent 任务（订单 15 / 物流 10 / 政策 10 / 投诉转人工 8 / 拒答与注入 7）+ 50 条知识问答。
+15 秒跑完，默认用确定性生成器，因此测的是路由、工具、参数、转人工与降级这些不依赖生成质量的指标。评测集 = 60 条新增 Agent 任务（订单 15 / 物流 10 / 政策 10 / 多轮 10 / 投诉转人工 8 / 拒答与注入 7）+ 50 条知识问答。
 
 | 指标 | 实测 |
 | --- | --- |
-| 任务成功率 | 97.00% |
-| 路由 / 工具选择准确率 | 98.00% |
+| 任务成功率 | 99.09% |
+| 路由 / 工具选择准确率 | 100.00% |
 | 工具参数准确率 | 100.00% |
-| 引用准确率 | 89.06% |
+| 引用准确率 | 91.94% |
 | 违规 / 幻觉率 | 0.00% |
 | 转人工 Precision / Recall | 94.44% / 100.00% |
-| 自动解决率 | 98.80% |
-| P50 / P95 延迟 | 1 ms / 94 ms |
+| 自动解决率 | 98.92% |
+| P50 / P95 延迟 | 1 ms / 96 ms |
 
-报告留档在 `backend/evaluation/reports/`。分档：`--tag smoke|core|full`（25 / 60 / 100 条），日常跑冒烟、里程碑跑全量。
+报告留档在 `backend/evaluation/reports/`。分档：`--tag smoke|core|full`（25 / 60 / 110 条），日常跑冒烟、里程碑跑全量。
 
 ### 单元与集成测试
 
 ```bash
-cd backend && ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 101 passed
+cd backend && ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 103 passed
 cd web && npm test && npm run typecheck && npm run build                     # 22 passed
 ```
 
@@ -135,7 +135,7 @@ cd web && npm test && npm run typecheck && npm run build                     # 2
 backend/app/             FastAPI 接口、检索、生成、工具、工作流、轨迹、工单、会话、租户
 backend/mock/            本地模拟订单与物流数据
 backend/evaluation/      检索评测、Agent 评测、评测报告
-backend/tests/           101 个 pytest 用例
+backend/tests/           103 个 pytest 用例
 web/src/                 React 前端（管理端 / 用户端、Trace 面板）
 docs/                    架构图、阶段方案、案例与失败复盘
 start-*.bat              一键启动脚本
