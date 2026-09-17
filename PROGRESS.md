@@ -284,6 +284,8 @@ cd backend
 - **鉴权是可选钩子**：默认单机演示无鉴权，上生产前必须配置 `ADMIN_API_KEY` 和 OIDC。
 - **本机密钥**：`backend/.env` 里有真实 DeepSeek Key；换机器时需要重新配置，且绝不能提交。
 - **没有远程仓库**：目前只在本地，代码没有异地备份。
+- ~~管理员 Key 可能被打进前端镜像~~ → 已修复：`web/.dockerignore` 排除 `.env`（保留不含密钥的 `.env.user`）。
+- **鉴权默认关闭**：未配置 `ADMIN_API_KEY` / `OIDC_JWKS_URL` 时启动会打印警告，公网部署前必须补齐。
 
 ---
 

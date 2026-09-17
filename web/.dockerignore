@@ -2,3 +2,8 @@ node_modules
 dist
 .vite
 npm-debug.log
+# 绝不把本地 .env 打进镜像：VITE_* 变量会在构建时内联进 JS，
+# 一旦包含 VITE_ADMIN_API_KEY，任何人都能从产物里拿到管理员 Key。
+# .env.user 不含密钥（只把管理员 Key 置空），保留以便 --mode user 构建。
+.env
+.env.local

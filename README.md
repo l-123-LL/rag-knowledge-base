@@ -122,6 +122,7 @@ cd web && npm test && npm run typecheck && npm run build                     # 2
 
 ## 已知边界
 
+- **部署前必做**：默认不强制鉴权（未配置 `ADMIN_API_KEY` / `OIDC_JWKS_URL` 时启动会打印警告），公网部署前必须配置鉴权或前置网关；前端镜像已通过 `web/.dockerignore` 排除 `.env`，避免管理员 Key 被内联进 JS 产物。
 - 业务数据为**本地模拟**（`backend/mock/orders.json`，20 订单 + 10 物流），未接入真实订单 / CRM / 退款系统。
 - 工具为只读 + 本地建单，未实现真实副作用操作，因此也没有审批流。
 - 阈值 0.42 是在 10 条示例语料上校准的，换真实资料必须重新采样。

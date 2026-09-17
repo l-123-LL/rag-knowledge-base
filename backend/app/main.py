@@ -1,4 +1,5 @@
 import json
+import logging
 import time
 import os
 from collections import defaultdict, deque
@@ -59,9 +60,21 @@ from .security import require_admin_key, require_user_token
 from .tenant import get_tenant_id
 from .ticket_store import count_tickets, create_ticket, list_tickets
 
+logger = logging.getLogger("rag.api")
+
 app = FastAPI(title="Enterprise Customer Service RAG API", version="0.1.0")
 app.state.pipeline: RAGPipeline | None = None
 _request_times: dict[str, deque] = defaultdict(deque)
+
+
+@app.on_event("startup")
+def warn_on_missing_auth() -> None:
+    """默认不强制鉴权，启动时明确提示，避免把演示配置直接搬上公网。"""
+    if not os.getenv("OIDC_JWKS_URL") and not os.getenv("ADMIN_API_KEY"):
+        logger.warning(
+            "未配置 OIDC_JWKS_URL 或 ADMIN_API_KEY：问答接口当前对任何可访问者开放，"
+            "生产环境请先配置鉴权或前置网关。"
+        )
 
 app.add_middleware(
     CORSMiddleware,
