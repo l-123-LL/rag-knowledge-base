@@ -80,6 +80,7 @@ class HumanHandoffInput(BaseModel):
         "insufficient_context",
         "user_request",
         "tool_failure",
+        "unsafe_request",
     ] = "user_request"
 
 

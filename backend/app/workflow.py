@@ -23,8 +23,24 @@ from .trace_store import new_trace_id, write_trace
 
 ORDER_ID_PATTERN = re.compile(r"[A-Za-z]{2}\d{6,}")
 DIGITS_PATTERN = re.compile(r"\d{6,}")
-LOGISTICS_KEYWORDS = ("物流", "快递", "到哪", "单号", "配送", "签收", "派送", "运输")
+LOGISTICS_KEYWORDS = ("物流", "快递", "包裹", "运单", "配送", "签收", "派送", "运输")
 ORDER_KEYWORDS = ("订单", "下单", "发货", "什么时候发", "订单状态", "买了", "退款到哪")
+
+# 最小输入护栏：命中这些模式直接转人工，避免提示词越权、密钥探测与跨租户尝试。
+INJECTION_PATTERNS = (
+    "忽略以上",
+    "忽略之前",
+    "忽略上述",
+    "系统提示词",
+    "system prompt",
+    "你现在是管理员",
+    "打印出来",
+    "api_key",
+    "apikey",
+    "其他租户",
+    "越狱",
+    "jailbreak",
+)
 
 DEFAULT_MAX_STEPS = 3
 DEFAULT_TOTAL_TIMEOUT_SECONDS = float(os.getenv("WORKFLOW_TOTAL_TIMEOUT_SECONDS", "15"))
@@ -176,8 +192,13 @@ def run_tool_workflow(
 
     record("intent", intent=intent.intent)
 
+    # 0. 输入护栏：高风险请求不进入检索与生成，直接转人工并记录原因。
+    if any(pattern in question.lower() for pattern in INJECTION_PATTERNS):
+        answer = handoff("unsafe_request", "这个请求涉及敏感操作，已为您转交人工客服处理。")
+        record("guard", triggered=True)
+
     # 1. 规则意图：投诉 / 明确转人工，直接建单
-    if intent.intent in {"complaint", "human"}:
+    if not answer and intent.intent in {"complaint", "human"}:
         reason = "complaint" if intent.intent == "complaint" else "user_request"
         answer = handoff(reason, intent.message or "已为您转接人工客服，请稍候。")
         model = "workflow"
@@ -189,7 +210,9 @@ def run_tool_workflow(
         wants_logistics = any(keyword in question for keyword in LOGISTICS_KEYWORDS)
         wants_order = any(keyword in question for keyword in ORDER_KEYWORDS)
 
-        if order_id and (wants_logistics or wants_order) and tool_calls < max_steps:
+        # 只要问题里出现订单号，默认就是问这张订单的状态：不再依赖关键词，
+        # 否则「SOxxx 还没付款吗」这类问法会掉到知识检索。
+        if order_id and tool_calls < max_steps:
             tool_name = "logistics_track" if wants_logistics else "order_lookup"
             result, duration_ms = _run_tool(
                 tool_name, {"order_id": order_id}, context, deadline - time.perf_counter()
@@ -252,6 +275,23 @@ def run_tool_workflow(
             duration_ms=duration_ms,
             input_summary=f"top_k=5, hits={len(evidence)}",
         )
+
+        # 相关性阈值：低于阈值视为没有可靠资料，交给转人工兜底。
+        threshold = float(os.getenv("RAG_MIN_SCORE", "0") or 0)
+        if threshold > 0 and evidence:
+            kept = [
+                item
+                for item in evidence
+                if float(item.get("raw_dense_score", 0.0)) >= threshold
+            ]
+            if len(kept) != len(evidence):
+                record(
+                    "threshold",
+                    kept=len(kept),
+                    dropped=len(evidence) - len(kept),
+                    threshold=threshold,
+                )
+            evidence = kept
 
         if evidence:
             contexts = [
