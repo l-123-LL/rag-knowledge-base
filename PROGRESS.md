@@ -63,7 +63,7 @@ cd backend
 ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q
 ```
 
-结果：**65 passed**（覆盖切分、检索、向量库、生成、管线、意图、FAQ 存储、会话、工单、观测、备份、评估等）。
+结果：**94 passed**（新增工具层、工作流、执行轨迹三组测试；覆盖切分、检索、向量库、生成、管线、意图、工具、工作流、轨迹、FAQ 存储、会话、工单、观测、备份、评估等）。
 
 ### 前端测试
 
@@ -159,6 +159,15 @@ cd backend
 - 会话记忆：前端自动带 `session_id`，后端持久化最近对话。
 - 多租户隔离：`X-Tenant-ID` 隔离来源、FAQ、会话、工单和检索元数据。
 - 资料可停用/恢复，停用后自动排除出检索结果。
+
+### 可选工具工作流（最小改动升级 · 阶段 1 已完成）
+
+- `workflow_mode="tools"` 可选分支：默认 `rag` 保持升级前行为不变，`/ask` 与 `/ask/stream` 都已支持。
+- 4 个工具：`knowledge_search`、`order_lookup`、`logistics_track`、`human_handoff`，每个都有 Pydantic 输入输出、统一错误码、超时（默认 3 s）与重试（默认 1 次）。
+- 最小状态机：规则意图 → 订单/物流工具 → FAQ → 知识检索 → 转人工；最多 3 次业务工具调用，转人工不占步骤预算；总超时默认 15 s，超时或连续失败一律降级。
+- 订单查不到时不再回退到宽泛 FAQ（避免误导），改为知识检索，仍无结果才转人工。
+- 执行轨迹：`trace_id` + 按天 JSONL + `GET /traces/{trace_id}`，写入前对手机号、邮箱、证件号、疑似 Key 脱敏。
+- mock 数据位于 `backend/mock/orders.json`（20 条订单 + 10 条物流，含 acme 租户样本用于隔离验证），刻意不放被 gitignore 的 `data/`。
 
 ### 知识库管理
 

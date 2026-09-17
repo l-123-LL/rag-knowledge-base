@@ -435,3 +435,95 @@ def test_persisted_chunk_count_reads_records(monkeypatch: pytest.MonkeyPatch) ->
     finally:
         records.unlink(missing_ok=True)
         directory.rmdir()
+
+
+class FakeToolPipeline:
+    """tools 模式下的假管线：只提供工作流需要的 retrieve 与 generator。"""
+
+    class _Generator:
+        def generate(self, question, contexts, history=None):
+            from app.generation import GenerationResult
+
+            return GenerationResult(
+                text="根据资料：签收后 7 天内可申请无理由退货。",
+                prompt_tokens=20,
+                completion_tokens=8,
+                total_tokens=28,
+            )
+
+    def __init__(self) -> None:
+        self.generator = self._Generator()
+
+    def retrieve(self, question, top_k=5, exclude_sources=None, tenant_id="default"):
+        return [
+            RetrievedChunk(
+                text="签收后 7 天内可申请无理由退货。",
+                metadata={"id": "chunk-1", "source": "售后政策"},
+                combined_score=0.9,
+                raw_dense_score=0.72,
+            )
+        ]
+
+
+def test_tools_mode_returns_trace_and_order_answer(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TICKET_DIR", str(tmp_path / "tickets"))
+    monkeypatch.setenv("TRACE_DIR", str(tmp_path / "traces"))
+    app.state.pipeline = FakeToolPipeline()
+
+    response = client.post(
+        "/ask",
+        json={"question": "订单 SO20260901001 现在什么状态", "workflow_mode": "tools"},
+    )
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["model"] == "order_lookup"
+    assert payload["trace_id"].startswith("tr_")
+    assert payload["steps"][0]["action"] == "intent"
+
+    trace = client.get(f"/traces/{payload['trace_id']}")
+    assert trace.status_code == 200
+    assert trace.json()["trace_id"] == payload["trace_id"]
+    assert trace.json()["tool_calls"] == 1
+
+
+def test_tools_mode_available_on_stream_endpoint(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("TICKET_DIR", str(tmp_path / "tickets"))
+    monkeypatch.setenv("TRACE_DIR", str(tmp_path / "traces"))
+    app.state.pipeline = FakeToolPipeline()
+
+    response = client.post(
+        "/ask/stream",
+        json={"question": "订单 SO20260901001 现在什么状态", "workflow_mode": "tools"},
+    )
+
+    assert response.status_code == 200
+    assert "已发货" in response.text
+
+
+def test_default_workflow_mode_keeps_rag_behaviour(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # 不传 workflow_mode 时必须与升级前一致：FAQ 分支、无 trace_id。
+    monkeypatch.setenv("TRACE_DIR", str(tmp_path / "traces"))
+    app.state.pipeline = None
+
+    response = client.post("/ask", json={"question": "如何申请退货？"})
+
+    payload = response.json()
+    assert payload["model"] == "faq"
+    assert payload["trace_id"] is None
+    assert payload["steps"] is None
+
+
+def test_trace_endpoint_returns_404_for_unknown_id() -> None:
+    response = client.get("/traces/tr_not_exists")
+
+    assert response.status_code == 404

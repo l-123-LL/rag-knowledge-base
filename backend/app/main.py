@@ -32,6 +32,8 @@ from .observability import (
 )
 from .mock_data import sources
 from .pipeline import RAGPipeline
+from .trace_store import read_trace
+from .workflow import run_tool_workflow
 from .schemas import (
     AskRequest,
     AskResponse,
@@ -402,10 +404,76 @@ def get_tickets(
     return list_tickets(limit=limit, tenant_id=tenant_id)
 
 
+@app.get("/traces/{trace_id}")
+def get_trace(
+    trace_id: str,
+    tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_user_token),
+) -> dict:
+    """按 trace_id 还原一次执行过程；轨迹按租户隔离。"""
+    record = read_trace(trace_id)
+    if record is None or record.get("tenant_id", "default") != tenant_id:
+        raise HTTPException(status_code=404, detail="未找到该 trace")
+    return record
+
+
 @app.post("/backup")
 def backup(_: None = Depends(require_admin_key)) -> dict:
     archive = create_backup()
     return {"archive": str(archive)}
+
+
+def run_tools_mode(request: AskRequest, tenant_id: str) -> AskResponse:
+    """工具工作流分支：复用同一套会话、租户、日志与成本统计。"""
+    pipeline = get_pipeline()
+    archived_sources = {
+        source.title
+        for source in sources
+        if source.archived and source.tenant_id == tenant_id
+    }
+    history = get_history(request.session_id, tenant_id=tenant_id)
+
+    try:
+        outcome = run_tool_workflow(
+            request.question,
+            pipeline=pipeline,
+            tenant_id=tenant_id,
+            session_id=request.session_id,
+            history=history,
+            exclude_sources=archived_sources,
+        )
+    except GenerationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+    record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+    record_message(request.session_id, "assistant", outcome.answer, tenant_id=tenant_id)
+    log_ask_event(
+        {
+            "route": "tools",
+            "session_id": request.session_id,
+            "question": request.question,
+            "model": outcome.model,
+            "status": outcome.status,
+            "latency_ms": outcome.latency_ms,
+            "usage": outcome.usage,
+            "cost": outcome.cost,
+            "citation_count": len(outcome.citations),
+            "tool_calls": outcome.tool_calls,
+            "trace_id": outcome.trace_id,
+        }
+    )
+
+    return AskResponse(
+        answer=outcome.answer,
+        citations=outcome.citations,
+        model=outcome.model,
+        status=outcome.status,
+        latency_ms=outcome.latency_ms,
+        usage=outcome.usage,
+        cost=outcome.cost,
+        trace_id=outcome.trace_id,
+        steps=outcome.steps,
+    )
 
 
 @app.post("/ask", response_model=AskResponse)
@@ -414,6 +482,10 @@ def ask(
     tenant_id: str = Depends(get_tenant_id),
     _: None = Depends(require_user_token),
 ) -> AskResponse:
+    # 可选工具工作流：与原有 rag 分支完全隔离，出问题把 workflow_mode 切回 rag 即可。
+    if request.workflow_mode == "tools":
+        return run_tools_mode(request, tenant_id)
+
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":
         answer_text = escalate_to_human(
@@ -590,10 +662,21 @@ def ask_stream(
     def sse(payload: dict) -> str:
         return f"data: {json.dumps(payload, ensure_ascii=False)}\n\n"
 
-    def text_stream(text: str):
-        yield sse({"type": "sources", "contexts": []})
+    def text_stream(text: str, contexts: list[dict] | None = None):
+        yield sse({"type": "sources", "contexts": contexts or []})
         yield sse({"type": "delta", "text": text})
         yield "data: [DONE]\n\n"
+
+    # 工具工作流在流式接口里同样可用：先跑完工作流，再一次性吐出结果。
+    if request.workflow_mode == "tools":
+        outcome = run_tools_mode(request, tenant_id)
+        return StreamingResponse(
+            text_stream(
+                outcome.answer,
+                [item.model_dump() for item in outcome.citations],
+            ),
+            media_type="text/event-stream",
+        )
 
     intent = classify_intent(request.question)
     if intent.intent != "knowledge":

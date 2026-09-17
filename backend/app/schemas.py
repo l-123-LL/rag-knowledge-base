@@ -7,6 +7,8 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=1, max_length=2000)
     top_k: int = Field(default=5, ge=1, le=20)
     session_id: str | None = None
+    # 默认 rag，保持升级前行为；tools 走可选的最小工具工作流。
+    workflow_mode: Literal["rag", "tools"] = "rag"
 
 
 class IngestRequest(BaseModel):
@@ -69,6 +71,9 @@ class AskResponse(BaseModel):
     latency_ms: int = 0
     usage: dict[str, int] | None = None
     cost: float | None = None
+    # tools 模式下附带执行轨迹，rag 模式下为 None，保持向后兼容。
+    trace_id: str | None = None
+    steps: list[dict] | None = None
 
 
 class Source(BaseModel):
