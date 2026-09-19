@@ -7,15 +7,15 @@ def test_hybrid_retriever_finds_relevant_chunk() -> None:
     retriever = HybridRetriever(HashEmbedder())
     retriever.add_chunks(
         [
-            Chunk(text="流感患者应尽早给予抗病毒治疗。"),
-            Chunk(text="高血压患者应低盐饮食并规律运动。"),
-            Chunk(text="用药前应核对药品说明书。"),
+            Chunk(text="退款需在订单完成后 7 天内提交。"),
+            Chunk(text="发货时间以订单详情页显示为准。"),
+            Chunk(text="发票信息需与订单抬头一致。"),
         ]
     )
 
-    results = retriever.search("流感抗病毒治疗", top_k=1)
+    results = retriever.search("退款处理", top_k=1)
 
-    assert results[0].text == "流感患者应尽早给予抗病毒治疗。"
+    assert results[0].text == "退款需在订单完成后 7 天内提交。"
 
 
 def test_search_exposes_raw_dense_score_for_thresholds() -> None:
@@ -23,12 +23,12 @@ def test_search_exposes_raw_dense_score_for_thresholds() -> None:
     retriever = HybridRetriever(HashEmbedder())
     retriever.add_chunks(
         [
-            Chunk(text="流感患者应尽早给予抗病毒治疗。"),
-            Chunk(text="高血压患者应低盐饮食并规律运动。"),
+            Chunk(text="退款需在订单完成后 7 天内提交。"),
+            Chunk(text="发货时间以订单详情页显示为准。"),
         ]
     )
 
-    results = retriever.search("流感抗病毒治疗", top_k=2)
+    results = retriever.search("退款处理", top_k=2)
 
     assert results[0].raw_dense_score > 0.0
     assert results[0].raw_dense_score <= 1.0
@@ -39,13 +39,13 @@ def test_bm25_batch_scores_match_single_score() -> None:
     retriever = HybridRetriever(HashEmbedder())
     retriever.add_chunks(
         [
-            Chunk(text="流感患者应尽早给予抗病毒治疗。"),
-            Chunk(text="高血压患者应低盐饮食并规律运动。"),
+            Chunk(text="退款需在订单完成后 7 天内提交。"),
+            Chunk(text="发货时间以订单详情页显示为准。"),
         ]
     )
 
-    values = retriever.bm25.scores("流感抗病毒")
+    values = retriever.bm25.scores("退款处理")
 
     assert len(values) == 2
-    assert values[0] == retriever.bm25.score("流感抗病毒", 0)
-    assert values[1] == retriever.bm25.score("流感抗病毒", 1)
+    assert values[0] == retriever.bm25.score("退款处理", 0)
+    assert values[1] == retriever.bm25.score("退款处理", 1)

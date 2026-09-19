@@ -22,13 +22,13 @@ class FakeGenerator(Generator):
 def test_pipeline_ingests_and_answers() -> None:
     pipeline = RAGPipeline(HashEmbedder(), FakeGenerator())
     pipeline.ingest_text(
-        "流感患者应尽早给予抗病毒治疗。",
-        metadata={"file_name": "flu.txt"},
+        "退款需在订单完成后 7 天内提交。",
+        metadata={"file_name": "refund.txt"},
     )
 
-    result = pipeline.answer("流感抗病毒治疗", top_k=1)
+    result = pipeline.answer("退款处理", top_k=1)
 
-    assert "尽早给予抗病毒治疗" in result.answer
+    assert "退款需在订单完成后 7 天内提交" in result.answer
     assert len(result.contexts) == 1
 
 
@@ -40,11 +40,11 @@ def test_pipeline_treats_low_relevance_as_insufficient() -> None:
         min_relevance_score=0.99,
     )
     pipeline.ingest_text(
-        "高血压患者应低盐饮食并规律运动。",
-        metadata={"file_name": "bp.txt"},
+        "发货时间以订单详情页显示为准。",
+        metadata={"file_name": "shipping.txt"},
     )
 
-    result = pipeline.answer("流感抗病毒治疗", top_k=1)
+    result = pipeline.answer("退款处理", top_k=1)
 
     assert result.contexts == []
     assert "资料不足" in result.answer
@@ -56,9 +56,9 @@ def test_pipeline_expands_child_hits_to_parent_context(
     # 命中子块时，交给模型的是父块文本，避免答案被切分边界截断。
     monkeypatch.setenv("HIERARCHICAL_CHUNKING", "true")
     pipeline = RAGPipeline(HashEmbedder(), FakeGenerator())
-    pipeline.ingest_text("流感患者应尽早给予抗病毒治疗。" * 30, metadata={"file_name": "flu.txt"})
+    pipeline.ingest_text("退款需在订单完成后 7 天内提交。" * 30, metadata={"file_name": "refund.txt"})
 
-    result = pipeline.answer("流感抗病毒治疗", top_k=1)
+    result = pipeline.answer("退款处理", top_k=1)
 
     assert result.contexts
     # FakeGenerator 会把拿到的 context 文本写进答案，父块比子块长

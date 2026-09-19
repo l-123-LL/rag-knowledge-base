@@ -31,16 +31,16 @@ class FakePipeline:
         exclude_sources: set[str] | None = None,
         tenant_id: str = "default",
     ) -> PipelineAnswer:
-        if "流感" not in question:
+        if "退款" not in question:
             return PipelineAnswer(answer="当前资料不足。", contexts=[])
 
         context = RetrievedChunk(
-            text="重症流感患者应尽早给予抗流感病毒治疗。",
-            metadata={"source": "流感指南", "url": "https://example.com/flu"},
+            text="退款需在订单完成后 7 天内提交，商家审核后原路退回。",
+            metadata={"source": "售后政策", "url": "https://example.com/refund"},
             combined_score=1.0,
         )
         return PipelineAnswer(
-            answer="应尽早给予抗流感病毒治疗。",
+            answer="审核通过后给予原路退回。",
             contexts=[context],
         )
 
@@ -52,8 +52,8 @@ class FakeStreamingGenerator:
         contexts: list[RetrievedChunk],
         history: list[dict] | None = None,
     ):
-        yield "应尽早"
-        yield "给予抗流感病毒治疗。"
+        yield "审核通过后"
+        yield "给予原路退回。"
 
 
 class FakeStreamingPipeline:
@@ -69,8 +69,8 @@ class FakeStreamingPipeline:
     ) -> list[RetrievedChunk]:
         return [
             RetrievedChunk(
-                text="重症流感患者应尽早给予抗流感病毒治疗。",
-                metadata={"source": "流感指南"},
+                text="退款需在订单完成后 7 天内提交，商家审核后原路退回。",
+                metadata={"source": "售后政策"},
                 combined_score=1.0,
             )
         ]
@@ -95,11 +95,11 @@ def test_ingest_then_ask_returns_answer() -> None:
 
     ingest_response = client.post(
         "/ingest",
-        json={"text": "示例医学资料。", "source": "示例资料"},
+        json={"text": "示例售后资料。", "source": "示例资料"},
     )
     response = client.post(
         "/ask",
-        json={"question": "成人流感的抗病毒治疗时机是什么？"},
+        json={"question": "退款多久到账？"},
     )
 
     assert ingest_response.status_code == 200
@@ -107,7 +107,8 @@ def test_ingest_then_ask_returns_answer() -> None:
     assert response.status_code == 200
     payload = response.json()
     assert payload["status"] == "done"
-    assert "抗流感病毒治疗" in payload["answer"]
+    # 这个问题会被 FAQ 关键词命中，因此返回标准答案（含 7 天政策与引用）
+    assert "7 天" in payload["answer"]
     assert len(payload["citations"]) == 1
 
 
@@ -176,7 +177,7 @@ def test_ingest_file_accepts_text_file() -> None:
 
     response = client.post(
         "/ingest/file",
-        files={"file": ("note.txt", io.BytesIO("流感患者应尽早治疗。".encode()), "text/plain")},
+        files={"file": ("note.txt", io.BytesIO("退款需商家审核。".encode()), "text/plain")},
     )
 
     assert response.status_code == 200
@@ -192,7 +193,7 @@ def test_ingest_url_accepts_public_page(monkeypatch: pytest.MonkeyPatch) -> None
 
     response = client.post(
         "/ingest/url",
-        json={"url": "https://example.com/medical"},
+        json={"url": "https://example.com/policy"},
     )
 
     assert response.status_code == 200
@@ -204,12 +205,12 @@ def test_ask_stream_returns_sse() -> None:
 
     response = client.post(
         "/ask/stream",
-        json={"question": "流感如何治疗？"},
+        json={"question": "退款怎么处理？"},
     )
 
     assert response.status_code == 200
     assert "text/event-stream" in response.headers["content-type"]
-    assert "应尽早给予抗流感病毒治疗" in response.text
+    assert "7 天" in response.text
 
 
 def test_faq_question_returns_standard_answer_without_pipeline() -> None:

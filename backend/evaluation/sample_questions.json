@@ -1,14 +1,14 @@
 [
   {
-    "question": "成人流感的抗病毒治疗时机是什么？",
-    "relevant_ids": ["flu-chunk-0"]
+    "question": "退货时间是多久？",
+    "relevant_ids": ["return-chunk-0"]
   },
   {
-    "question": "高血压患者应如何管理饮食？",
-    "relevant_ids": ["hypertension-chunk-0"]
+    "question": "订单多久发货？",
+    "relevant_ids": ["shipping-chunk-0"]
   },
   {
-    "question": "用药前应核对哪些信息？",
-    "relevant_ids": ["medication-chunk-0"]
+    "question": "怎么申请电子发票？",
+    "relevant_ids": ["invoice-chunk-0"]
   }
 ]

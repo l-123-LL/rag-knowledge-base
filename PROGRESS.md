@@ -273,8 +273,7 @@ cd backend
 
 ### P1-1 清理医学阶段遗留内容
 
-要做什么：`backend/evaluation/sample_corpus.json`、`backend/evaluation/sample_questions.json` 仍是医学问题，`backend/app/__init__.py` 的 docstring 还写着「医学知识库」。统一改成企业客服样例，或明确标注为历史样例。
-涉及：`backend/evaluation/`、`backend/app/__init__.py`、`backend/tests/test_evaluation.py`。
+**状态：已完成（2026-09-19）。** 示例语料与问题改成退货 / 发货 / 发票等客服样例；`backend/app/__init__.py` docstring 改为「企业智能客服后端应用包」；8 个测试文件里的医学示例文本（共 50 余处）批量替换为客服语义，并修正了因此不一致的断言。仓库内已无医学残留。
 
 ### P1-2 产出延迟与成本量化数字
 

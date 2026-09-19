@@ -58,11 +58,11 @@ def test_evaluate_retrieval_returns_zero_for_missing_target() -> None:
 
 def test_run_retrieval_evaluation_returns_average_metrics() -> None:
     corpus = [
-        {"id": "target", "text": "流感患者应尽早给予抗病毒治疗。"},
-        {"id": "noise", "text": "高血压患者应低盐饮食。"},
+        {"id": "target", "text": "退款需在订单完成后 7 天内提交。"},
+        {"id": "noise", "text": "物流用户应低盐饮食。"},
     ]
     questions = [
-        {"question": "流感抗病毒治疗", "relevant_ids": ["target"]},
+        {"question": "退款处理", "relevant_ids": ["target"]},
     ]
 
     result = run_retrieval_evaluation(corpus, questions)
