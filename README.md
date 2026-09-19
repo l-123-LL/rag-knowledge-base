@@ -123,8 +123,8 @@ cd backend
 ### 单元与集成测试
 
 ```bash
-cd backend && ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 103 passed
-cd web && npm test && npm run typecheck && npm run build                     # 22 passed
+cd backend && ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 119 passed
+cd web && npm test && npm run typecheck && npm run build                     # 25 passed
 ```
 
 ## 关键设计决策
@@ -138,10 +138,10 @@ cd web && npm test && npm run typecheck && npm run build                     # 2
 
 - **部署前必做**：默认不强制鉴权（未配置 `ADMIN_API_KEY` / `OIDC_JWKS_URL` 时启动会打印警告），公网部署前必须配置鉴权或前置网关；前端镜像已通过 `web/.dockerignore` 排除 `.env`，避免管理员 Key 被内联进 JS 产物。
 - 业务数据为**本地模拟**（`backend/mock/orders.json`，20 订单 + 10 物流），未接入真实订单 / CRM / 退款系统。
-- 工具为只读 + 本地建单，未实现真实副作用操作，因此也没有审批流。
+- 工具为只读查询 + 本地建单；`refund_request` 是唯一的高风险写操作，走 dry-run + 人工审批，但「执行」只是本地建单记录（mock），未触达真实资金。
 - 阈值 0.42 是在 10 条示例语料上校准的，换真实资料必须重新采样。
 - 知识类问题严格文案命中率 60%，因为答案是 FAQ 措辞而非语料原文；该项只作参考。
-- 未实现多轮工具组合、parent-child 检索、知识版本热更新、独立监控平台。
+- 已实现父子切分（`HIERARCHICAL_CHUNKING`）与多轮订单号指代；未实现多轮工具组合（一次任务只调一个业务工具）、知识版本与生效时间过滤、独立监控平台。
 
 ## 目录结构
 
@@ -149,7 +149,7 @@ cd web && npm test && npm run typecheck && npm run build                     # 2
 backend/app/             FastAPI 接口、检索、生成、工具、工作流、轨迹、工单、会话、租户
 backend/mock/            本地模拟订单与物流数据
 backend/evaluation/      检索评测、Agent 评测、评测报告
-backend/tests/           103 个 pytest 用例
+backend/tests/           119 个 pytest 用例
 web/src/                 React 前端（管理端 / 用户端、Trace 面板）
 docs/                    架构图、阶段方案、案例与失败复盘
 start-*.bat              一键启动脚本

@@ -63,7 +63,7 @@ cd backend
 ..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q
 ```
 
-结果：**103 passed**（新增工具层、工作流、执行轨迹、Agent 评测与评测口径五组测试；覆盖切分、检索、向量库、生成、管线、意图、工具、工作流、轨迹、FAQ 存储、会话、工单、观测、备份、评估等）。
+结果：**119 passed**（新增工具层、工作流、执行轨迹、Agent 评测、审批与评测口径六组测试；覆盖切分、检索、向量库、生成、管线、意图、工具、工作流、轨迹、审批、FAQ 存储、会话、工单、观测、备份、评估等）。
 
 ### 前端测试
 
@@ -72,7 +72,7 @@ cd web
 npm test
 ```
 
-结果：**7 个测试文件 / 22 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
+结果：**8 个测试文件 / 25 个用例全部通过**（`npm run typecheck` 与 `npm run build` 已接入 CI）。
 
 ### 检索评估（企业客服 50 条问题集）
 
@@ -217,7 +217,7 @@ cd backend
 - 执行轨迹：`trace_id` + 按天 JSONL + `GET /traces/{trace_id}`，写入前对手机号、邮箱、证件号、疑似 Key 脱敏。
 - 前端（阶段 2 已完成）：顶部「RAG 问答 / 工具工作流」切换、Trace 面板（步骤、工具、重试、token、成本、转人工原因），工具模式走非流式接口以拿到 `trace_id`。
 - 输入护栏（阶段 3 新增）：命中提示词注入、密钥探测、跨租户尝试等模式时直接转人工，不进入检索与生成，原因记为 `unsafe_request`。
-- 评测分档：`--tag smoke|core|full`（25 / 60 / 110 条）与 `--limit`，日常只跑冒烟，里程碑跑全量并留档。
+- 评测分档：`--tag smoke|core|full`（25 / 60 / 150 条）与 `--limit`，日常只跑冒烟，里程碑跑全量并留档。
 - 多轮指代（新增）：追问里没带订单号时，从最近几轮用户消息里取上一个订单号（「它的物流到哪了」），并在轨迹里记录 `resolve` 步骤与 `reused_from_history` 标记。
 - 高风险写操作审批（新增）：`refund_request` 工具默认只创建审批单并返回 dry-run 预览，不执行任何写入；管理员通过 `GET /approvals` 查看、`POST /approvals/{id}/decision` 批准后才落地（本地 mock 只建单，不动真实资金）。审批带幂等键，重复批准不会重复执行；租户隔离。低风险的 `human_handoff` 仍然即时执行，不增加用户等待。
 - mock 数据位于 `backend/mock/orders.json`（20 条订单 + 10 条物流，含 acme 租户样本用于隔离验证），刻意不放被 gitignore 的 `data/`。

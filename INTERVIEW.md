@@ -337,7 +337,7 @@ cd backend
 
 ```bash
 cd backend
-..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 65 passed
+..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q   # 119 passed
 
 cd web
 npm test                                                      # 6 files / 19 tests
