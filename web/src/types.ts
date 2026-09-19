@@ -82,6 +82,28 @@ export interface TraceRecord {
   created_at?: string
 }
 
+export type ApprovalStatus =
+  | 'pending'
+  | 'approved'
+  | 'rejected'
+  | 'executed'
+  | 'failed'
+
+export interface ApprovalRecord {
+  id: string
+  tool: string
+  status: ApprovalStatus
+  tenant_id?: string
+  created_at?: string
+  decided_by?: string | null
+  preview?: Record<string, unknown>
+  execution?: {
+    ok: boolean
+    code: string
+    data?: Record<string, unknown> | null
+  } | null
+}
+
 export interface Conversation {
   id: string
   question: string

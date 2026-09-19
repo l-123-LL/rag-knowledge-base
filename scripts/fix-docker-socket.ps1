@@ -53,10 +53,17 @@ Start-Process -FilePath $dockerExe
 
 $cli = "D:\Docker\resources\bin\docker.exe"
 Write-Host "5) 等待引擎就绪（最多 5 分钟）..." -ForegroundColor Cyan
+# 原生命令在启动过程中会往 stderr 输出，这里不能用 Stop 策略，否则会被误判为终止错误。
+$ErrorActionPreference = "Continue"
 for ($i = 1; $i -le 20; $i++) {
     Start-Sleep -Seconds 15
-    $out = (& $cli info --format "{{.ServerVersion}}" 2>&1 | Out-String).Trim()
-    if ($LASTEXITCODE -eq 0 -and $out -notmatch "failed|error|unable") {
+    $out = ""
+    try {
+        $out = (& $cli info --format "{{.ServerVersion}}" 2>$null | Out-String).Trim()
+    } catch {
+        $out = ""
+    }
+    if ($LASTEXITCODE -eq 0 -and $out -match '^\d+\.\d+') {
         Write-Host "引擎就绪：$out" -ForegroundColor Green
         exit 0
     }

@@ -190,6 +190,14 @@ python -m evaluation.load_test --url http://127.0.0.1:8001 --concurrency 1,10,20
 
 3. **不要强制结束 Docker 进程**：会留下无法重命名的 AF_UNIX socket，导致下次启动失败。真遇到了就跑 `scripts\fix-docker-socket.ps1`（管理员权限），它会结束进程、移开卡住的运行时目录、恢复设置并重启引擎。
 
+4. **容器里的前端是用户视图**：`web/.dockerignore` 刻意排除了 `.env`，所以镜像构建时不会把管理员 Key 内联进 JS（避免任何访客从产物里拿到 Key）。要在容器里演示管理员视图，构建时显式传入：
+
+```powershell
+docker compose build --build-arg VITE_ADMIN_API_KEY=<你的管理员 Key> web
+```
+
+（更稳妥的做法是保持镜像不含 Key，用本机 `npm run dev` 演示管理端，两者连的是同一个后端。）
+
 ## 10. 尚未验证的部分（如实说明）
 
 - 未做容器故障注入（例如压测中途停掉后端容器验证降级）；

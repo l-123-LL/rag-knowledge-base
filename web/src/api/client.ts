@@ -1,5 +1,6 @@
 import { findMockAnswer, mockSources } from '../data/mockData'
 import type {
+  ApprovalRecord,
   Citation,
   FaqItem,
   Metrics,
@@ -122,6 +123,34 @@ export async function getTrace(traceId: string): Promise<TraceRecord | null> {
 
   if (response?.ok) {
     return (await response.json()) as TraceRecord
+  }
+
+  return null
+}
+
+export async function listApprovals(): Promise<ApprovalRecord[]> {
+  // 审批队列只对管理员可见；后端会校验 X-API-Key。
+  const response = await requestBackend('/api/approvals')
+
+  if (response?.ok) {
+    return (await response.json()) as ApprovalRecord[]
+  }
+
+  return []
+}
+
+export async function decideApproval(
+  approvalId: string,
+  approved: boolean,
+): Promise<ApprovalRecord | null> {
+  const response = await requestBackend(`/api/approvals/${approvalId}/decision`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ approved, decided_by: 'admin-console' }),
+  })
+
+  if (response?.ok) {
+    return (await response.json()) as ApprovalRecord
   }
 
   return null

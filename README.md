@@ -29,6 +29,10 @@
 
 ![用户视图](docs/screenshots/03-user-view.png)
 
+管理员审批面板（高风险写操作：dry-run 预览 + 批准/驳回）：
+
+![审批面板](docs/screenshots/04-approval-panel.png)
+
 ## 核心能力
 
 | 能力 | 说明 |

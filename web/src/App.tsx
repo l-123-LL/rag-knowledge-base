@@ -3,17 +3,20 @@ import {
   askQuestion,
   archiveSource,
   createFaq,
+  decideApproval,
   ingestFile,
   ingestUrl,
   getTrace,
   getMetrics,
   getStats,
   listSources,
+  listApprovals,
   resetSession,
   sendFeedback,
   streamAsk,
 } from './api/client'
 import { ChatPanel } from './components/ChatPanel'
+import { ApprovalPanel } from './components/ApprovalPanel'
 import { SourcePanel } from './components/SourcePanel'
 import { TraceTimeline } from './components/TraceTimeline'
 import { DatabaseIcon } from './components/icons'
@@ -21,6 +24,7 @@ import { mockConversations, mockSources } from './data/mockData'
 import type { Conversation, Source } from './types'
 import type { Metrics, Stats } from './types'
 import type { TraceRecord, WorkflowMode } from './types'
+import type { ApprovalRecord } from './types'
 
 function createId() {
   if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -50,6 +54,8 @@ export default function App() {
   const [workflowMode, setWorkflowMode] = useState<WorkflowMode>('rag')
   const [trace, setTrace] = useState<TraceRecord | null>(null)
   const [showTrace, setShowTrace] = useState(false)
+  const [approvals, setApprovals] = useState<ApprovalRecord[]>([])
+  const [approvalError, setApprovalError] = useState<string | null>(null)
 
   useEffect(() => {
     // 启动时并行拉取来源、统计和指标，避免请求瀑布。
@@ -73,6 +79,44 @@ export default function App() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    // 审批队列只对管理员加载；普通用户视图不请求这个接口。
+    if (!isAdmin) {
+      return
+    }
+
+    let active = true
+    listApprovals().then((items) => {
+      if (active) {
+        setApprovals(items)
+      }
+    })
+
+    return () => {
+      active = false
+    }
+  }, [isAdmin])
+
+  const handleDecideApproval = useCallback(
+    async (approvalId: string, approved: boolean) => {
+      setApprovalError(null)
+      try {
+        const updated = await decideApproval(approvalId, approved)
+        if (updated) {
+          setApprovals((current) =>
+            current.map((item) => (item.id === approvalId ? updated : item)),
+          )
+        }
+        const [statsData, metricsData] = await Promise.all([getStats(), getMetrics()])
+        setStats(statsData)
+        setMetrics(metricsData)
+      } catch {
+        setApprovalError('审批操作失败，请确认后端正在运行且管理员 Key 正确。')
+      }
+    },
+    [],
+  )
 
   useEffect(() => {
     // 支持用 ?trace=xxx 直接打开某次执行轨迹，方便分享与截图。
@@ -357,6 +401,13 @@ export default function App() {
             stats={stats}
             metrics={metrics}
           />
+          {isAdmin ? (
+            <ApprovalPanel
+              approvals={approvals}
+              error={approvalError}
+              onDecide={handleDecideApproval}
+            />
+          ) : null}
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -371,6 +422,13 @@ export default function App() {
               stats={stats}
               metrics={metrics}
             />
+            {isAdmin ? (
+              <ApprovalPanel
+                approvals={approvals}
+                error={approvalError}
+                onDecide={handleDecideApproval}
+              />
+            ) : null}
           </div>
 
           <main className="min-h-[620px] flex-1 lg:min-h-0">
