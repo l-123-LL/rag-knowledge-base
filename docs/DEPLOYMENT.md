@@ -36,7 +36,7 @@ DEEPSEEK_API_KEY=<你的 Key>
 HF_ENDPOINT=https://hf-mirror.com
 HF_HOME=D:\rag知识库\models\huggingface
 ADMIN_API_KEY=<管理端 Key>
-RAG_MIN_SCORE=0.42
+RAG_MIN_SCORE=0.37
 ```
 
 只想本地演示、不接真实生成模型时，`DEEPSEEK_API_KEY` 可以留空：FAQ 与订单/物流工具都不需要模型，只有知识检索生成会返回 503。

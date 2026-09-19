@@ -101,6 +101,7 @@
 
 - `backend/evaluation/enterprise_eval.py`：50 条检索评测集 + CLI（`--embedder bge|hash`、`--offline`）。
 - `backend/evaluation/run_eval.py`：样例语料检索评测 CLI。
+- `backend/evaluation/calibrate_threshold.py` + `corpus_questions.json`：**拒答阈值标定**——读 `backend/corpus/` 的真实语料，算域内问题最低分与域外问题最高分，给出建议阈值与「保留/挡下」数量；两组重叠时会直接报"分不开"，不给假的安全值。
 - `backend/evaluation/agent_tasks.json`：100 条 Agent 任务（订单 25 / 物流 15 / 政策 15 / 多轮 20 / 转人工 13 / 拒答与注入 12）。
 - `backend/evaluation/agent_eval.py`：Agent 评测（默认确定性生成器、`--use-real-model`、`--tag smoke|core|full`、`--limit`、`--offline`），输出 JSON + Markdown。
 - `backend/evaluation/load_test.py`：并发压测（混合问题、并发级别、P50/P95/P99、吞吐、状态码分布）。
@@ -129,6 +130,8 @@
 - `docs/DEMO-SCRIPT.md`：3–5 分钟演示脚本。
 - `docs/PHASE0-最小改动方案.md`：本轮改造方案（已执行完）。
 - `scripts/fix-docker-socket.ps1`：Docker Desktop 启动失败修复脚本（管理员权限运行；脚本必须存为**带 BOM 的 UTF-8**，否则 PowerShell 5.1 会把中文按 GBK 读导致语法错误）。
+- `scripts/ingest-corpus.ps1`：把 `backend/corpus/` 的语料逐篇导入运行中的后端（从 `backend/.env` 读 `ADMIN_API_KEY`，不打印、不落日志）。注意两个 Windows 细节：脚本必须存为**带 BOM 的 UTF-8**；请求体必须显式转成 UTF-8 字节，否则 PowerShell 5.1 会按本地代码页编码，中文正文被后端按 UTF-8 解码失败。幂等，重复执行只跳过已存在的分块。
+- `backend/corpus/`：演示语料（5 篇公开资料 + `README.md` 说明来源与许可）。README 不入库。
 
 ---
 
@@ -138,7 +141,8 @@
 2. **规则先于模型**：投诉、明确转人工、输入护栏在规则层短路，不进检索与生成；FAQ 命中零模型成本。
 3. **Agent 状态机自写，不引 LangGraph**：只做单跳任务，自写约 360 行可控、可测；LangGraph 仅作设计参考。
 4. **工具分级**：低风险写操作（本地建单）即时执行；高风险（退款）必须 dry-run + 人工审批，幂等键防止重复执行。
-5. **阈值用原始余弦相似度**：归一化分数永远有最大值 1.0，做不了绝对判断；`RAG_MIN_SCORE=0.42` 挡下 8/8 无关问题、保留 49/50 相关问题（误伤 1 条是已知代价）。
+5. **阈值用原始余弦相似度**：归一化分数永远有最大值 1.0，做不了绝对判断。当前语料（5 篇公开资料 / 74 分块）标定 `RAG_MIN_SCORE=0.37`：域内 10/10 保留、域外 8/8 挡下（域内最低 0.377 vs 域外最高 0.360）。标定脚本 `backend/evaluation/calibrate_threshold.py` 可复现；上一轮示例语料上的取值是 0.42。
+5.1 **分块 id 必须全局唯一**：id 用「来源-序号-内容 sha1 前 8 位」。历史实现是 `text-{index}`，多篇资料导入时 id 撞车，检索层按 id 回填分数会互相覆盖（详见 `docs/FAILURE-CASES.md` 案例八）。检索层现已改为按向量库内部下标对齐，属于同一类 bug 的第二道防线。
 6. **父子切分**：子块（400 字）检索、父块（1200 字）生成，避免答案被切分边界截断；父块文本存在子块 metadata 里，代价是索引体积变大。
 7. **BM25 一次打分**：原实现逐文档重算全量分数（O(N²)），改为 `scores()` 一次算完；512 条索引检索从 370.9 ms 降到 187.5 ms。
 8. **评测分两套**：检索质量用真实 BGE 单独评测；Agent 任务指标用确定性生成器（零 API 花费、可高频回归），生成质量交给 `judge.py` 抽样。
@@ -160,6 +164,8 @@
 3. 容器故障注入测试（压测中途停后端，验证降级与恢复）。
 4. 补齐：审批驳回理由、知识版本与生效时间过滤、生成质量批量报告。
 
+已完成部分：第 1 项的"公开语料 + 重新校准"已做完（5 篇公开资料 / 74 分块、`RAG_MIN_SCORE=0.37`、导入脚本 `scripts/ingest-corpus.ps1`）；第 4 项三项都已补齐。仍未开始的是**企业自有资料接入**、**GitHub 远程 CI 实跑**和**演示视频录制**。
+
 ---
 
 ## 6. 已知问题与风险
@@ -172,8 +178,9 @@
 
 ### 数据与效果
 
-- 索引里是示例语料，真实企业资料未导入；现有指标（检索 hit@1 0.96、Agent 成功率 99.33%）不代表真实业务效果。
-- 阈值 0.42 与成本外推值都基于示例语料，换语料必须重测。
+- 索引里是**公开替代语料**（5 篇 / 74 分块），不是企业自有资料；现有指标（检索 hit@1 0.96、Agent 成功率 99.33%）仍基于各自的评测语料，不能直接当作真实业务效果。
+- 阈值 0.37 基于当前 5 篇公开语料（74 分块）标定，且域内/域外只剩 0.017 的间隙；换成企业自有资料必须用 `backend/evaluation/calibrate_threshold.py` 重标。成本外推值同样基于当前语料的实测 token 数。
+- 索引里是**公开替代语料**（Apache-2.0 / MIT 平台说明 + 法规文本），不是企业自有资料（产品手册 / FAQ / 售后政策）；每篇语料头部都有来源与许可标注，见 `backend/corpus/README.md`。
 - 知识类问题严格文案命中率 60%（FAQ 措辞与语料原文不同），该项只作参考。
 
 ### 功能缺口

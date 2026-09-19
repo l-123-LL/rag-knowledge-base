@@ -19,14 +19,21 @@
 ## 怎么导入
 
 ```powershell
-# 逐篇导入（管理员 Key 见 backend/.env）
-$files = Get-ChildItem backend/corpus -Filter "*.md" | Where-Object { $_.Name -ne "README.md" }
-foreach ($f in $files) {
-  $body = @{ text = (Get-Content $f.FullName -Raw -Encoding UTF8); source = $f.BaseName; doc_key = $f.BaseName; version = 1 } | ConvertTo-Json
-  Invoke-RestMethod -Uri "http://127.0.0.1:8000/ingest" -Method Post -Body $body -ContentType "application/json" -Headers @{ "X-API-Key" = $env:ADMIN_API_KEY }
-}
+# 在仓库根目录执行（脚本自己从 backend/.env 读 ADMIN_API_KEY）
+powershell -ExecutionPolicy Bypass -File scripts/ingest-corpus.ps1
 ```
+
+脚本是**幂等**的：分块 id 由「来源 + 序号 + 内容摘要」生成，重复执行只会跳过已存在的分块，输出本次真正新增的数量。当前导入结果是 **74 个分块**。
 
 ## 注意
 
-这批资料是**公开资料的替代方案**，不是某家企业的真实内部资料。真实企业上线时应当替换成自己的产品手册、FAQ 与售后政策，并重新校准 `RAG_MIN_SCORE`（当前 0.42 是在示例语料上标定的）。
+这批资料是**公开资料的替代方案**，不是某家企业的真实内部资料。真实企业上线时应当替换成自己的产品手册、FAQ 与售后政策。
+
+导入后必须重新标定拒答阈值：`RAG_MIN_SCORE` 当前是 **0.37**（域内最低 0.377 / 域外最高 0.360，域内 10/10 保留、域外 8/8 挡下），标定命令：
+
+```powershell
+cd backend
+..\.venv\Scripts\python.exe -m evaluation.calibrate_threshold
+```
+
+问题集在 `backend/evaluation/corpus_questions.json`（10 条域内 + 8 条域外），换语料后请一起更新。
