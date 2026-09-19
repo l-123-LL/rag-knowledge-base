@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+import hashlib
 import os
 
 from .chunking import Chunk, split_text, split_text_hierarchical
@@ -35,19 +36,30 @@ class RAGPipeline:
         self.min_relevance_score = min_relevance_score
 
     def ingest_text(self, text: str, metadata: dict | None = None) -> int:
+        metadata = metadata or {}
         # 可选父子切分：命中子块、生成时用父块上下文（HIERARCHICAL_CHUNKING=true 开启）。
         hierarchical = os.getenv("HIERARCHICAL_CHUNKING", "false").lower() == "true"
         chunks = split_text_hierarchical(text) if hierarchical else split_text(text)
+        # 分块 id 必须全局唯一。早期实现是 f"text-{index}"，多篇资料导入时 id 互相
+        # 撞车，检索阶段按 id 回填向量分数会互相覆盖，导致正确答案被判定为「资料不足」。
+        # 现在用「来源 + 序号 + 内容摘要」拼 id：既唯一，又能在内容不变时保持稳定（可重复导入去重）。
+        source_key = (
+            metadata.get("doc_key")
+            or metadata.get("file_name")
+            or metadata.get("source")
+            or "text"
+        )
         for index, chunk in enumerate(chunks):
-            chunk.metadata.update(metadata or {})
+            chunk.metadata.update(metadata)
             chunk.metadata["chunk_index"] = index
-            chunk.metadata.setdefault("id", f"{metadata.get('file_name', 'text')}-{index}")
+            digest = hashlib.sha1(chunk.text.encode("utf-8")).hexdigest()[:8]
+            chunk.metadata.setdefault("id", f"{source_key}-{index}-{digest}")
 
-        self.retriever.add_chunks(chunks)
+        added = self.retriever.add_chunks(chunks)
         save = getattr(self.retriever.vector_store, "save", None)
         if save is not None:
             save()
-        return len(chunks)
+        return added
 
     def answer(
         self,

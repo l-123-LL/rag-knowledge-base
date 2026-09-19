@@ -38,6 +38,9 @@ class VectorHit:
     text: str
     metadata: dict
     score: float
+    # 记录在存储内部的唯一下标。分块 id 可能重复（历史数据、外部导入），
+    # 用下标对齐分数才能保证「第 i 条分块」拿到的一定是它自己的分数。
+    record_index: int | None = None
 
 
 class InMemoryVectorStore:
@@ -65,7 +68,7 @@ class InMemoryVectorStore:
     def query(self, embedding: list[float], top_k: int = 5) -> list[VectorHit]:
         hits: list[VectorHit] = []
 
-        for record in self._records:
+        for position, record in enumerate(self._records):
             score = self._cosine(embedding, record.embedding)
             hits.append(
                 VectorHit(
@@ -73,6 +76,7 @@ class InMemoryVectorStore:
                     text=record.text,
                     metadata=record.metadata,
                     score=score,
+                    record_index=position,
                 )
             )
 
@@ -158,13 +162,17 @@ class FAISSVectorStore:
                     text=record.text,
                     metadata=record.metadata,
                     score=float(score),
+                    record_index=int(index),
                 )
             )
 
         return hits
 
     def all_records(self) -> list[VectorRecord]:
-        return list(self._records.values())
+        # 必须按内部 id 升序返回：records.json 的键是字符串，直接读回来是
+        # "0","1","10","11","2"… 这种字典序，会让记录顺序和内部下标错位，
+        # 进而让「按下标对齐分数」拿到别人的分数。
+        return [self._records[key] for key in sorted(self._records)]
 
     def count(self) -> int:
         return self._next_id
@@ -176,7 +184,12 @@ class FAISSVectorStore:
         import faiss
         import json
 
-        faiss.write_index(self.index, str(self.persist_dir / "index.faiss"))
+        # 不用 faiss.write_index：它走 C++ 的窄字符文件 API，遇到中文路径
+        # （本项目就在 D:\rag知识库 下）会报 "could not open ... for writing"。
+        # serialize_index 产出的字节与 write_index 完全一致，只是改由 Python 落盘。
+        (self.persist_dir / "index.faiss").write_bytes(
+            bytes(faiss.serialize_index(self.index))
+        )
         records = {
             str(internal_id): {
                 "id": record.id,
@@ -200,7 +213,11 @@ class FAISSVectorStore:
         if not index_path.exists() or not records_path.exists():
             return
 
-        self.index = faiss.read_index(str(index_path))
+        import numpy as np
+
+        self.index = faiss.deserialize_index(
+            np.frombuffer(index_path.read_bytes(), dtype="uint8")
+        )
         records_data = json.loads(records_path.read_text(encoding="utf-8"))
         for internal_id, data in records_data.items():
             self._records[int(internal_id)] = VectorRecord(**data)

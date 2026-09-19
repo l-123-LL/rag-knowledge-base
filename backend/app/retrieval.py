@@ -95,6 +95,8 @@ class HybridRetriever:
         self.doc_ids: list[str] = []
         self.doc_texts: list[str] = []
         self.doc_metadata: list[dict] = []
+        # 已入库的分块 id，用于「同一份资料重复导入」去重（幂等导入）。
+        self._known_ids: set[str] = set()
         self._load_existing_records()
 
     def _load_existing_records(self) -> None:
@@ -103,9 +105,24 @@ class HybridRetriever:
             self.doc_ids.append(record.id)
             self.doc_texts.append(record.text)
             self.doc_metadata.append(record.metadata)
+            self._known_ids.add(record.id)
         self.bm25.finalize()
 
-    def add_chunks(self, chunks: list[Chunk]) -> None:
+    def add_chunks(self, chunks: list[Chunk]) -> int:
+        """写入分块，返回真正新增的数量（重复 id 会被跳过）。"""
+        fresh: list[Chunk] = []
+        for chunk in chunks:
+            declared_id = chunk.metadata.get("id")
+            # 只有显式声明了 id 的分块才做去重，避免把「前 40 字相同」的
+            # 不同段落误判成同一块。
+            if declared_id and declared_id in self._known_ids:
+                continue
+            fresh.append(chunk)
+
+        if not fresh:
+            return 0
+
+        chunks = fresh
         embeddings = self.embedder.embed([chunk.text for chunk in chunks])
 
         for chunk, embedding in zip(chunks, embeddings):
@@ -120,11 +137,35 @@ class HybridRetriever:
             self.doc_ids.append(document_id)
             self.doc_texts.append(chunk.text)
             self.doc_metadata.append(chunk.metadata)
+            self._known_ids.add(document_id)
 
         self.bm25.finalize()
+        return len(chunks)
 
     def count(self) -> int:
         return len(self.doc_ids)
+
+    def _align_dense_scores(self, vector_hits) -> list[float]:
+        """把向量库返回的分数对齐到 doc_ids 的顺序。
+
+        历史实现直接按分块 id 建字典 `{id: score}`，一旦两篇资料的分块 id 撞车
+        （例如都叫 `text-0`），后面的记录会覆盖前面的，导致多条分块拿到同一个
+        常数分数、阈值判断跟着失效。这里优先用存储内部唯一下标对齐；下标不连续
+        （外部索引）时退回按 id 取最大分，至少不会拿到别人的低分。
+        """
+        if not vector_hits:
+            return [0.0] * len(self.doc_ids)
+
+        has_indices = all(hit.record_index is not None for hit in vector_hits)
+        indices = {hit.record_index for hit in vector_hits}
+        if has_indices and indices == set(range(len(self.doc_ids))):
+            by_index = {hit.record_index: hit.score for hit in vector_hits}
+            return [by_index[index] for index in range(len(self.doc_ids))]
+
+        by_id: dict[str, float] = {}
+        for hit in vector_hits:
+            by_id[hit.id] = max(by_id.get(hit.id, float("-inf")), hit.score)
+        return [by_id.get(document_id, 0.0) for document_id in self.doc_ids]
 
     def search(
         self,
@@ -136,8 +177,7 @@ class HybridRetriever:
     ) -> list[RetrievedChunk]:
         query_embedding = self.embedder.embed([query])[0]
         vector_hits = self.vector_store.query(query_embedding, top_k=len(self.doc_ids))
-        dense_by_id = {hit.id: hit.score for hit in vector_hits}
-        dense_scores = [dense_by_id.get(document_id, 0.0) for document_id in self.doc_ids]
+        dense_scores = self._align_dense_scores(vector_hits)
         dense_min, dense_max = min(dense_scores), max(dense_scores)
         dense_range = dense_max - dense_min or 1.0
 
