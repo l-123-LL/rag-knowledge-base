@@ -133,6 +133,7 @@
 - `docs/PHASE0-最小改动方案.md`：本轮改造方案（已执行完）。
 - `scripts/fix-docker-socket.ps1`：Docker Desktop 启动失败修复脚本（管理员权限运行；脚本必须存为**带 BOM 的 UTF-8**，否则 PowerShell 5.1 会把中文按 GBK 读导致语法错误）。
 - `scripts/ingest-corpus.ps1`：把 `backend/corpus/` 的语料逐篇导入运行中的后端（从 `backend/.env` 读 `ADMIN_API_KEY`，不打印、不落日志）。注意两个 Windows 细节：脚本必须存为**带 BOM 的 UTF-8**；请求体必须显式转成 UTF-8 字节，否则 PowerShell 5.1 会按本地代码页编码，中文正文被后端按 UTF-8 解码失败。幂等，重复执行只跳过已存在的分块。
+- `scripts/demo.ps1`：**一键演示**——起容器 → 等健康检查 → 索引为空就自动导入语料 → 打开页面（`-SkipIngest` / `-NoBrowser` 可裁剪）。2026-09-19 从 `docker compose down` 的冷状态实测通过。
 - `backend/corpus/`：演示语料（5 篇公开资料 + `README.md` 说明来源与许可）。README 不入库。
 - `backend/ruff.toml` + `backend/requirements-dev.txt`：后端静态检查配置与开发依赖。改完后端代码跑 `cd backend && ..\.venv\Scripts\python.exe -m ruff check .`，应当全绿；规则集刻意只覆盖"确定是问题"的项，不做风格重排。
 

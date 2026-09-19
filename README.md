@@ -55,7 +55,21 @@
 
 ## 快速开始
 
-### 一条命令（推荐）
+### 演示模式：一条命令起 Docker（推荐给演示/验收）
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/demo.ps1
+```
+
+依次做四件事：起容器 → 等后端健康检查 → 索引为空就自动导入 `backend/corpus`（74 个分块）→ 打开页面。
+加 `-SkipIngest` 只起服务，加 `-NoBrowser` 不自动开浏览器。
+
+| 服务 | 地址 |
+| --- | --- |
+| 用户端（客服问答） | http://127.0.0.1:5173/ |
+| 后端接口文档 | http://127.0.0.1:8000/docs |
+
+### 开发模式：三个本地进程（改代码用这个）
 
 双击项目根目录的 `start-all.bat`，会开三个窗口：
 
