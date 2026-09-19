@@ -7,6 +7,30 @@ from pathlib import Path
 
 from .schemas import Citation
 
+# 过于通用的词：单独命中不足以说明用户在问这件事。
+# 实测案例：发货 FAQ 的关键词里有「订单」，于是「litemall 的商城功能里有没有订单售后？」
+# 被答成"24 小时内发货"。这层判断必须放在代码里（而不是只改默认数据）——
+# FAQ 首次使用就会落盘成 JSON，改代码默认值救不了已经存在的部署。
+GENERIC_KEYWORDS = {"订单", "客服", "问题", "咨询", "商品", "服务", "系统"}
+
+
+def matches_keywords(normalized_question: str, keywords: list[str]) -> bool:
+    """命中判断：通用词必须搭配至少一个具体词才算命中。"""
+    matched = [
+        keyword
+        for keyword in keywords
+        if keyword.lower().replace(" ", "") in normalized_question
+    ]
+    if not matched:
+        return False
+
+    specific = [keyword for keyword in keywords if keyword not in GENERIC_KEYWORDS]
+    if not specific:
+        # 管理员只配了通用词，那是他的显式选择，按原来的规则放行
+        return True
+    return any(keyword not in GENERIC_KEYWORDS for keyword in matched)
+
+
 _lock = threading.RLock()
 
 
@@ -161,10 +185,7 @@ def find_faq_answer(question: str, tenant_id: str = "default") -> dict | None:
         # 例外问句交给检索：宁可多花一次检索，也不给用户一个盖掉例外的通用承诺
         return None
     for item in list_faqs(tenant_id):
-        if any(
-            keyword.lower().replace(" ", "") in normalized
-            for keyword in item.get("keywords", [])
-        ):
+        if matches_keywords(normalized, item.get("keywords", [])):
             return item
     return None
 

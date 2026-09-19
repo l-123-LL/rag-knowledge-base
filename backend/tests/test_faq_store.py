@@ -7,6 +7,7 @@ from app.faq_store import (
     delete_faq,
     find_faq_answer,
     list_faqs,
+    matches_keywords,
     update_faq,
 )
 
@@ -87,3 +88,12 @@ def test_generic_keyword_does_not_capture_unrelated_question(faq_dir: Path) -> N
     assert find_faq_answer("litemall 的商城功能里有没有订单售后？") is None
     # 真正的发货问题仍然要命中
     assert find_faq_answer("我的订单什么时候发货？") is not None
+
+
+def test_matches_keywords_requires_a_specific_hit() -> None:
+    keywords = ["发货", "物流", "订单"]
+
+    assert matches_keywords("我的订单什么时候发货？", keywords) is True
+    assert matches_keywords("有没有订单售后？", keywords) is False
+    # 只配通用词时按原规则放行（管理员的显式选择）
+    assert matches_keywords("这个问题怎么处理？", ["问题"]) is True
