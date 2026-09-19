@@ -13,6 +13,10 @@ services:
       - ./models:/app/models
     environment:
       HF_HOME: /app/models/huggingface
+      # 权重已通过 volume 预置，容器内不需要联网校验；否则首次导入/检索会因
+      # HuggingFace 校验重试多等 30 秒以上。
+      HF_HUB_OFFLINE: "1"
+      TRANSFORMERS_OFFLINE: "1"
       TRACE_DIR: /app/data/traces
       FAQ_DIR: /app/data/faqs
       SESSION_DIR: /app/data/sessions

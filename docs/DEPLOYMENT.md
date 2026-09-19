@@ -100,6 +100,7 @@ Copy-Item backend\data "D:\backup\rag-data-$(Get-Date -Format yyyyMMdd)" -Recurs
 | 现象 | 原因 | 处理 |
 | --- | --- | --- |
 | 订单/物流问题答"资料不足" | 镜像缺少 `mock/orders.json` | 确认 `backend/Dockerfile` 有 `COPY mock ./mock`，重建镜像 |
+| 启动后第一次导入/知识检索要等 30 秒以上 | 容器内首次加载嵌入模型，且会向 HuggingFace 发校验请求 | compose 已设 `HF_HUB_OFFLINE=1` / `TRANSFORMERS_OFFLINE=1`（权重通过 volume 预置）；确认 `models/huggingface` 已缓存权重 |
 | 容器启动即退出，日志报权限拒绝 | bind mount 属主与非 root 用户不匹配 | 临时给 backend 服务加 `user: root`，或调整宿主目录权限 |
 | 首次知识检索特别慢 | 权重没缓存，容器在下载 | 预置 `models/huggingface` 缓存，或配置 `HF_ENDPOINT` 镜像 |
 | 前端打不开接口 | Nginx 反代目标写死为 `backend:8000` | 确认两个服务在同一 compose 网络内、服务名就是 `backend` |
