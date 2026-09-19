@@ -119,9 +119,45 @@ def list_faqs(tenant_id: str = "default") -> list[dict]:
         return items
 
 
+# 例外/限定语：问题里出现这些词，说明用户在问「某个特殊情况怎么办」。
+# 通用 FAQ 答案往往盖掉知识库里的例外条款（真实案例：FAQ 说「7 天内可无理由退货」，
+# 而语料里写着「定制类商品除外」，用户问定制商品时会拿到错误承诺）。
+# 命中例外语时不走 FAQ 短路，交给检索去取更具体的条款。
+DEFAULT_EXCEPTION_MARKERS = (
+    "定制",
+    "定做",
+    "特殊",
+    "例外",
+    "除外",
+    "不支持",
+    "生鲜",
+    "虚拟",
+    "预售",
+    "二手",
+)
+
+
+def exception_markers() -> tuple[str, ...]:
+    """允许用 FAQ_EXCEPTION_MARKERS 覆盖（逗号分隔）。
+
+    未配置或留空 → 用默认列表（默认开启保护）；
+    显式写成 `none` / `off` / `0` → 关闭这层保护。
+    """
+    raw = os.getenv("FAQ_EXCEPTION_MARKERS")
+    if raw is None or not raw.strip():
+        return DEFAULT_EXCEPTION_MARKERS
+    if raw.strip().lower() in {"none", "off", "0"}:
+        return ()
+    return tuple(marker.strip() for marker in raw.split(",") if marker.strip())
+
+
 def find_faq_answer(question: str, tenant_id: str = "default") -> dict | None:
     # FAQ 精确优先，先归一化空格，再按关键词包含匹配。
     normalized = question.lower().replace(" ", "")
+    markers = exception_markers()
+    if any(marker.lower() in normalized for marker in markers):
+        # 例外问句交给检索：宁可多花一次检索，也不给用户一个盖掉例外的通用承诺
+        return None
     for item in list_faqs(tenant_id):
         if any(
             keyword.lower().replace(" ", "") in normalized
