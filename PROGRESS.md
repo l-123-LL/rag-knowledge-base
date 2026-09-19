@@ -267,6 +267,7 @@ cd backend
 - 向量库：`VectorStore` 接口 + `FAISSVectorStore` 实现，元数据与索引分离落盘，重启可恢复。
 - 关键词检索：`rank-bm25` + `jieba` 中文分词。
 - 混合检索：向量与 BM25 融合，`top_k` 可传参（默认 5）。
+- 多轮追问指代（`backend/app/followup.py`）：短问句（≤8 字）或以指代词开头（那/这个/它/还有…）时，检索词自动拼上上一轮用户问题——实测「寄贵重物品需要保价吗？」→「那丢了怎么赔？」，第二轮能正确接到保价与赔偿条款（引用第二十七条）。生成阶段仍只喂原始问题和对话历史，避免重复；`RAG_FOLLOWUP_MERGING=false` 可关闭。
 - 可选 rerank：配置 `RERANK_MODEL` 后启用 BGE reranker。
 - 生成：DeepSeek 客户端，支持普通与 SSE 流式两种调用。
 - 兜底：检索不到可靠内容时返回「资料不足」而不是编造。

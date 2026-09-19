@@ -94,6 +94,7 @@ powershell -ExecutionPolicy Bypass -File scripts/ingest-corpus.ps1
 | 融合权重 | 向量 0.7 / BM25 0.3 | 客服场景以语义为主，但保留关键词的精确性 |
 | rerank | `BGEReranker`（CrossEncoder），**实测为负收益，默认关闭** | 见下方"重排实测" |
 | 拒答阈值 | `RAG_MIN_SCORE=0.37`（**原始余弦**，不是归一化分） | 归一化分数永远有最大值 1.0，做不了绝对判断 |
+| 多轮追问 | 追问时检索词 = 上一轮问题 + 本轮问题（`backend/app/followup.py`） | 「那丢了怎么赔？」本身没有可检索的关键词；但生成输入不变，避免同一条信息进 prompt 两遍 |
 
 **BM25 性能**：原实现每个候选都重算一次全量分数（O(N²)），512 条文档时循环打分 88.3 ms vs 一次性打分 0.38 ms（**233 倍**）。改成 `BM25Index.scores()` 一次算完，512 条索引检索从 370.9 ms / P95 444.3 ms 降到 **187.5 ms / 193.4 ms**。
 

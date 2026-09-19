@@ -4,6 +4,7 @@ from dataclasses import dataclass
 
 from .chunking import split_text, split_text_hierarchical
 from .embeddings import Embedder
+from .followup import build_retrieval_query
 from .generation import GenerationResult, Generator
 from .retrieval import HybridRetriever, RetrievedChunk
 from .vector_store import VectorStore
@@ -69,8 +70,11 @@ class RAGPipeline:
         tenant_id: str = "default",
         as_of: str | None = None,
     ) -> PipelineAnswer:
+        # 追问（「那丢了怎么赔？」）本身没有可检索的关键词，检索时把上一轮用户问题并进来；
+        # 生成阶段仍然只用原始问题和对话历史，避免模型看到重复内容。
+        retrieval_query = build_retrieval_query(question, history)
         contexts = self.retrieve(
-            question,
+            retrieval_query,
             top_k=top_k,
             exclude_sources=exclude_sources,
             tenant_id=tenant_id,
