@@ -30,6 +30,7 @@ class FakePipeline:
         history: list[dict] | None = None,
         exclude_sources: set[str] | None = None,
         tenant_id: str = "default",
+        as_of: str | None = None,
     ) -> PipelineAnswer:
         if "退款" not in question:
             return PipelineAnswer(answer="当前资料不足。", contexts=[])
@@ -66,6 +67,7 @@ class FakeStreamingPipeline:
         top_k: int = 5,
         exclude_sources: set[str] | None = None,
         tenant_id: str = "default",
+        as_of: str | None = None,
     ) -> list[RetrievedChunk]:
         return [
             RetrievedChunk(

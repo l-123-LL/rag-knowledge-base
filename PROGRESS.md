@@ -205,6 +205,7 @@ cd backend
 
 - 文本切分：按段落聚合 + 窗口切分，可配置块大小和重叠。
 - 父子切分（`HIERARCHICAL_CHUNKING=true` 开启）：子块用于检索、父块用于生成，避免长文档答案被切分边界截断；父块文本存在子块 metadata 里，代价是索引体积变大。
+- 知识版本与生效时间：`/ingest` 支持 `doc_key` / `version` / `effective_from` / `effective_to`；检索时同一 `doc_key` 只保留最高版本，超出时间窗口的片段不参与召回；`/ask` 传 `as_of` 可以回答「去年 8 月时政策是怎么规定的」这类问题（默认按今天）。
 - 嵌入：`BAAI/bge-large-zh-v1.5`，`normalize_embeddings=True`，内积检索。
 - 向量库：`VectorStore` 接口 + `FAISSVectorStore` 实现，元数据与索引分离落盘，重启可恢复。
 - 关键词检索：`rank-bm25` + `jieba` 中文分词。

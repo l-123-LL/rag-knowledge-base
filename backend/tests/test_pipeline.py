@@ -63,3 +63,22 @@ def test_pipeline_expands_child_hits_to_parent_context(
     assert result.contexts
     # FakeGenerator 会把拿到的 context 文本写进答案，父块比子块长
     assert len(result.answer) > len(result.contexts[0].text)
+
+
+def test_pipeline_answers_with_policy_effective_at_given_date() -> None:
+    # 「当时生效的政策是什么」：同一份政策的两个版本，按 as_of 取对应版本。
+    pipeline = RAGPipeline(HashEmbedder(), FakeGenerator())
+    pipeline.ingest_text(
+        "退货政策：签收后 7 天内可申请无理由退货。",
+        metadata={"doc_key": "return-policy", "version": 1, "effective_to": "2026-05-31", "file_name": "v1.txt"},
+    )
+    pipeline.ingest_text(
+        "退货政策：签收后 15 天内可申请无理由退货。",
+        metadata={"doc_key": "return-policy", "version": 2, "effective_from": "2026-06-01", "file_name": "v2.txt"},
+    )
+
+    old = pipeline.answer("退货政策几天", top_k=1, as_of="2026-03-01")
+    new = pipeline.answer("退货政策几天", top_k=1, as_of="2026-09-01")
+
+    assert "7 天" in old.answer
+    assert "15 天" in new.answer

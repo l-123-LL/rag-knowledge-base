@@ -1,4 +1,5 @@
 import math
+from datetime import datetime, timezone
 from dataclasses import dataclass, field
 
 import jieba
@@ -131,6 +132,7 @@ class HybridRetriever:
         top_k: int = 5,
         exclude_sources: set[str] | None = None,
         tenant_id: str = "default",
+        as_of: str | None = None,
     ) -> list[RetrievedChunk]:
         query_embedding = self.embedder.embed([query])[0]
         vector_hits = self.vector_store.query(query_embedding, top_k=len(self.doc_ids))
@@ -168,7 +170,9 @@ class HybridRetriever:
             for candidate in candidates
             if candidate.metadata.get("source") not in excluded
             and candidate.metadata.get("tenant_id", "default") == tenant_id
+            and self._is_effective(candidate.metadata, as_of)
         ]
+        candidates = self._prefer_latest_version(candidates)
         candidates.sort(
             key=lambda item: item.combined_score,
             reverse=True,
@@ -177,3 +181,38 @@ class HybridRetriever:
         if self.reranker is not None:
             candidates = self.reranker.rerank(query, candidates)
         return candidates[:top_k]
+
+    @staticmethod
+    def _is_effective(metadata: dict, as_of: str | None) -> bool:
+        """按生效时间窗口过滤：metadata 可带 effective_from / effective_to（ISO 日期）。"""
+        moment = as_of or datetime.now(timezone.utc).date().isoformat()
+        start = metadata.get("effective_from")
+        end = metadata.get("effective_to")
+
+        if start and str(start)[:10] > moment[:10]:
+            return False
+        if end and str(end)[:10] < moment[:10]:
+            return False
+        return True
+
+    @staticmethod
+    def _prefer_latest_version(candidates: list[RetrievedChunk]) -> list[RetrievedChunk]:
+        """同一 doc_key 的多个版本只保留版本号最高的，避免新旧政策同时命中。"""
+        latest: dict[str, float] = {}
+        for candidate in candidates:
+            key = candidate.metadata.get("doc_key")
+            if not key:
+                continue
+            version = float(candidate.metadata.get("version") or 0)
+            if key not in latest or version > latest[key]:
+                latest[key] = version
+
+        kept: list[RetrievedChunk] = []
+        for candidate in candidates:
+            key = candidate.metadata.get("doc_key")
+            if not key:
+                kept.append(candidate)
+                continue
+            if float(candidate.metadata.get("version") or 0) >= latest[key]:
+                kept.append(candidate)
+        return kept

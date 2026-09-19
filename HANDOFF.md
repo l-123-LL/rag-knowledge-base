@@ -71,7 +71,7 @@
 - `backend/app/chunking.py`：归一化、段落切分、窗口切分，以及 `split_text_hierarchical`（父块 1200 / 子块 400 / 重叠 80）。
 - `backend/app/embeddings.py`：`Embedder` 接口、`HashEmbedder`（测试替身）、`SentenceTransformerEmbedder`（`BAAI/bge-large-zh-v1.5`）。
 - `backend/app/vector_store.py`：`VectorStore` 接口、内存实现、`FAISSVectorStore`（`IndexIDMap2 + IndexFlatIP`，索引与元数据分开落盘）。
-- `backend/app/retrieval.py`：jieba 分词、`BM25Index`（含一次性批量打分 `scores()`）、`HybridRetriever`（min-max 归一化 + 0.7/0.3 融合）、`RetrievedChunk`（含 `raw_dense_score`）。
+- `backend/app/retrieval.py`：jieba 分词、`BM25Index`（含一次性批量打分 `scores()`）、`HybridRetriever`（min-max 归一化 + 0.7/0.3 融合；按 `doc_key` 只保留最高版本、按 `effective_from/to` 过滤生效窗口）、`RetrievedChunk`（含 `raw_dense_score`）。
 - `backend/app/reranker.py`：可选 BGE 重排（`RERANK_MODEL` 开关）。
 - `backend/app/generation.py`：DeepSeek 客户端（普通 + 流式）、`GenerationResult`。
 - `backend/app/pipeline.py`：`RAGPipeline`（检索 → 阈值判定 → 父块上下文扩展 → 生成），`ingest_text` 支持父子切分。
@@ -146,6 +146,7 @@
 10. **Docker 用 CPU 版 torch**：Linux 上装 `sentence-transformers` 默认拉 CUDA 版 torch（nvidia-* 数 GB），改用 `download.pytorch.org/whl/cpu` 后镜像 2.27 GB。
 11. **镜像不内联管理员 Key**：`web/.dockerignore` 排除 `.env`，默认构建出用户视图；需要管理端时显式 `--build-arg`。
 12. **日志读取容错**：追加写日志可能被强杀截断，聚合逻辑跳过损坏行（否则 `/metrics`、`/alerts` 会整个 500）。
+13. **知识带版本与生效时间**：同一 `doc_key` 只召回最高版本，`as_of` 可按历史日期检索当时生效的政策——客服场景里"政策改过，用户问的是当时的规定"必须能答对，也避免新旧政策同时命中。
 
 ---
 

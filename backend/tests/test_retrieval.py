@@ -49,3 +49,45 @@ def test_bm25_batch_scores_match_single_score() -> None:
     assert len(values) == 2
     assert values[0] == retriever.bm25.score("退款处理", 0)
     assert values[1] == retriever.bm25.score("退款处理", 1)
+
+
+def test_search_filters_by_effective_window() -> None:
+    retriever = HybridRetriever(HashEmbedder())
+    retriever.add_chunks(
+        [
+            Chunk(
+                text="退款政策：7 天内可申请无理由退货。",
+                metadata={"id": "old", "effective_to": "2026-01-31"},
+            ),
+            Chunk(
+                text="退款政策：15 天内可申请无理由退货。",
+                metadata={"id": "new", "effective_from": "2026-02-01"},
+            ),
+        ]
+    )
+
+    old_time = retriever.search("退款政策", top_k=5, as_of="2026-01-15")
+    new_time = retriever.search("退款政策", top_k=5, as_of="2026-03-01")
+
+    assert {item.metadata["id"] for item in old_time} == {"old"}
+    assert {item.metadata["id"] for item in new_time} == {"new"}
+
+
+def test_search_prefers_latest_version_for_same_doc_key() -> None:
+    retriever = HybridRetriever(HashEmbedder())
+    retriever.add_chunks(
+        [
+            Chunk(
+                text="售后政策第 1 版：7 天无理由退货。",
+                metadata={"id": "v1", "doc_key": "return-policy", "version": 1},
+            ),
+            Chunk(
+                text="售后政策第 2 版：15 天无理由退货。",
+                metadata={"id": "v2", "doc_key": "return-policy", "version": 2},
+            ),
+        ]
+    )
+
+    results = retriever.search("售后政策 退货", top_k=5)
+
+    assert {item.metadata["id"] for item in results} == {"v2"}

@@ -157,9 +157,22 @@ def ingest(
     _: None = Depends(require_admin_key),
 ) -> IngestResponse:
     pipeline = get_pipeline()
+    # 版本与生效时间写进 chunk 元数据，检索时按 doc_key 取最高版本、按时间窗口过滤。
+    ingest_metadata = {
+        "source": request.source,
+        "tenant_id": tenant_id,
+        "version": request.version,
+    }
+    if request.doc_key:
+        ingest_metadata["doc_key"] = request.doc_key
+    if request.effective_from:
+        ingest_metadata["effective_from"] = request.effective_from
+    if request.effective_to:
+        ingest_metadata["effective_to"] = request.effective_to
+
     chunk_count = pipeline.ingest_text(
         request.text,
-        metadata={"source": request.source, "tenant_id": tenant_id},
+        metadata=ingest_metadata,
     )
     sources.append(
         Source(
@@ -620,6 +633,7 @@ def ask(
             history=history,
             exclude_sources=archived_sources,
             tenant_id=tenant_id,
+            as_of=request.as_of,
         )
     except GenerationError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

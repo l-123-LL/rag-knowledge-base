@@ -56,12 +56,14 @@ class RAGPipeline:
         history: list[dict] | None = None,
         exclude_sources: set[str] | None = None,
         tenant_id: str = "default",
+        as_of: str | None = None,
     ) -> PipelineAnswer:
         contexts = self.retrieve(
             question,
             top_k=top_k,
             exclude_sources=exclude_sources,
             tenant_id=tenant_id,
+            as_of=as_of,
         )
         # 检索为空或相似度低于阈值都按“资料不足”处理，由接口层引导转人工。
         if not contexts or self.is_below_threshold(contexts):
@@ -122,12 +124,14 @@ class RAGPipeline:
         top_k: int = 5,
         exclude_sources: set[str] | None = None,
         tenant_id: str = "default",
+        as_of: str | None = None,
     ) -> list[RetrievedChunk]:
         contexts = self.retriever.search(
             question,
             top_k=top_k,
             exclude_sources=exclude_sources,
             tenant_id=tenant_id,
+            as_of=as_of,
         )
         return contexts
 

@@ -9,11 +9,18 @@ class AskRequest(BaseModel):
     session_id: str | None = None
     # 默认 rag，保持升级前行为；tools 走可选的最小工具工作流。
     workflow_mode: Literal["rag", "tools"] = "rag"
+    # 按生效时间检索（ISO 日期，默认今天）：用于"当时的政策是什么"这类问题。
+    as_of: str | None = None
 
 
 class IngestRequest(BaseModel):
     text: str = Field(min_length=1)
     source: str = Field(default="示例资料", min_length=1)
+    # 知识版本与生效时间：同一 doc_key 只保留最高版本，超出时间窗口的不参与检索。
+    version: int = Field(default=1, ge=1)
+    doc_key: str | None = None
+    effective_from: str | None = None
+    effective_to: str | None = None
 
 
 class UrlIngestRequest(BaseModel):
