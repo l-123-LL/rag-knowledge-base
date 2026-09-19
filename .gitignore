@@ -5,6 +5,9 @@ __pycache__/
 backend/.env
 # 临时存放 GitHub 令牌的文件（上传完成后请删除，且绝不要提交）
 .github-token
+# 求职策略类文档与面试准备稿：只留本地，不随公开仓库发布
+社招_*.md
+INTERVIEW.md
 data/
 models/
 backups/
