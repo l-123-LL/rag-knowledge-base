@@ -139,23 +139,23 @@ cd backend
 
 `docker compose up --build` 通过：`rag-backend` healthy、`rag-web` up、`/health` 正常、容器内订单工具能取到 mock 数据（验证 `COPY mock` 修复）、`/traces/{id}` 可回读、容器以 `uid=1000(app)` 非 root 运行；镜像 `rag-backend` 2.27 GB（CPU 版 torch）、`rag-web` 73.9 MB。详见 `docs/DEPLOYMENT.md`。
 
-### Agent 任务评测（110 条，阶段 3 已完成）
+### Agent 任务评测（150 条，阶段 3 已完成）
 
-一条命令：`cd backend && ..\.venv\Scripts\python.exe -m evaluation.agent_eval --tag full --use-real-embedder --offline`（15 秒跑完，默认不调用外部模型，**零 API 花费**；评测集构成 = 60 条新增 Agent 任务（含 10 条多轮）+ 50 条知识问答）。
+一条命令：`cd backend && ..\.venv\Scripts\python.exe -m evaluation.agent_eval --tag full --use-real-embedder --offline`（约 18 秒跑完，默认不调用外部模型，**零 API 花费**；评测集构成 = 100 条新增 Agent 任务（订单 25 / 物流 15 / 政策 15 / 多轮 20 / 投诉转人工 13 / 拒答与注入 12）+ 50 条知识问答）。
 
 | 指标 | 数值 |
 | --- | --- |
-| 任务成功率 | 99.09% |
+| 任务成功率 | 99.33% |
 | 路由 / 工具选择准确率 | 100.00% |
 | 工具参数准确率 | 100.00% |
-| 引用准确率 | 91.94% |
+| 引用准确率 | 87.32% |
 | 违规 / 幻觉率 | 0.00% |
-| 转人工 Precision / Recall | 94.44% / 100.00% |
-| 自动解决率 | 98.92% |
-| 平均工具调用 / 平均重试 | 0.54 / 0.05 |
-| P50 / P95 延迟 | 1 ms / 96 ms |
+| 转人工 Precision / Recall | 96.43% / 100.00% |
+| 自动解决率 | 99.19% |
+| 平均工具调用 / 平均重试 | 0.60 / 0.06 |
+| P50 / P95 延迟 | 1 ms / 102 ms |
 
-已知失败：`k38 积分有什么用？`（1/100）在阈值 0.42 下被判资料不足并转人工，属于阈值取舍的代价。报告留档在 `backend/evaluation/reports/`。
+已知失败：`k38 积分有什么用？`（1/150）在阈值 0.42 下被判资料不足并转人工，属于阈值取舍的代价。报告留档在 `backend/evaluation/reports/`。
 
 ### 本机运行时数据规模
 
@@ -206,6 +206,7 @@ cd backend
 - 输入护栏（阶段 3 新增）：命中提示词注入、密钥探测、跨租户尝试等模式时直接转人工，不进入检索与生成，原因记为 `unsafe_request`。
 - 评测分档：`--tag smoke|core|full`（25 / 60 / 110 条）与 `--limit`，日常只跑冒烟，里程碑跑全量并留档。
 - 多轮指代（新增）：追问里没带订单号时，从最近几轮用户消息里取上一个订单号（「它的物流到哪了」），并在轨迹里记录 `resolve` 步骤与 `reused_from_history` 标记。
+- 高风险写操作审批（新增）：`refund_request` 工具默认只创建审批单并返回 dry-run 预览，不执行任何写入；管理员通过 `GET /approvals` 查看、`POST /approvals/{id}/decision` 批准后才落地（本地 mock 只建单，不动真实资金）。审批带幂等键，重复批准不会重复执行；租户隔离。低风险的 `human_handoff` 仍然即时执行，不增加用户等待。
 - mock 数据位于 `backend/mock/orders.json`（20 条订单 + 10 条物流，含 acme 租户样本用于隔离验证），刻意不放被 gitignore 的 `data/`。
 
 ### 知识库管理

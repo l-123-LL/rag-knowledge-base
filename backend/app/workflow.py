@@ -24,6 +24,7 @@ from .trace_store import new_trace_id, write_trace
 ORDER_ID_PATTERN = re.compile(r"[A-Za-z]{2}\d{6,}")
 DIGITS_PATTERN = re.compile(r"\d{6,}")
 LOGISTICS_KEYWORDS = ("物流", "快递", "包裹", "运单", "配送", "签收", "派送", "运输")
+REFUND_ACTION_KEYWORDS = ("申请退款", "我要退款", "帮我退款", "退钱", "退款申请", "要求退款")
 ORDER_KEYWORDS = ("订单", "下单", "发货", "什么时候发", "订单状态", "买了", "退款到哪")
 
 # 多轮追问的指代线索：当前问题没带订单号、但仍在问订单/物流相关的事时，
@@ -254,10 +255,51 @@ def run_tool_workflow(
             from_history = order_id is not None
         wants_logistics = any(keyword in question for keyword in LOGISTICS_KEYWORDS)
         wants_order = any(keyword in question for keyword in ORDER_KEYWORDS)
+        wants_refund = any(keyword in question for keyword in REFUND_ACTION_KEYWORDS)
+
+        # 退款属于高风险写操作：先走审批，不直接执行。
+        if order_id and wants_refund and tool_calls < max_steps:
+            result, duration_ms = _run_tool(
+                "refund_request",
+                {"order_id": order_id, "reason": "no_longer_needed"},
+                context,
+                deadline - time.perf_counter(),
+            )
+            tool_calls += 1
+            record(
+                "tool",
+                tool="refund_request",
+                status="ok" if result.ok else result.code,
+                code=result.code,
+                attempts=result.attempts,
+                duration_ms=duration_ms,
+                input_summary=order_id,
+            )
+            if result.ok:
+                payload_data = result.data or {}
+                preview = payload_data.get("preview", {})
+                if result.code == "APPROVAL_REQUIRED":
+                    answer = (
+                        f"退款申请已提交，等待人工审批（审批号：{payload_data['approval_id']}）。"
+                        f"订单金额 {preview.get('amount', '未知')} 元，审批通过后才会执行。"
+                    )
+                else:
+                    answer = f"退款已执行（本地模拟，工单号：{payload_data.get('ticket_id', '未知')}）。"
+                citations = [
+                    Citation(
+                        id=f"refund_request-{order_id}",
+                        title="refund_request（高风险写操作，需审批）",
+                        url="",
+                        location="结构化工具",
+                        snippet=answer[:200],
+                        score=1.0,
+                    )
+                ]
+                model = "refund_request"
 
         # 只要问题里出现订单号，默认就是问这张订单的状态：不再依赖关键词，
         # 否则「SOxxx 还没付款吗」这类问法会掉到知识检索。
-        if order_id and tool_calls < max_steps:
+        if not answer and order_id and tool_calls < max_steps:
             tool_name = "logistics_track" if wants_logistics else "order_lookup"
             if from_history:
                 record("resolve", order_id=order_id, source="history")

@@ -34,6 +34,8 @@ class ToolErrorCode:
     NOT_FOUND = "NOT_FOUND"
     UPSTREAM_TIMEOUT = "UPSTREAM_TIMEOUT"
     PERMISSION_DENIED = "PERMISSION_DENIED"
+    APPROVAL_REQUIRED = "APPROVAL_REQUIRED"
+    DRY_RUN = "DRY_RUN"
     INTERNAL = "INTERNAL"
 
 
@@ -48,6 +50,7 @@ class ToolContext:
     session_id: str | None = None
     pipeline: Any | None = None
     exclude_sources: set[str] | None = None
+    approved: bool = False
 
 
 class ToolResult(BaseModel):
@@ -84,6 +87,16 @@ class HumanHandoffInput(BaseModel):
     ] = "user_request"
 
 
+class RefundRequestInput(BaseModel):
+    order_id: str = Field(min_length=4, max_length=40)
+    reason: Literal[
+        "quality_issue",
+        "wrong_item",
+        "no_longer_needed",
+        "other",
+    ] = "other"
+
+
 @dataclass
 class ToolSpec:
     name: str
@@ -94,6 +107,7 @@ class ToolSpec:
     max_retries: int = DEFAULT_TOOL_MAX_RETRIES
     permission: Literal["read", "write"] = "read"
     side_effect: bool = False
+    requires_approval: bool = False
 
 
 TOOL_REGISTRY: dict[str, ToolSpec] = {}
@@ -150,6 +164,7 @@ def execute_tool(
     context: ToolContext,
     max_retries: int | None = None,
     timeout_seconds: float | None = None,
+    dry_run: bool = False,
 ) -> ToolResult:
     """校验参数 → 带超时执行 → 失败按策略重试 → 记录结构化日志。"""
     started = time.perf_counter()
@@ -170,6 +185,21 @@ def execute_tool(
             error=f"参数校验失败：{exc.error_count()} 处",
         )
         _log({"tool": name, "code": result.code, "attempts": 1})
+        return result
+
+    # 副作用工具的 dry-run：只回放将要执行的动作，不产生任何写入。
+    if spec.side_effect and dry_run:
+        result = ToolResult(
+            ok=True,
+            code=ToolErrorCode.DRY_RUN,
+            data={
+                "tool": name,
+                "executed": False,
+                "would_send": parsed.model_dump(),
+                "requires_approval": spec.requires_approval,
+            },
+        )
+        _log({"tool": name, "code": result.code, "dry_run": True})
         return result
 
     retries = spec.max_retries if max_retries is None else max_retries
@@ -266,6 +296,65 @@ def _human_handoff(payload: HumanHandoffInput, context: ToolContext) -> ToolResu
     )
 
 
+def _refund_request(payload: RefundRequestInput, context: ToolContext) -> ToolResult:
+    """高风险写操作：未获批准只生成审批单，批准后才落地（本地 mock，不涉及真实资金）。"""
+    from .approvals import create_approval
+    from .order_store import find_order, mask_phone
+
+    order = find_order(payload.order_id, tenant_id=context.tenant_id)
+    if order is None:
+        return ToolResult(
+            ok=False,
+            code=ToolErrorCode.NOT_FOUND,
+            error=f"未找到订单 {payload.order_id}",
+        )
+
+    preview = {
+        "order_id": order["order_id"],
+        "order_status": order.get("status_text", order.get("status")),
+        "amount": order.get("amount"),
+        "reason": payload.reason,
+        "receiver_phone": mask_phone(order.get("receiver_phone")),
+    }
+
+    if not context.approved:
+        approval = create_approval(
+            tool="refund_request",
+            payload={"order_id": payload.order_id, "reason": payload.reason},
+            tenant_id=context.tenant_id,
+            session_id=context.session_id,
+            preview=preview,
+        )
+        return ToolResult(
+            ok=True,
+            code=ToolErrorCode.APPROVAL_REQUIRED,
+            data={
+                "approval_id": approval["id"],
+                "status": approval["status"],
+                "preview": preview,
+                "note": "退款属于高风险写操作，已生成审批单，等待人工批准后执行。",
+            },
+        )
+
+    from .ticket_store import create_ticket
+
+    ticket = create_ticket(
+        question=f"退款申请已批准：订单 {payload.order_id}",
+        session_id=context.session_id,
+        reason="refund_approved",
+        tenant_id=context.tenant_id,
+    )
+    return ToolResult(
+        ok=True,
+        data={
+            "executed": True,
+            "ticket_id": ticket["id"],
+            "preview": preview,
+            "note": "本地 mock 执行：仅建单记录，未发生真实资金操作。",
+        },
+    )
+
+
 register_tool(
     ToolSpec(
         name="knowledge_search",
@@ -305,5 +394,18 @@ register_tool(
         timeout_seconds=3.0,
         permission="write",
         side_effect=True,
+    )
+)
+
+register_tool(
+    ToolSpec(
+        name="refund_request",
+        description="申请退款（高风险写操作）：未批准只生成审批单，批准后才执行；支持 dry-run。",
+        input_model=RefundRequestInput,
+        handler=_refund_request,
+        timeout_seconds=3.0,
+        permission="write",
+        side_effect=True,
+        requires_approval=True,
     )
 )

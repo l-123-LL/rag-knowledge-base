@@ -3,6 +3,7 @@ import logging
 import time
 import os
 from collections import defaultdict, deque
+from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Request, UploadFile
@@ -12,6 +13,7 @@ from starlette.exceptions import HTTPException
 
 from . import config  # noqa: F401
 from .backup import create_backup
+from .approvals import get_approval, list_approvals, save_approval
 from .factory import build_pipeline
 from .cost import calculate_cost
 from .generation import GenerationError
@@ -38,6 +40,7 @@ from .workflow import run_tool_workflow
 from .schemas import (
     AskRequest,
     AskResponse,
+    ApprovalDecisionRequest,
     Citation,
     HealthResponse,
     IngestRequest,
@@ -59,6 +62,7 @@ from .session_store import (
 from .security import require_admin_key, require_user_token
 from .tenant import get_tenant_id
 from .ticket_store import count_tickets, create_ticket, list_tickets
+from .tools import ToolContext, execute_tool
 
 logger = logging.getLogger("rag.api")
 
@@ -415,6 +419,52 @@ def get_tickets(
     tenant_id: str = Depends(get_tenant_id),
 ) -> list[dict]:
     return list_tickets(limit=limit, tenant_id=tenant_id)
+
+
+@app.get("/approvals")
+def list_pending_approvals(
+    tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_admin_key),
+) -> list[dict]:
+    """高风险写操作的审批队列（管理员可见）。"""
+    return list_approvals(tenant_id)
+
+
+@app.post("/approvals/{approval_id}/decision")
+def decide_approval(
+    approval_id: str,
+    request: ApprovalDecisionRequest,
+    tenant_id: str = Depends(get_tenant_id),
+    _: None = Depends(require_admin_key),
+) -> dict:
+    """批准/驳回：批准后才真正执行工具，重复决策不会重复执行（幂等）。"""
+    record = get_approval(approval_id, tenant_id=tenant_id)
+    if record is None:
+        raise HTTPException(status_code=404, detail="未找到该审批单")
+
+    if record["status"] != "pending":
+        return record
+
+    record["decided_at"] = datetime.now(timezone.utc).isoformat()
+    record["decided_by"] = request.decided_by or "admin"
+    record["status"] = "approved" if request.approved else "rejected"
+
+    if request.approved:
+        context = ToolContext(
+            tenant_id=tenant_id,
+            session_id=record.get("session_id"),
+            approved=True,
+        )
+        execution = execute_tool(record["tool"], record["payload"], context)
+        record["execution"] = {
+            "ok": execution.ok,
+            "code": execution.code,
+            "data": execution.data,
+        }
+        record["status"] = "executed" if execution.ok else "failed"
+
+    save_approval(record)
+    return record
 
 
 @app.get("/traces/{trace_id}")

@@ -12,18 +12,18 @@ def isolated_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("TICKET_DIR", str(tmp_path / "tickets"))
 
 
-def test_task_set_has_110_tasks_with_expected_composition() -> None:
+def test_task_set_has_150_tasks_with_expected_composition() -> None:
     tasks = load_tasks()
     counts = Counter(task["type"] for task in tasks)
 
-    assert len(tasks) == 110
+    assert len(tasks) == 150
     assert counts["knowledge"] == 50
-    assert counts["order"] == 15
-    assert counts["logistics"] == 10
-    assert counts["policy"] == 10
-    assert counts["handoff"] == 8
-    assert counts["no_answer"] + counts["injection"] == 7
-    assert counts["multiturn"] == 10
+    assert counts["order"] == 25
+    assert counts["logistics"] == 15
+    assert counts["policy"] == 15
+    assert counts["handoff"] == 13
+    assert counts["no_answer"] + counts["injection"] == 12
+    assert counts["multiturn"] == 20
 
 
 def test_smoke_run_produces_metrics() -> None:

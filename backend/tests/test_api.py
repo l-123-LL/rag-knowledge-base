@@ -527,3 +527,37 @@ def test_trace_endpoint_returns_404_for_unknown_id() -> None:
     response = client.get("/traces/tr_not_exists")
 
     assert response.status_code == 404
+
+
+def test_refund_approval_flow_via_api(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    monkeypatch.setenv("APPROVAL_DIR", str(tmp_path / "approvals"))
+    monkeypatch.setenv("TICKET_DIR", str(tmp_path / "tickets"))
+    monkeypatch.setenv("TRACE_DIR", str(tmp_path / "traces"))
+    app.state.pipeline = FakeToolPipeline()
+
+    asked = client.post(
+        "/ask",
+        json={"question": "订单 SO20260901001 我要退款", "workflow_mode": "tools"},
+    ).json()
+    assert "审批号" in asked["answer"]
+
+    approvals = client.get("/approvals").json()
+    assert approvals and approvals[0]["status"] == "pending"
+
+    approved = client.post(
+        f"/approvals/{approvals[0]['id']}/decision",
+        json={"approved": True},
+    ).json()
+    assert approved["status"] == "executed"
+    assert approved["execution"]["data"]["ticket_id"].startswith("T")
+
+    # 幂等：重复批准不会重复执行
+    again = client.post(
+        f"/approvals/{approvals[0]['id']}/decision",
+        json={"approved": True},
+    ).json()
+    assert again["status"] == "executed"
+    assert again["execution"] == approved["execution"]

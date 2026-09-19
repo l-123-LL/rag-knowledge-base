@@ -32,6 +32,7 @@ class FakePipeline:
 def isolated_ticket_dir(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     # 工具会产生真实副作用（建工单），测试统一写到临时目录。
     monkeypatch.setenv("TICKET_DIR", str(tmp_path / "tickets"))
+    monkeypatch.setenv("APPROVAL_DIR", str(tmp_path / "approvals"))
 
 
 def test_registry_contains_four_tools() -> None:
@@ -40,7 +41,60 @@ def test_registry_contains_four_tools() -> None:
         "knowledge_search",
         "logistics_track",
         "order_lookup",
+        "refund_request",
     ]
+
+
+def test_dry_run_does_not_create_anything(tmp_path: Path) -> None:
+    # 高风险写操作的 dry-run：只回放将要执行的动作。
+    result = execute_tool(
+        "refund_request",
+        {"order_id": "SO20260901001", "reason": "no_longer_needed"},
+        ToolContext(),
+        dry_run=True,
+    )
+
+    assert result.ok
+    assert result.code == ToolErrorCode.DRY_RUN
+    assert result.data["executed"] is False
+    assert result.data["requires_approval"] is True
+    approval_dir = tmp_path / "approvals"
+    assert not approval_dir.exists() or not list(approval_dir.glob("**/AP*.json"))
+
+
+def test_refund_requires_approval_and_only_debits_after_approval() -> None:
+    pending = execute_tool(
+        "refund_request",
+        {"order_id": "SO20260901001", "reason": "no_longer_needed"},
+        ToolContext(session_id="s-1"),
+    )
+
+    assert pending.ok
+    assert pending.code == ToolErrorCode.APPROVAL_REQUIRED
+    assert pending.data["approval_id"].startswith("AP")
+    assert pending.data["preview"]["amount"] == 899.0
+
+    # 批准后才执行（本地 mock：只建单记录）
+    executed = execute_tool(
+        "refund_request",
+        {"order_id": "SO20260901001", "reason": "no_longer_needed"},
+        ToolContext(session_id="s-1", approved=True),
+    )
+
+    assert executed.ok
+    assert executed.data["executed"] is True
+    assert executed.data["ticket_id"].startswith("T")
+
+
+def test_refund_for_unknown_order_is_rejected() -> None:
+    result = execute_tool(
+        "refund_request",
+        {"order_id": "SO20260999999"},
+        ToolContext(approved=True),
+    )
+
+    assert not result.ok
+    assert result.code == ToolErrorCode.NOT_FOUND
 
 
 def test_knowledge_search_returns_evidence() -> None:

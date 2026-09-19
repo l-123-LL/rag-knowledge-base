@@ -50,6 +50,11 @@ class TicketCreateRequest(BaseModel):
     reason: str = Field(default="customer_service", min_length=1)
 
 
+class ApprovalDecisionRequest(BaseModel):
+    approved: bool
+    decided_by: str | None = None
+
+
 class IngestResponse(BaseModel):
     chunk_count: int
 

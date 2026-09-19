@@ -42,6 +42,7 @@ class FakePipeline:
 def isolated_dirs(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
     monkeypatch.setenv("TICKET_DIR", str(tmp_path / "tickets"))
     monkeypatch.setenv("TRACE_DIR", str(tmp_path / "traces"))
+    monkeypatch.setenv("APPROVAL_DIR", str(tmp_path / "approvals"))
 
 
 def run(question: str, **kwargs):
@@ -189,3 +190,13 @@ def test_unrelated_question_does_not_reuse_history_order() -> None:
 
     assert outcome.handoff_reason == "insufficient_context"
     assert all(step.get("tool") != "order_lookup" for step in outcome.steps)
+
+
+def test_refund_request_goes_through_approval() -> None:
+    # 高风险写操作：工作流只提交审批，不直接执行。
+    outcome = run("订单 SO20260901001 我要退款")
+
+    assert outcome.model == "refund_request"
+    assert "审批号" in outcome.answer
+    steps = [step for step in outcome.steps if step.get("tool") == "refund_request"]
+    assert steps and steps[0]["code"] == "APPROVAL_REQUIRED"
