@@ -104,3 +104,19 @@ def test_observability_webhook_is_forwarded(monkeypatch) -> None:
 
     assert sent["url"] == "https://example.com/trace"
     assert sent["json"]["question"] == "如何退货？"
+def test_summarize_ask_log_skips_malformed_lines(tmp_path: Path) -> None:
+    # 进程被强杀会留下半行 JSON，聚合接口必须跳过而不是崩掉。
+    log = tmp_path / "ask.jsonl"
+    log.write_text(
+        '{"route": "faq", "latency_ms": 10, "usage": {"total_tokens": 5}}\n'
+        '{"route": "rag", "latency_ms": 20, "usage": {"total_tokens": 7}}\n'
+        '{"route": "rag", "latency_ms": 30, "usa',
+        encoding="utf-8",
+    )
+
+    summary = summarize_ask_log(log_path=log)
+
+    assert summary["total_queries"] == 2
+    assert summary["total_tokens"] == 12
+    assert summary["avg_latency_ms"] == 15
+

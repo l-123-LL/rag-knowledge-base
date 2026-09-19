@@ -22,6 +22,19 @@ def forward_event(payload: dict) -> bool:
     return True
 
 
+def _load_events(path) -> list[dict]:
+    """读取 JSONL 事件；损坏的半行（例如进程被强杀）直接跳过，不能让聚合接口崩掉。"""
+    events: list[dict] = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return events
+
+
 def log_ask_event(event: dict, log_path: str | Path | None = None) -> None:
     """把一次问答的关键字段追加到 JSONL，方便离线分析和监控。"""
     """把问答事件追加到 JSONL 日志，后续可替换为 Langfuse。"""
@@ -48,11 +61,7 @@ def summarize_ask_log(log_path: str | Path | None = None) -> dict:
             "total_cost": 0.0,
         }
 
-    events = [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    events = _load_events(path)
     latencies = [
         event["latency_ms"]
         for event in events
@@ -103,11 +112,7 @@ def summarize_feedback(
     if not path.exists():
         return {"feedback_count": 0, "helpful_rate": 0.0, "up_count": 0, "down_count": 0}
 
-    events = [
-        json.loads(line)
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.strip()
-    ]
+    events = _load_events(path)
     up_count = sum(1 for event in events if event.get("rating") == "up")
     down_count = sum(1 for event in events if event.get("rating") == "down")
     feedback_count = up_count + down_count
