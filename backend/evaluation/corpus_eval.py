@@ -30,10 +30,14 @@ def load_corpus(corpus_dir: Path) -> list[tuple[str, str]]:
     return items
 
 
-def build_retriever(corpus: list[tuple[str, str]], embedder) -> HybridRetriever:
+def build_retriever(
+    corpus: list[tuple[str, str]],
+    embedder,
+    reranker=None,
+) -> HybridRetriever:
     """按线上同一套切分与 id 规则建索引，保证评测口径和线上一致。"""
     hierarchical = os.getenv("HIERARCHICAL_CHUNKING", "false").lower() == "true"
-    retriever = HybridRetriever(embedder)
+    retriever = HybridRetriever(embedder, reranker=reranker)
     for source, text in corpus:
         pieces = split_text_hierarchical(text) if hierarchical else split_text(text)
         for index, piece in enumerate(pieces):
@@ -76,13 +80,17 @@ def score_question(
     return metrics
 
 
-def run_corpus_evaluation(embedder, corpus_dir: Path | None = None) -> dict:
+def run_corpus_evaluation(
+    embedder,
+    corpus_dir: Path | None = None,
+    reranker=None,
+) -> dict:
     base = Path(__file__).resolve().parent
     corpus = load_corpus(corpus_dir or (base.parent / "corpus"))
     questions = json.loads(
         (base / "corpus_eval_questions.json").read_text(encoding="utf-8")
     )["questions"]
-    retriever = build_retriever(corpus, embedder)
+    retriever = build_retriever(corpus, embedder, reranker=reranker)
 
     k_values = (1, 3, 5)
     per_query = []
@@ -162,9 +170,63 @@ def main(embedder_name: str = "bge") -> dict:
     return result
 
 
+def compare_rerank(embedder_name: str, rerank_model: str) -> dict:
+    """A/B 对比开/关重排的效果与延迟，回答「rerank 到底提升多少」。"""
+    from time import perf_counter
+
+    from app.reranker import BGEReranker
+
+    embedder = resolve_embedder(embedder_name)
+    without = run_corpus_evaluation(embedder)
+    # 重排模型首次加载很慢，先单独计时，避免把它算进检索延迟
+    reranker = BGEReranker(rerank_model)
+    started = perf_counter()
+    reranker.rerank("预热", [])
+    load_seconds = perf_counter() - started
+
+    started = perf_counter()
+    with_rerank = run_corpus_evaluation(
+        resolve_embedder(embedder_name),
+        reranker=reranker,
+    )
+    rerank_seconds = perf_counter() - started
+
+    comparison = {
+        "rerank_model": rerank_model,
+        "model_load_seconds": round(load_seconds, 1),
+        "without": without["average"],
+        "with_rerank": with_rerank["average"],
+        "delta": {
+            key: round(
+                with_rerank["average"][key] - without["average"][key], 3
+            )
+            for key in without["average"]
+        },
+        "with_rerank_total_seconds": round(rerank_seconds, 1),
+        "question_count": with_rerank["question_count"],
+    }
+    return comparison
+
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description="真实语料检索评测")
     parser.add_argument("--embedder", default="bge", choices=["bge", "hash"])
-    main(parser.parse_args().embedder)
+    parser.add_argument(
+        "--compare-rerank",
+        default=None,
+        metavar="MODEL",
+        help="给定时做重排 A/B 对比，例如 BAAI/bge-reranker-base",
+    )
+    args = parser.parse_args()
+    if args.compare_rerank:
+        print(
+            json.dumps(
+                compare_rerank(args.embedder, args.compare_rerank),
+                ensure_ascii=False,
+                indent=2,
+            )
+        )
+    else:
+        main(args.embedder)
