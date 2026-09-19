@@ -10,9 +10,8 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
-
 
 PHONE_PATTERN = re.compile(r"(?<!\d)(1[3-9]\d{9})(?!\d)")
 EMAIL_PATTERN = re.compile(r"[\w.+-]+@[\w-]+\.[\w.-]+")
@@ -55,11 +54,11 @@ def write_trace(trace: dict) -> str:
     """追加一条轨迹，返回 trace_id。按天分文件，避免单文件无限增长。"""
     directory = _trace_dir()
     directory.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d")
+    stamp = datetime.now(UTC).strftime("%Y%m%d")
     path = directory / f"trace-{stamp}.jsonl"
 
     payload = mask_payload(trace)
-    payload.setdefault("created_at", datetime.now(timezone.utc).isoformat())
+    payload.setdefault("created_at", datetime.now(UTC).isoformat())
     with path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
     return str(payload.get("trace_id", ""))

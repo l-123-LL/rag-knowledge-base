@@ -17,7 +17,7 @@ import json
 import os
 import statistics
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -121,8 +121,11 @@ def to_markdown(summary: dict, meta: dict) -> str:
         f"- 生成模型：{meta['model']}",
         f"- 时间：{meta['created_at']}",
         "- rubric：faithfulness 与 relevance 均按 1.0（完全有依据 / 直接回答）/ 0.5（部分）/ 0.0（编造 / 答非所问）三档打分",
-        "- 口径说明：faithfulness 只对「依据资料生成」的答案有意义；FAQ 直答、订单/物流工具直答、拒答与转人工属于规则路径，"
-        "用转人工 Precision/Recall 等 Agent 指标衡量，不纳入本报告。",
+        (
+            "- 口径说明：faithfulness 只对「依据资料生成」的答案有意义；"
+            "FAQ 直答、订单/物流工具直答、拒答与转人工属于规则路径，"
+            "用转人工 Precision/Recall 等 Agent 指标衡量，不纳入本报告。"
+        ),
         "",
         "| 指标 | 数值 |",
         "| --- | --- |",
@@ -154,8 +157,10 @@ def human_review_sheet(rows: list[dict], sample_size: int = 10) -> str:
     lines = [
         "# 人工复核抽样表",
         "",
-        "> 抽 10 条做人工复核：先看资料再看答案，独立打 1.0 / 0.5 / 0.0，"
-        "与裁判分对比，偏差超过一档的记入结论。",
+        (
+            "> 抽 10 条做人工复核：先看资料再看答案，独立打 1.0 / 0.5 / 0.0，"
+            "与裁判分对比，偏差超过一档的记入结论。"
+        ),
         "",
         "| id | 问题 | 答案 | 资料 | 裁判 faithfulness | 人工 faithfulness | 裁判 relevance | 人工 relevance |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
@@ -195,7 +200,7 @@ def main() -> None:
 
     summary = summarize_scores(result["per_case"])
     meta = {
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "model": "deepseek-chat",
         "tag": args.tag,
         "limit": args.limit,
@@ -206,7 +211,7 @@ def main() -> None:
 
     report_dir = BASE_DIR / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     (report_dir / f"generation-report-{stamp}.json").write_text(
         json.dumps({"meta": meta, "summary": summary, "per_case": result["per_case"]}, ensure_ascii=False, indent=2),
         encoding="utf-8",

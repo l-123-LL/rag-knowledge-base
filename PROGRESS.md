@@ -390,8 +390,15 @@ cd backend
 
 ### P2-1 代码规范与部署验证
 
-要做什么：加 ESLint + Prettier（前端）与 ruff/black（后端）；实际执行一次 `docker compose up` 验证两个镜像能构建并连通。
-涉及：`web/package.json`、`backend/requirements.txt`、`docker-compose.yml`、`.github/workflows/ci.yml`。
+**后端部分已完成（2026-09-19），前端 lint 仍未做。**
+
+- 新增 `backend/ruff.toml`：只开"确定是问题"的规则（E4/E7/E9、F、I、UP、SIM、PERF、ISC、C4），刻意不做行宽与文档字符串强制，避免制造大面积风格 diff；`combine-as-imports` 保证带别名的导入不被拆成两段。
+- 首次运行修掉 **58 处**自动可修问题（导入排序、过时写法、未使用导入含 `app/tools.py` 的 `field`、`app/vector_store.py` 里函数内未使用的 `faiss`）+ 手工修 7 处（隐式字符串拼接要加括号、`list.extend` 替代 append 循环、生效时间判断改成两个布尔量）。**现在 `ruff check .` 全绿**。
+- 依赖放在 `backend/requirements-dev.txt`（生产镜像不变胖），CI 增加 Lint 步骤。
+- `docker compose up --build` 真机验证已完成（见第 3 节 Docker 部署）。
+
+仍未做：前端 ESLint / Prettier（需要装一批 npm 依赖）。
+涉及：`backend/ruff.toml`、`backend/requirements-dev.txt`、`.github/workflows/ci.yml`。
 
 ### P2-2 扩充评估集
 

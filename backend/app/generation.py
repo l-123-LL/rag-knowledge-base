@@ -1,7 +1,7 @@
 import json
 import os
-from dataclasses import dataclass
 from collections.abc import Iterator
+from dataclasses import dataclass
 from typing import Protocol
 
 import httpx
@@ -73,10 +73,11 @@ class DeepSeekGenerator:
             for chunk in contexts
         )
         user_prompt = f"资料：\n{context_text}\n\n问题：{question}"
-        messages = [{"role": "system", "content": system_prompt}]
-        for message in history or []:
-            messages.append(message)
-        messages.append({"role": "user", "content": user_prompt})
+        messages = [
+            {"role": "system", "content": system_prompt},
+            *(history or []),
+            {"role": "user", "content": user_prompt},
+        ]
 
         with httpx.Client(timeout=self.timeout_seconds) as client:
             response = client.post(
@@ -119,31 +120,31 @@ class DeepSeekGenerator:
             for chunk in contexts
         )
         user_prompt = f"资料：\n{context_text}\n\n问题：{question}"
-        messages = [{"role": "system", "content": system_prompt}]
-        for message in history or []:
-            messages.append(message)
-        messages.append({"role": "user", "content": user_prompt})
+        messages = [
+            {"role": "system", "content": system_prompt},
+            *(history or []),
+            {"role": "user", "content": user_prompt},
+        ]
 
-        with httpx.Client(timeout=None) as client:
-            with client.stream(
-                "POST",
-                f"{self.base_url}/chat/completions",
-                headers={"Authorization": f"Bearer {api_key}"},
-                json={
-                    "model": self.model,
-                    "messages": messages,
-                    "temperature": 0.2,
-                    "stream": True,
-                },
-            ) as response:
-                response.raise_for_status()
-                for line in response.iter_lines():
-                    if not line.startswith("data: "):
-                        continue
-                    data = line[6:].strip()
-                    if data == "[DONE]":
-                        break
-                    payload = json.loads(data)
-                    delta = payload["choices"][0]["delta"].get("content")
-                    if delta:
-                        yield delta
+        with httpx.Client(timeout=None) as client, client.stream(
+            "POST",
+            f"{self.base_url}/chat/completions",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": self.model,
+                "messages": messages,
+                "temperature": 0.2,
+                "stream": True,
+            },
+        ) as response:
+            response.raise_for_status()
+            for line in response.iter_lines():
+                if not line.startswith("data: "):
+                    continue
+                data = line[6:].strip()
+                if data == "[DONE]":
+                    break
+                payload = json.loads(data)
+                delta = payload["choices"][0]["delta"].get("content")
+                if delta:
+                    yield delta

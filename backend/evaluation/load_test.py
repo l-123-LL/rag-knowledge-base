@@ -16,7 +16,7 @@ import statistics
 import time
 from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -129,13 +129,15 @@ def to_markdown(results: list[dict], meta: dict) -> str:
         "| 并发 | 成功数 | 成功率 | P50 | P95 | P99 | 吞吐(RPS) | 状态码 |",
         "| --- | --- | --- | --- | --- | --- | --- | --- |",
     ]
-    for item in results:
-        lines.append(
+    lines.extend(
+        (
             f"| {item['concurrency']} | {item['success']}/{item['requests']} | "
-            f"{item['success_rate']:.2%} | {item['latency_p50_ms']} ms | {item['latency_p95_ms']} ms | "
-            f"{item['latency_p99_ms']} ms | {item['throughput_rps']} | "
-            f"{item['status_codes']} |"
+            f"{item['success_rate']:.2%} | {item['latency_p50_ms']} ms | "
+            f"{item['latency_p95_ms']} ms | {item['latency_p99_ms']} ms | "
+            f"{item['throughput_rps']} | {item['status_codes']} |"
         )
+        for item in results
+    )
     return "\n".join(lines)
 
 
@@ -162,13 +164,13 @@ def main() -> None:
 
     meta = {
         "base_url": args.url,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "requests": args.requests,
         "include_model": args.include_model,
     }
     report_dir = BASE_DIR / "reports"
     report_dir.mkdir(parents=True, exist_ok=True)
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     (report_dir / f"load-test-{stamp}.json").write_text(
         json.dumps({"meta": meta, "results": results}, ensure_ascii=False, indent=2),
         encoding="utf-8",

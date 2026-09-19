@@ -127,7 +127,6 @@ class FAISSVectorStore:
         embedding: list[float],
         metadata: dict | None = None,
     ) -> None:
-        import faiss
         import numpy as np
 
         internal_id = self._next_id
@@ -181,8 +180,9 @@ class FAISSVectorStore:
         if not self.persist_dir:
             return
 
-        import faiss
         import json
+
+        import faiss
 
         # 不用 faiss.write_index：它走 C++ 的窄字符文件 API，遇到中文路径
         # （本项目就在 D:\rag知识库 下）会报 "could not open ... for writing"。
@@ -205,8 +205,9 @@ class FAISSVectorStore:
         )
 
     def _load_if_exists(self) -> None:
-        import faiss
         import json
+
+        import faiss
 
         index_path = self.persist_dir / "index.faiss"
         records_path = self.persist_dir / "records.json"

@@ -11,13 +11,13 @@
 """
 
 import json
-from datetime import datetime, timezone
+import os
+from datetime import UTC, datetime
 from pathlib import Path
 
 from app.chunking import split_text, split_text_hierarchical
 from app.evaluation import resolve_embedder
 from app.retrieval import HybridRetriever
-import os
 
 
 def load_corpus(corpus_dir: Path) -> list[tuple[str, str]]:
@@ -126,7 +126,7 @@ def render_report(result: dict) -> str:
         "",
         f"- 语料：{result['corpus_size']} 篇 / {result['chunk_count']} 个分块",
         f"- 问题：{result['question_count']} 条（每条标注期望文档 + 证据关键词）",
-        f"- 时间：{datetime.now(timezone.utc).isoformat()}",
+        f"- 时间：{datetime.now(UTC).isoformat()}",
         "",
         "| 指标 | 数值 |",
         "| --- | --- |",

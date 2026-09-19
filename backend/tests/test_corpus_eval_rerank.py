@@ -8,8 +8,8 @@
 import json
 from pathlib import Path
 
-from evaluation.corpus_eval import build_retriever, load_corpus, score_question
 from app.retrieval import RetrievedChunk
+from evaluation.corpus_eval import build_retriever, load_corpus, score_question
 
 
 class ReverseReranker:

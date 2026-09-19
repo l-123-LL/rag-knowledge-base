@@ -1,0 +1,26 @@
+# 后端静态检查配置（`..\.venv\Scripts\python.exe -m ruff check .`）。
+#
+# 只开「确定是问题」的规则集，不追求规则数量：
+#   E4/E7/E9  语法级错误（重复导入、语句结构等）
+#   F         未使用导入 / 未定义名字 / f-string 问题
+#   I         导入排序（避免每次改动都产生无意义的 diff 抖动）
+#   UP        过时的旧写法（例如 typing.Iterator → collections.abc）
+#   SIM/PERF  明显的简化与性能写法
+#   ISC/C4    隐式字符串拼接、推导式可简化
+# 刻意不开的：行宽（E501 由 line-length 控制，中文注释容易超）、
+# 文档字符串（D）、以及需要重排整份文件的格式化——格式改动噪音大、价值低。
+line-length = 100
+target-version = "py312"
+
+[lint]
+select = ["E4", "E7", "E9", "F", "I", "UP", "SIM", "PERF", "ISC", "C4"]
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# 测试里常需要"先导入模块、再打补丁"，以及在断言里做重复构造
+"tests/*" = ["E402"]
+
+[lint.isort]
+# 把 `from x import a` 和 `from x import b as c` 合并进同一个导入块，
+# 否则 isort 会把带别名的导入拆成两段，读起来反而更乱
+combine-as-imports = true

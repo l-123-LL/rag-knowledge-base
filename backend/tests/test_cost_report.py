@@ -2,7 +2,6 @@
 
 from evaluation.cost_report import summarize
 
-
 EVENTS = [
     # 调用大模型的一次
     {"route": "rag", "usage": {"prompt_tokens": 880, "completion_tokens": 94}},

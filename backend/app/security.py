@@ -1,8 +1,8 @@
 import os
 
 import jwt
-from jwt import PyJWKClient
 from fastapi import Header
+from jwt import PyJWKClient
 from starlette.exceptions import HTTPException
 
 

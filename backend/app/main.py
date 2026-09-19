@@ -1,10 +1,10 @@
-import json
 import hashlib
+import json
 import logging
-import time
 import os
+import time
 from collections import defaultdict, deque
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from fastapi import Depends, FastAPI, File, Request, UploadFile
@@ -13,11 +13,10 @@ from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.exceptions import HTTPException
 
 from . import config  # noqa: F401
-from .backup import create_backup
 from .approvals import get_approval, list_approvals, save_approval
-from .factory import build_pipeline
+from .backup import create_backup
 from .cost import calculate_cost
-from .generation import GenerationError
+from .factory import build_pipeline
 from .faq_store import (
     add_faq,
     delete_faq,
@@ -26,45 +25,46 @@ from .faq_store import (
     list_faqs as list_faq_store,
     update_faq,
 )
+from .generation import GenerationError
 from .ingestion import fetch_url_text, load_bytes
 from .intent import classify_intent
+from .mock_data import sources
 from .observability import (
     log_ask_event,
     log_feedback,
     summarize_ask_log,
     summarize_feedback,
 )
-from .mock_data import sources
 from .pipeline import RAGPipeline
 from .refusal import looks_like_refusal
-from .trace_store import read_trace
-from .workflow import run_tool_workflow
 from .schemas import (
+    ApprovalDecisionRequest,
     AskRequest,
     AskResponse,
-    ApprovalDecisionRequest,
     Citation,
-    HealthResponse,
-    IngestRequest,
-    IngestResponse,
     FaqCreateRequest,
     FaqUpdateRequest,
     FeedbackRequest,
+    HealthResponse,
+    IngestRequest,
+    IngestResponse,
     SessionResetRequest,
     Source,
     TicketCreateRequest,
     UrlIngestRequest,
 )
+from .security import require_admin_key, require_user_token
 from .session_store import (
     clear_session,
     count_sessions,
     get_history,
     record_message,
 )
-from .security import require_admin_key, require_user_token
 from .tenant import get_tenant_id
 from .ticket_store import count_tickets, create_ticket, list_tickets
 from .tools import ToolContext, execute_tool
+from .trace_store import read_trace
+from .workflow import run_tool_workflow
 
 logger = logging.getLogger("rag.api")
 
@@ -537,7 +537,7 @@ def decide_approval(
     if record["status"] != "pending":
         return record
 
-    record["decided_at"] = datetime.now(timezone.utc).isoformat()
+    record["decided_at"] = datetime.now(UTC).isoformat()
     record["decided_by"] = request.decided_by or "admin"
     record["decision_comment"] = request.comment
     record["status"] = "approved" if request.approved else "rejected"

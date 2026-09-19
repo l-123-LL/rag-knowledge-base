@@ -1,7 +1,7 @@
 import json
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -26,7 +26,7 @@ def create_ticket(
         "reason": reason,
         "status": "open",
         "tenant_id": tenant_id,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
     }
     directory = _ticket_dir(tenant_id)
     directory.mkdir(parents=True, exist_ok=True)

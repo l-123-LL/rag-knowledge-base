@@ -1,11 +1,10 @@
-from dataclasses import dataclass
-
 import hashlib
 import os
+from dataclasses import dataclass
 
-from .chunking import Chunk, split_text, split_text_hierarchical
+from .chunking import split_text, split_text_hierarchical
 from .embeddings import Embedder
-from .generation import Generator, GenerationResult
+from .generation import GenerationResult, Generator
 from .retrieval import HybridRetriever, RetrievedChunk
 from .vector_store import VectorStore
 

@@ -93,8 +93,7 @@ def extract_pdf_tables(content: bytes) -> str:
     tables: list[list[list[str | None]]] = []
     with pdfplumber.open(BytesIO(content)) as pdf:
         for page in pdf.pages:
-            for table in page.extract_tables() or []:
-                tables.append(table)
+            tables.extend(page.extract_tables() or [])
 
     return tables_to_markdown(tables)
 
@@ -102,8 +101,8 @@ def extract_pdf_tables(content: bytes) -> str:
 def ocr_pdf(content: bytes) -> str:
     """可选 OCR：需要安装 pytesseract、pypdfium2 和系统 Tesseract。"""
     try:
-        import pytesseract
         import pypdfium2 as pdfium
+        import pytesseract
     except ImportError:
         return ""
 

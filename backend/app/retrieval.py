@@ -1,6 +1,5 @@
-import math
-from datetime import datetime, timezone
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 
 import jieba
 from rank_bm25 import BM25Okapi
@@ -225,15 +224,14 @@ class HybridRetriever:
     @staticmethod
     def _is_effective(metadata: dict, as_of: str | None) -> bool:
         """按生效时间窗口过滤：metadata 可带 effective_from / effective_to（ISO 日期）。"""
-        moment = as_of or datetime.now(timezone.utc).date().isoformat()
+        moment = as_of or datetime.now(UTC).date().isoformat()
         start = metadata.get("effective_from")
         end = metadata.get("effective_to")
 
-        if start and str(start)[:10] > moment[:10]:
-            return False
-        if end and str(end)[:10] < moment[:10]:
-            return False
-        return True
+        # 还没生效，或已经失效，都不该被召回
+        starts_in_future = bool(start) and str(start)[:10] > moment[:10]
+        already_expired = bool(end) and str(end)[:10] < moment[:10]
+        return not (starts_in_future or already_expired)
 
     @staticmethod
     def _prefer_latest_version(candidates: list[RetrievedChunk]) -> list[RetrievedChunk]:

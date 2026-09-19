@@ -13,7 +13,7 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 
@@ -62,7 +62,7 @@ def create_approval(
         "session_id": session_id,
         "status": "pending",
         "idempotency_key": key,
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "decided_at": None,
         "decided_by": None,
         "execution": None,

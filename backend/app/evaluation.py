@@ -3,8 +3,7 @@ from collections.abc import Iterable
 from . import config  # noqa: F401  加载 backend/.env（HF_HOME 等），保证能取到本地模型权重
 from .chunking import Chunk
 from .embeddings import HashEmbedder
-from .retrieval import RetrievedChunk
-from .retrieval import HybridRetriever
+from .retrieval import HybridRetriever, RetrievedChunk
 
 
 def resolve_embedder(name: str = "bge"):

@@ -20,18 +20,17 @@ import json
 import os
 import statistics
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
+from app import config  # noqa: F401  加载 backend/.env（HF_HOME / HF_ENDPOINT 等）
 from app.chunking import Chunk
 from app.embeddings import HashEmbedder, SentenceTransformerEmbedder
 from app.generation import DeepSeekGenerator, GenerationResult
 from app.retrieval import HybridRetriever
 from app.workflow import run_tool_workflow
-
-from app import config  # noqa: F401  加载 backend/.env（HF_HOME / HF_ENDPOINT 等）
 
 from .enterprise_eval import build_evaluation_data
 
@@ -322,7 +321,7 @@ def run_evaluation(
             os.environ["RAG_MIN_SCORE"] = previous_threshold
     summary = summarize(rows)
     meta = {
-        "created_at": datetime.now(timezone.utc).isoformat(),
+        "created_at": datetime.now(UTC).isoformat(),
         "tag": tag,
         "generator": "deepseek" if use_real_model else "deterministic-fake",
         "embedder": "bge-large-zh-v1.5" if use_real_embedder else "hash-embedder",
@@ -351,7 +350,7 @@ def main() -> None:
         use_real_model=args.use_real_model,
         use_real_embedder=args.use_real_embedder,
     )
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d-%H%M%S")
     out_dir = BASE_DIR / "reports"
     out_dir.mkdir(parents=True, exist_ok=True)
     out_path = Path(args.out) if args.out else out_dir / f"agent-eval-{stamp}.json"

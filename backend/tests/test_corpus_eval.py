@@ -1,7 +1,7 @@
 """真实语料检索评测的打分口径测试（不加载模型）。"""
 
-from evaluation.corpus_eval import score_question
 from app.retrieval import RetrievedChunk
+from evaluation.corpus_eval import score_question
 
 
 def _chunk(source: str, text: str) -> RetrievedChunk:

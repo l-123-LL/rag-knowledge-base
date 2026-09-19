@@ -1,6 +1,5 @@
 from app.evaluation import resolve_embedder, run_retrieval_evaluation
 
-
 TOPICS = [
     {
         "id": "return",
