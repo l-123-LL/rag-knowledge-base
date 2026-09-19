@@ -1,8 +1,8 @@
 # 项目交接文档
 
-> 目标：让新的 AI 只读 `AGENTS.md` + `HANDOFF.md` + `PROGRESS.md` 就能无缝接手，不依赖任何聊天记录。
-> 分工：本文件写**稳定内容**（目标、架构、文件地图、决策原因、约束、运行方式）；**会变的内容**（做到哪、验证数字、下一步）写在 `PROGRESS.md`，开工前先读它。
-> 未实现的内容一律标注「计划」，避免把设计当成已完成。
+> 目标：新的 AI 只读 `AGENTS.md` + `HANDOFF.md` + `PROGRESS.md` 就能接手，不依赖任何聊天记录。
+> 分工：本文件写**稳定内容**（目标、架构、文件地图、决策、约束、运行方式）；**会变的内容**（做到哪、数字、下一步）写在 `PROGRESS.md`，开工前先读它。
+> 最后更新：2026-09-19。未实现的内容一律标注「计划」。
 
 ---
 
@@ -10,339 +10,238 @@
 
 ### 做什么
 
-构建一个面向企业的智能客服问答系统：
+面向企业的智能客服系统，同时具备两条链路：
 
-- 从产品手册、FAQ、售后政策、物流规则等企业资料中检索内容。
-- FAQ 精确命中优先，未命中再走 RAG 检索 + DeepSeek 生成。
-- 低置信度、投诉、需要人工介入的问题转人工客服，并自动建工单。
-- 回答必须附来源引用，检索不到时明确说「资料不足」，不编造。
-- 不能泄露内部价格、客户隐私等敏感信息。
+- **RAG 链路（默认）**：从产品手册、FAQ、售后与物流政策中混合检索，用 DeepSeek 生成带引用的回答。
+- **工具工作流（可选）**：`workflow_mode="tools"` 时走「规则路由 → 工具调用 → 质量判断 → 回答 / 转人工」，支持订单查询、物流轨迹、退款申请（需审批）。
+
+共同要求：FAQ 精确命中优先；检索不到就拒答并转人工；高风险写操作必须审批；每次执行可追踪；指标可复现。
 
 ### 给谁用
 
-- 企业客户：在网页上自助提问。
-- 客服与运营人员：维护资料、FAQ 和工单（管理视图）。
-- 当前阶段的实际使用者：项目作者本人，用于验证客服问答流程和拿量化指标。
+- 企业客户：网页自助提问（用户视图，只有问答与转人工）。
+- 客服与运营：维护资料、FAQ，处理审批与工单（管理员视图）。
+- 当前实际使用者：项目作者，用于验证流程与产出面试材料。
 
 ### 成功标准
 
-- 能导入企业资料（TXT / Markdown / HTML / 文本层 PDF / 网页 URL）并建立索引。
-- 标准 FAQ 直接答疑，非标准问题由资料生成答案并附引用。
-- 无法可靠回答时建议转人工，而不是给一个像样的错误答案。
-- 有可重复运行的评估，能给出检索命中率、生成质量、延迟和成本量化数字。
-- 每次改动都有 Git commit，且测试全部通过后才交付。
+- 一条命令起全栈（`docker compose up --build` 或 `start-all.bat`）。
+- 有 150 条可复现评测集，覆盖 FAQ / 订单 / 物流 / 政策 / 多轮 / 转人工 / 拒答与注入。
+- 每次任务能用 `trace_id` 还原：路由、工具、重试、token、成本、最终结果。
+- 副作用操作有权限、dry-run、幂等与人工审批。
+- 所有对外引用的数字都能在仓库里复现。
 
-### 项目方向的一次变更（重要）
+### 方向变更
 
-项目最初是「医学知识库 RAG」。中途按用户要求整体转向**企业智能客服**。当前代码、提示词、示例数据、界面和评估集都已是客服方向；医学阶段的残留内容见第 6 节。
+项目最初是「医学知识库 RAG」，中途整体转向**企业智能客服**；后续又从纯 RAG 扩展出**可选工具工作流 + 审批**。医学阶段的残留只在 `backend/evaluation/sample_*.json` 与 `backend/app/__init__.py` 的 docstring 里（待清理，低优先级）。
 
 ---
 
 ## 2. 当前进度
 
-**详细进度、实测数字和下一步计划请看 `PROGRESS.md`**，本文件不再重复维护那份清单，避免两份文档互相打架。
-
-这里只留一句结论：真实 RAG 闭环已经打通（导入 → 切分 → BGE + FAISS + BM25 混合检索 → 可选 rerank → DeepSeek 流式生成 → 引用展示 → 反馈 / 工单 / 监控），前后端可本机联调运行，剩余工作集中在导入真实企业资料、补齐文档和产出量化指标。
+**详细进度与实测数字看 `PROGRESS.md`。** 这里只给结论：RAG 闭环 + 可选工具工作流 + 审批 + 评测 + 可观测 + Docker 部署均已实现并实机验证；测试 119（后端）/ 25（前端）；Agent 评测 150 条、任务成功率 99.33%。剩余是需要外部条件的收尾（导入真实资料、CI 推远程）。
 
 ---
 
 ## 3. 文件地图
 
-所有路径都是相对项目根目录的相对路径。
-
 ### 根目录
 
-- `AGENTS.md`：强制规则，新 AI 必须先读。
-- `PROGRESS.md`：当前进度、实测数字、下一步计划（每次开工先读）。
-- `HANDOFF.md`：本文件，稳定背景与约定。
-- `INTERVIEW.md`：面试材料（电梯陈述、简历条目、选型问答、踩坑故事、数字口径），数字变化时要同步更新。
-- `start-all.bat`：一键启动后端 + 管理员前端 + 用户前端（双击即可）。
-- `start-backend.bat`、`start-admin-web.bat`、`start-user-web.bat`：单独启动某个服务。
-- `.vscode/tasks.json`：VS Code 任务，等价于上面几个启动脚本。
-- `docs/architecture-modules.md`：模块划分图（Mermaid）与各层职责表。
-- `docs/architecture-modules.svg` / `.png`：模块划分图矢量版与位图版，可直接放进 PPT 或文档。
-- `docker-compose.yml`：后端 + 前端两个服务的编排。
-- `.gitignore`：忽略 `.venv/`、`data/`、`models/`、`backups/`、`.env`、`backend/.env`。
-- `.github/workflows/ci.yml`：CI，推送或 PR 时跑后端测试、前端测试、类型检查、构建。
+- `AGENTS.md`：强制规则（每改动一个 commit、测试必须通过、新会话先读文档）。
+- `PROGRESS.md`：当前进度、实测数字、下一步计划（**每次开工先读**）。
+- `HANDOFF.md`：本文件。
+- `INTERVIEW.md`：面试材料（陈述、问答、数字口径、失败案例）。
+- `README.md`：项目说明与快速开始。
+- `docker-compose.yml` / `docker-compose.loadtest.yml`：部署编排 / 压测覆盖（关限流）。
+- `start-all.bat`、`start-backend.bat`、`start-admin-web.bat`、`start-user-web.bat`：一键启动脚本。
+- `.vscode/tasks.json`：VS Code 任务（等价于上面的脚本）。
+- `.gitignore`：忽略 `.venv/`、`data/`、`models/`、`backups/`、`.env`、`backend/.env`、`.pytest-*`。
 
-### 后端入口与基础
+### 后端 · 接口与配置
 
-- `backend/app/main.py`：FastAPI 应用入口，所有接口定义在这里。
-- `backend/app/schemas.py`：请求 / 响应 Pydantic 模型。
-- `backend/app/config.py`：加载 `backend/.env` 环境变量。
-- `backend/app/factory.py`：RAG 管线的依赖注入工厂，把嵌入、向量库、检索、生成组装起来。
-- `backend/app/mock_data.py`：示例来源数据（首次启动展示用）。
-- `backend/.env.example`：环境变量清单示例，**不含真实密钥**。
-- `backend/requirements.txt`：Python 依赖。
-- `backend/Dockerfile` / `backend/.dockerignore`：后端容器镜像。
+- `backend/app/main.py`：FastAPI 入口，20+ 接口（`/ask`、`/ask/stream`、`/ingest*`、`/faqs`、`/tickets`、`/approvals`、`/traces/{id}`、`/stats`、`/metrics`、`/alerts`、`/backup` 等）。
+- `backend/app/schemas.py`：Pydantic 请求/响应模型（`AskRequest.workflow_mode`、`AskResponse.trace_id/steps`、`ApprovalDecisionRequest`）。
+- `backend/app/config.py`：加载 `backend/.env`。
+- `backend/app/factory.py`：依赖注入工厂，组装嵌入 / 向量库 / 检索 / 重排 / 生成。
+- `backend/.env.example`：环境变量清单（含单价、工具超时、审批目录、父子切分开关）。
+- `backend/Dockerfile`：非 root 运行、CPU 版 torch、`COPY mock`、HEALTHCHECK。
 
-### 后端 RAG 核心
+### 后端 · RAG 核心
 
-- `backend/app/chunking.py`：文本归一化、按段落聚合和窗口切分，块大小与重叠可配置。
-- `backend/app/embeddings.py`：`Embedder` 接口、测试用 `HashEmbedder`、生产用 `SentenceTransformerEmbedder`（`BAAI/bge-large-zh-v1.5`）。
-- `backend/app/vector_store.py`：`VectorStore` 接口、内存实现和 `FAISSVectorStore`（索引与元数据分开落盘）。
-- `backend/app/retrieval.py`：jieba 分词、BM25、混合检索器和检索结果模型。
-- `backend/app/reranker.py`：可选重排序器，默认 `BAAI/bge-reranker-v2-m3`，由 `RERANK_MODEL` 开关。
-- `backend/app/generation.py`：DeepSeek 生成客户端，支持普通与流式。
-- `backend/app/pipeline.py`：把检索与生成串成 `RAGPipeline`，含「资料不足」判定。
-- `backend/app/ingestion.py`：TXT / Markdown / HTML / 文本层 PDF 读取清洗，PDF 表格转 Markdown，网页正文抓取。
+- `backend/app/chunking.py`：归一化、段落切分、窗口切分，以及 `split_text_hierarchical`（父块 1200 / 子块 400 / 重叠 80）。
+- `backend/app/embeddings.py`：`Embedder` 接口、`HashEmbedder`（测试替身）、`SentenceTransformerEmbedder`（`BAAI/bge-large-zh-v1.5`）。
+- `backend/app/vector_store.py`：`VectorStore` 接口、内存实现、`FAISSVectorStore`（`IndexIDMap2 + IndexFlatIP`，索引与元数据分开落盘）。
+- `backend/app/retrieval.py`：jieba 分词、`BM25Index`（含一次性批量打分 `scores()`）、`HybridRetriever`（min-max 归一化 + 0.7/0.3 融合）、`RetrievedChunk`（含 `raw_dense_score`）。
+- `backend/app/reranker.py`：可选 BGE 重排（`RERANK_MODEL` 开关）。
+- `backend/app/generation.py`：DeepSeek 客户端（普通 + 流式）、`GenerationResult`。
+- `backend/app/pipeline.py`：`RAGPipeline`（检索 → 阈值判定 → 父块上下文扩展 → 生成），`ingest_text` 支持父子切分。
+- `backend/app/ingestion.py`：TXT / Markdown / HTML / 文本层 PDF（表格转 Markdown）/ 网页正文。
 
-### 后端业务与运维
+### 后端 · 工具与工作流
 
-- `backend/app/faq_store.py`：FAQ 本地持久化，增删改查与版本号。
-- `backend/app/intent.py`：规则意图路由（投诉、转人工等）。
-- `backend/app/session_store.py`：会话记忆持久化。
-- `backend/app/ticket_store.py`：工单创建与查询。
-- `backend/app/tenant.py`：多租户隔离，通过 `X-Tenant-ID` 区分数据。
-- `backend/app/security.py`：可选管理员 Key 与 OIDC/JWT 校验。
-- `backend/app/observability.py`：问答与反馈的结构化 JSONL 日志、可选监控 Webhook。
-- `backend/app/cost.py`：按配置单价估算 token 成本。
-- `backend/app/backup.py`：把数据目录打包成备份。
-- `backend/app/judge.py`：生成质量打分（faithfulness / relevance）。
+- `backend/app/tools.py`：工具注册表 + 5 个工具（`knowledge_search` / `order_lookup` / `logistics_track` / `human_handoff` / `refund_request`），Pydantic 输入输出、统一错误码、超时（默认 3 s）、重试（默认 1 次）、dry-run、`requires_approval`。
+- `backend/app/workflow.py`：最小状态机（输入护栏 → 规则意图 → 退款审批 → 订单/物流工具 → FAQ → 知识检索 → 转人工），多轮订单号指代（`reuse_order_id_from_history`），最多 3 次业务工具调用（转人工不占预算）、总超时 15 s。
+- `backend/app/approvals.py`：审批单持久化（`data/approvals/{tenant}/`）、幂等键（租户+工具+参数）、`create/get/list/save/count_pending`。
+- `backend/app/trace_store.py`：`trace_id` 生成、按天 JSONL 写入、按 id 回读、PII 脱敏（手机号/邮箱/证件号/Key）。
+- `backend/app/order_store.py`：读取本地 mock 订单与物流（`backend/mock/orders.json`，20 订单 + 10 物流），租户过滤与手机号脱敏。
 
-### 后端测试与评估
+### 后端 · 业务与运维
 
-- `backend/tests/`：pytest 测试，覆盖切分、检索、向量库、生成、管线、意图、FAQ、会话、工单、观测、备份、评估、接口。其中 `test_intent.py` 专测意图关键词与防误判。
-- `backend/evaluation/enterprise_eval.py`：50 条企业客服检索评估集与运行入口。
-- `backend/evaluation/run_eval.py`：从 JSON 文件读取语料和问题跑检索评估。
-- `backend/evaluation/generation_eval.py`：生成质量评估。
-- `backend/evaluation/sample_corpus.json` / `sample_questions.json`：医学阶段的示例数据，**待清理**。
+- `backend/app/faq_store.py`：FAQ 持久化、关键词命中、增删改与版本号。
+- `backend/app/intent.py`：规则意图（投诉 / 明确转人工 / 否定词防误判）。
+- `backend/app/ticket_store.py`：工单落盘与可选 Webhook 外发。
+- `backend/app/session_store.py`：会话记忆（最近 8 条）。
+- `backend/app/tenant.py`：`X-Tenant-ID` 租户识别。
+- `backend/app/security.py`：可选管理员 Key、可选 OIDC/JWT 校验。
+- `backend/app/observability.py`：JSONL 日志读写与聚合（容忍损坏半行）、可选监控 Webhook。
+- `backend/app/cost.py`：按配置单价估算单次成本。
+- `backend/app/backup.py`：数据目录打包备份。
+
+### 后端 · 评测与测试
+
+- `backend/evaluation/enterprise_eval.py`：50 条检索评测集 + CLI（`--embedder bge|hash`、`--offline`）。
+- `backend/evaluation/run_eval.py`：样例语料检索评测 CLI。
+- `backend/evaluation/agent_tasks.json`：100 条 Agent 任务（订单 25 / 物流 15 / 政策 15 / 多轮 20 / 转人工 13 / 拒答与注入 12）。
+- `backend/evaluation/agent_eval.py`：Agent 评测（默认确定性生成器、`--use-real-model`、`--tag smoke|core|full`、`--limit`、`--offline`），输出 JSON + Markdown。
+- `backend/evaluation/load_test.py`：并发压测（混合问题、并发级别、P50/P95/P99、吞吐、状态码分布）。
+- `backend/evaluation/generation_eval.py` + `backend/app/judge.py`：生成质量（faithfulness / relevance）打分器与批量评估。
+- `backend/evaluation/reports/`：评测与压测报告留档。
+- `backend/tests/`：23 个测试文件、119 个用例。
+- `backend/mock/orders.json`：本地模拟订单与物流（**不要放 `data/`，那里被 gitignore**）。
 
 ### 前端 `web/`
 
-- `web/index.html`：HTML 入口。
-- `web/vite.config.js`：开发服务器（端口 5173）与 `/api` 到 `127.0.0.1:8000` 的代理，以及 Vitest 配置。
-- `web/.env.user`：用户视图模式的环境文件，把 `VITE_ADMIN_API_KEY` 置空，配合 `npm run dev -- --mode user --port 5174` 使用（不含密钥，可以提交）。
-- `web/package.json`：依赖与脚本（`dev` / `build` / `test` / `typecheck` / `preview`）。
-- `web/Dockerfile` / `web/nginx.conf`：前端镜像与静态托管 + 反向代理。
+- `web/src/App.tsx`：页面骨架与状态；RAG / 工具工作流切换、Trace 入口、管理员审批面板接线。
+- `web/src/api/client.ts`：API 抽象层（`/api` 代理、租户头、可选管理员 Key、mock 回退），含 `getTrace` / `listApprovals` / `decideApproval`。
+- `web/src/components/AnswerCard.tsx`、`CitationList.tsx`、`ChatPanel.tsx`、`QuestionInput.tsx`、`SourcePanel.tsx`：问答、引用、输入、来源与统计。
+- `web/src/components/TraceTimeline.tsx`：执行轨迹面板（步骤、工具、重试、耗时、token、成本、转人工原因）。
+- `web/src/components/ApprovalPanel.tsx`：高风险操作审批面板（dry-run 预览 + 批准/驳回）。
+- `web/src/components/ErrorBoundary.tsx`、`icons.tsx`：兜底与图标。
+- `web/.env`（未提交）：`VITE_ADMIN_API_KEY` 决定管理端；`web/.env.user`：用户视图模式（Key 置空）。
+- `web/Dockerfile` / `nginx.conf`：镜像与反代；镜像默认**不含**管理员 Key（用户视图），需要管理端时用 `--build-arg VITE_ADMIN_API_KEY=xxx`。
 
-### 前端源码
+### 文档与脚本
 
-- `web/src/main.tsx`：React 真正入口，挂载 `App` 和错误边界。
-- `web/src/App.tsx`：页面骨架与全部状态管理，按 `VITE_ADMIN_API_KEY` 决定是否渲染管理功能。
-- `web/src/types.ts`：`Source`、`Citation`、`Conversation`、`Stats`、`Metrics` 等类型。
-- `web/src/api/client.ts`：API 抽象层，负责请求 `/api/ask`、`/api/sources`、上传、FAQ 等，并带租户 ID 与可选管理员 Key。
-- `web/src/data/mockData.ts`：后端不可用时的示例来源与本地兜底回答。
-- `web/src/components/SourcePanel.tsx`：左侧来源面板、统计、FAQ 管理入口。
-- `web/src/components/ChatPanel.tsx`：右侧问答主流程、消息列表与错误提示。
-- `web/src/components/QuestionInput.tsx`：输入框与发送状态。
-- `web/src/components/AnswerCard.tsx`：单条问答卡片，处理加载、答案、资料不足和反馈。
-- `web/src/components/CitationList.tsx`：引用折叠与逐条展开。
-- `web/src/components/ErrorBoundary.tsx`：渲染异常兜底页。
-- `web/src/components/icons.tsx`：内联 SVG 图标。
-- `web/src/test/setup.ts`：测试环境初始化。
-- `web/src/**/*.test.ts(x)`：6 个测试文件，共 19 个用例。
-
-### 入口文件速查
-
-- 前端 HTML：`web/index.html`
-- 前端 JS：`web/src/main.tsx`
-- 后端：`backend/app/main.py`
+- `docs/architecture-modules.svg|png|md`：模块划分图。
+- `docs/DEPLOYMENT.md`：部署、验证清单、回滚、备份恢复、故障排查、并发压测、国内网络注意事项。
+- `docs/CASE-STUDY.md`：一页项目案例。
+- `docs/FAILURE-CASES.md`：七个真实故障与排查记录。
+- `docs/DEMO-SCRIPT.md`：3–5 分钟演示脚本。
+- `docs/PHASE0-最小改动方案.md`：本轮改造方案（已执行完）。
+- `scripts/fix-docker-socket.ps1`：Docker Desktop 启动失败修复脚本（管理员权限运行；脚本必须存为**带 BOM 的 UTF-8**，否则 PowerShell 5.1 会把中文按 GBK 读导致语法错误）。
 
 ---
 
 ## 4. 关键决策及原因
 
-### 4.1 前端技术栈：React + Vite + TypeScript + Tailwind
-
-**决策：** React 18、Vite 5、TypeScript 5、Tailwind CSS 3。
-**原因：** Vite 冷启动快、适合本地反复调试；TypeScript 让前后端接口对接出错更早暴露；Tailwind 便于维持一套统一的浅色专业界面。项目已经稳定运行在这套栈上，除非用户明确要求，不要换框架。
-
-### 4.2 视觉风格：企业工作台，而不是营销页
-
-**决策：** 白底、蓝色主色、低饱和边框、信息密度偏高的工作台布局，管理功能按角色隐藏。
-**原因：** 使用场景是客服坐席和运营人员长时间使用，需要可扫描、可重复操作，不需要首页 hero 和大面积装饰。
-
-### 4.3 后端：FastAPI + 本地模型 + DeepSeek
-
-**决策：** Python FastAPI；嵌入用本地 `BAAI/bge-large-zh-v1.5`；生成用云端 DeepSeek `deepseek-chat`。
-**原因：**
-
-- 嵌入放在本地，中文效果好、不产生每千次调用的嵌入费用，资料也不用出内网。
-- 生成放云端，是因为本地跑生成模型对这台机器的显存和部署复杂度都不划算。
-- FastAPI 自带 OpenAPI 文档，接口调试成本低，且与 pytest / httpx 配合成熟。
-
-### 4.4 向量库选 FAISS，而不是 Chroma / pgvector / Milvus
-
-**决策：** `FAISSVectorStore`，`IndexFlatIP` + 归一化向量，元数据单独存 JSON。
-**原因：**
-
-- 当前是单机、小规模（几百到几万条 chunk）场景，FAISS 无需额外服务进程，装一个包就能用。
-- Chroma 抽象更重、版本变动频繁；pgvector 需要先引入 Postgres；Milvus 需要独立部署，对现阶段都是纯负担。
-- 代码里已抽出 `VectorStore` 接口，将来换 pgvector 或 Milvus 只需要新增一个实现，不动检索和管线代码。
-
-### 4.5 检索用「向量 + BM25」混合，而不是纯向量
-
-**决策：** 向量检索与 `rank-bm25` 融合，中文分词用 jieba，结果融合后取 `top_k`（默认 5）。
-**原因：** 客服问题里大量是订单号、型号、专有名词、政策条款名，纯向量检索对这些精确词面匹配不稳定；BM25 能补上这一块。这也是 50 条评估集能做到 hit@1 = 0.90 的主要原因。
-
-### 4.6 rerank 做成可选开关
-
-**决策：** `RERANK_MODEL` 为空时跳过 rerank，配置后启用 BGE reranker。
-**原因：** 本地首次加载 rerank 模型要下载几百 MB 权重并明显增加单次延迟；默认关闭保证项目开箱能跑，需要精度时再打开。
-
-### 4.7 FAQ 优先，RAG 兜底，规则先于模型
-
-**决策：** 命中标准 FAQ 直接返回标准答案，不调用大模型；投诉 / 转人工由规则意图路由处理。
-**原因：** 客服场景里最高频的问题往往是标准问题，走 FAQ 可以做到零延迟、零成本、答案百分之百一致；规则路由比让模型判断更稳定可控。
-
-### 4.8 检索不到就拒答
-
-**决策：** 检索为空、或最高原始余弦相似度低于 `RAG_MIN_SCORE` 时判定「资料不足」，不调用模型，并且**建工单 + 返回带工单号的转人工话术**，而不是只回一句「不知道」。
-**原因：** 客服场景编造答案的代价（错误政策、错误承诺）远高于说一句「我帮您转人工」；但只拒答不给出口会让用户卡死，所以拒答必须和转人工绑在一起。
-
-### 4.11 转人工只走规则 + 阈值兜底，不让模型决定
-
-**决策：** 三条入口——(1) 规则意图命中「转人工 / 转接人工 / 人工服务 / 人工坐席 / 找人工 / 客服电话」或「投诉」；(2) 检索为空；(3) 相似度低于 `RAG_MIN_SCORE`。三条都走同一个 `escalate_to_human`，建工单并把工单号拼进话术。
-
-**原因：**
-
-- 让模型判断「该不该转人工」会引入不稳定；规则命中就短路，检索和生成都不执行，成本和延迟同时降下来。
-- 关键词必须做否定词过滤（「我不想转人工」不能触发），也要刻意不收「人工客服」这类描述性说法，否则「怎么联系人工客服？」会被拦死、永远命中不了 FAQ 里的服务时间。
-- 阈值只能用原始余弦相似度：`HybridRetriever` 返回的 `combined/dense` 分数是 min-max 归一化结果，永远有最大值 1.0，做不了绝对判断，所以 `RetrievedChunk` 额外带了 `raw_dense_score`。
-- 阈值做成环境变量（默认 0 关闭），因为它是随语料变化的校准值，写死在代码里会在换库时误拒答。
-
-### 4.9 Key 只放本地 `.env`
-
-**决策：** `backend/.env` 存 DeepSeek Key 和各类开关，`.gitignore` 已忽略；仓库只提交 `backend/.env.example`。
-**原因：** 防止密钥泄露。文档里只写变量名，绝不写值。
-
-### 4.10 多租户、鉴权、OCR、Webhook 做成「可选钩子」
-
-**决策：** 这些生产级能力都实现为配置后才生效，默认关闭。
-**原因：** 现阶段是单机演示，默认全开会让本地启动变重；但提前留好接口和数据结构，上生产时改配置即可，不用重构。
+1. **工具工作流做成可选模式**（`workflow_mode`，默认 `rag`）：既有链路与测试不受影响，出问题一个参数回退。
+2. **规则先于模型**：投诉、明确转人工、输入护栏在规则层短路，不进检索与生成；FAQ 命中零模型成本。
+3. **Agent 状态机自写，不引 LangGraph**：只做单跳任务，自写约 360 行可控、可测；LangGraph 仅作设计参考。
+4. **工具分级**：低风险写操作（本地建单）即时执行；高风险（退款）必须 dry-run + 人工审批，幂等键防止重复执行。
+5. **阈值用原始余弦相似度**：归一化分数永远有最大值 1.0，做不了绝对判断；`RAG_MIN_SCORE=0.42` 挡下 8/8 无关问题、保留 49/50 相关问题（误伤 1 条是已知代价）。
+6. **父子切分**：子块（400 字）检索、父块（1200 字）生成，避免答案被切分边界截断；父块文本存在子块 metadata 里，代价是索引体积变大。
+7. **BM25 一次打分**：原实现逐文档重算全量分数（O(N²)），改为 `scores()` 一次算完；512 条索引检索从 370.9 ms 降到 187.5 ms。
+8. **评测分两套**：检索质量用真实 BGE 单独评测；Agent 任务指标用确定性生成器（零 API 花费、可高频回归），生成质量交给 `judge.py` 抽样。
+9. **评测集 150 条**：100 条手写 Agent 任务 + 50 条知识问答（复用 `enterprise_eval` 语料，单一数据源）。
+10. **Docker 用 CPU 版 torch**：Linux 上装 `sentence-transformers` 默认拉 CUDA 版 torch（nvidia-* 数 GB），改用 `download.pytorch.org/whl/cpu` 后镜像 2.27 GB。
+11. **镜像不内联管理员 Key**：`web/.dockerignore` 排除 `.env`，默认构建出用户视图；需要管理端时显式 `--build-arg`。
+12. **日志读取容错**：追加写日志可能被强杀截断，聚合逻辑跳过损坏行（否则 `/metrics`、`/alerts` 会整个 500）。
 
 ---
 
 ## 5. 下一步计划
 
-优先级清单、每项涉及的文件和完成标准，统一维护在 `PROGRESS.md` 第 5 节。这里是概览：
+优先级清单、涉及文件与验收标准写在 `PROGRESS.md` 第 5 节。概要：
 
-1. **P0** 导入真实企业资料，跑通真实问答并记录数字。
-2. **P0** 补 `README.md`、`docs/ROADMAP.md`、`docs/RAG_DESIGN.md`。
-3. **P1** 清理医学阶段残留（`backend/evaluation/sample_*.json`、`backend/app/__init__.py` docstring）。
-4. **P1** 配置 DeepSeek 单价，产出延迟与成本量化表。
-5. **P1** 开启 rerank 做开关对比，量化收益。
-6. **P2** 加 lint / format，实测 Docker 构建，扩充评估集并补生成质量报告。
+1. 导入真实企业资料（PDF / 表格 / FAQ），导入后**重新校准 `RAG_MIN_SCORE`**。
+2. 把仓库推到 GitHub 远程，让 CI 真实跑一次。
+3. 容器故障注入测试（压测中途停后端，验证降级与恢复）。
+4. 清理医学阶段残留（`backend/evaluation/sample_*.json`、`backend/app/__init__.py` docstring）。
+5. 补齐：审批驳回理由、知识版本与生效时间过滤、生成质量批量报告。
 
 ---
 
 ## 6. 已知问题与风险
 
+### 环境
+
+- **Docker Desktop 在这台机器上不稳定**：非正常退出后残留的 AF_UNIX socket 会导致启动失败，跑 `scripts/fix-docker-socket.ps1` 修复；排查记录见 `docs/FAILURE-CASES.md` 案例七。
+- **Docker Hub / PyPI 直连不稳定**：Docker Hub 需 `docker.m.daocloud.io` 镜像加速；清华 PyPI 源在本网络不可达，评测与构建默认走官方源。构建用了 pip 缓存挂载，网络抖动后重跑可续传。
+- 不要用 `Stop-Process` 强杀 Docker；用 `docker desktop restart` 平滑重启。
+
 ### 数据与效果
 
-- 向量索引里目前只有示例级文本，真实企业资料尚未导入，现有指标不能代表真实业务效果。
-- 50 条评估集规模偏小、文本偏短且理想化，hit@1 = 0.96（真实模型口径）属于乐观数字。
-- 评估入口 `run_retrieval_evaluation` 默认注入测试替身 `HashEmbedder`，命令行输出的是替身成绩（hit@1 = 0.90）；真实 `bge-large-zh-v1.5` 复测为 hit@1 = 0.96、MRR = 0.98。对外引用必须用真实模型口径，代码待修。
-- 转人工阈值 `RAG_MIN_SCORE=0.42` 是在 10 条示例语料上校准的（相关 50 条最低 0.374、无关 8 条最高 0.401，间隔仅 0.027），换真实语料后必须重新采样校准。
-- 转人工只做到「建工单 + 返回话术」：没有坐席排队、坐席分配、实时会话，也没有转人工后的消息回流。
-- 扫描版 PDF 和复杂表格只留了 OCR 钩子，未实测。
-- rerank 代码路径存在，但从未做开关对比。
+- 索引里是示例语料，真实企业资料未导入；现有指标（检索 hit@1 0.96、Agent 成功率 99.33%）不代表真实业务效果。
+- 阈值 0.42 与成本外推值都基于示例语料，换语料必须重测。
+- 知识类问题严格文案命中率 60%（FAQ 措辞与语料原文不同），该项只作参考。
 
-### 量化缺失
+### 功能缺口
 
-- `DEEPSEEK_INPUT_PRICE_PER_MILLION` / `DEEPSEEK_OUTPUT_PRICE_PER_MILLION` 目前为 0，`/metrics` 里的成本没有实际意义。
-- 没有系统的首 token 延迟和并发压测数据，`ask.jsonl` 里有原始 `latency_ms` 但未汇总成报告。
+- 工具层只有 5 个，`refund_request` 的"执行"是本地 mock（只建单，不动真实资金）；没有真实订单 / CRM / 支付系统接入。
+- 没有多轮工具组合（一次任务只调一个业务工具）；没有知识版本与生效时间过滤。
+- 生成质量（faithfulness / relevance）只有打分器，没有批量报告。
 
-### 工程质量
+### 工程
 
-- 没有 lint / format 脚本（ESLint、Prettier、ruff、black 都未接入）。
-- `BM25Index.score` 每次调用都重算全量分数，`HybridRetriever.search` 逐文档调用，复杂度 O(N²)：512 条文档时循环打分 88.3 ms，一次性打分只要 0.38 ms，索引变大后检索会明显变慢。
-- 没有 `README.md`、`docs/ROADMAP.md`、`docs/RAG_DESIGN.md`。
-- Docker 文件齐全，但未在本机实测构建与启动。
-- 前端移动端只做手动检查，没有自动化浏览器回归。
-- 仓库只有本地 Git，没有远程备份。
-
-### 安全与合规
-
-- 默认单机演示无鉴权；上生产前必须配置 `ADMIN_API_KEY` 和 OIDC。
-- `backend/.env` 存有真实 DeepSeek Key，换机器需重新配置，绝不能提交。
-- 只收录官方公开资料和用户明确有权使用的资料，不抓取受版权保护的付费内容。
-- 回答必须附来源，资料不足必须拒答，不能编造政策、价格或承诺。
-
-### 遗留内容
-
-- `backend/evaluation/sample_corpus.json`、`backend/evaluation/sample_questions.json` 仍是医学问题。
-- `backend/app/__init__.py` 的 docstring 仍写着「医学知识库后端应用包」。
-
-### 未验证部分
-
-- 真实 PDF 语料（尤其是表格和排版复杂的手册）的解析效果。
-- Docker 镜像构建与 `docker compose up` 的实际连通性。
-- 多租户隔离、OIDC 校验、OCR、Webhook 外发在真实环境下的表现。
-- 前端在窄屏和移动端的自动化回归。
+- CI 只在本地跑过，没有远程仓库实跑。
+- 没有 lint / format 脚本（前端 ESLint/Prettier、后端 ruff/black 都未接入）。
+- 前端没有审批驳回理由输入框；没有演示视频。
 
 ---
 
 ## 7. 运行与验证方法
 
-### 一键启动（推荐）
+### 一键启动
 
-双击项目根目录的 `start-all.bat`，或在 VS Code 里运行任务「启动全部（后端 + 管理端 + 用户端）」。启动后：
+双击 `start-all.bat`，或在 VS Code 里运行任务「启动全部」。启动后：
 
-- 后端接口文档 `http://127.0.0.1:8000/docs`
-- 管理员版前端 `http://127.0.0.1:5173/`（带上传、导入、FAQ 管理等入口）
-- 用户版前端 `http://127.0.0.1:5174/`（只有问答和转人工按钮）
+| 服务 | 地址 |
+| --- | --- |
+| 后端接口文档 | http://127.0.0.1:8000/docs |
+| 管理员前端（5173） | http://127.0.0.1:5173/（带上传、导入、FAQ 管理、审批面板） |
+| 用户前端（5174） | http://127.0.0.1:5174/（只有问答与转人工） |
 
-窗口关闭即停止服务。手动启动的等价命令见本节下方。
+### Docker
 
-### 环境信息（本机实测）
+```bash
+docker compose up --build -d      # 后端 8000 + 前端 5173
+docker compose ps                 # rag-backend 应为 healthy
+```
 
-- Node.js `v24.15.0`，npm `11.12.1`
-- Git `2.55.0.windows.5`
-- Python 使用项目虚拟环境 `.venv`，版本 3.12.14
+国内网络需要镜像加速与故障修复，见 `docs/DEPLOYMENT.md` 第 9 节。
 
-### 启动后端（端口 8000）
+### 测试（实测数字）
 
 ```bash
 cd backend
-..\.venv\Scripts\python.exe -m uvicorn app.main:app --host 127.0.0.1 --port 8000
-```
+..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q --basetemp=.pytest-run
+# 119 passed（沙箱内跑必须给 --basetemp，否则写系统临时目录会被拒）
 
-### 启动前端（端口 5173，已代理 `/api` 到后端）
-
-```bash
 cd web
-npm install
-npm run dev
-```
-
-浏览器访问 `http://127.0.0.1:5173/`。
-
-### 测试与构建
-
-```bash
-# 后端：当前 65 passed
-cd backend
-..\.venv\Scripts\python.exe -m pytest -p no:cacheprovider -q
-
-# 前端：当前 6 个文件 / 19 个用例通过
-cd web
-npm test
+npm test          # 8 个文件 / 25 个用例
 npm run typecheck
 npm run build
 ```
 
-### 检索评估
+### 评测（零 API 花费，默认不调模型）
 
 ```bash
 cd backend
-..\.venv\Scripts\python.exe -m evaluation.enterprise_eval
+..\.venv\Scripts\python.exe -m evaluation.agent_eval --tag full --use-real-embedder --offline
+# 150 条：任务成功率 99.33%、路由 100%、参数 100%、引用 87.32%、转人工 P 96.43% / R 100%
+
+..\.venv\Scripts\python.exe -m evaluation.enterprise_eval --offline
+# 检索：hit@1 0.96、hit@3 1.00、hit@5 1.00、MRR 0.98
 ```
 
-当前结果：hit@1 = 0.90、hit@3 = 0.98、hit@5 = 1.00、MRR = 0.945。
+需要真实模型时加 `--use-real-model`（会产生 API 费用；实测每次调用 230 token ≈ $0.000058）。
 
-### Docker 启动（尚未实测）
-
-```bash
-docker compose up --build
-```
-
-### Git 状态
+### 并发压测
 
 ```bash
-git status --short --branch
-git log --oneline --decorate --all
+cd backend
+..\.venv\Scripts\python.exe -m evaluation.load_test --url http://127.0.0.1:8000 --concurrency 1,10,20,40,80 --requests 120
+# 关限流后 600 请求零错误，吞吐约 180 RPS；默认限流 120/分钟会先触发 429（设计行为）
 ```
 
 ---
@@ -352,39 +251,37 @@ git log --oneline --decorate --all
 ### 提交与测试（来自 `AGENTS.md`）
 
 - 每次改动后必须创建对应的 Git commit。
-- 每次改动后必须编写或更新相关测试，交付前所有测试和验证必须通过。
+- 每次改动后必须编写或更新测试，交付前所有测试必须通过。
 
 ### 文件操作
 
-- 删除重要文件（个人资料、项目代码、配置等难以恢复的内容）前必须先说明后果并取得用户同意。
-- 日常的编辑、覆盖、新建、移动可以直接执行。
+- 删除重要文件前必须先说明后果并取得用户同意；日常编辑、覆盖、新建、移动可直接执行。
 
 ### 技术栈
 
-- 前端保持 React + Vite + TypeScript + Tailwind CSS，不要擅自换框架或改成静态页。
-- 后端保持 Python + FastAPI，不要引入需要独立部署的向量数据库，除非用户明确要求。
-- 检索代码依赖 `VectorStore` 接口，换向量库要新增实现而不是改调用方。
+- 前端保持 React + Vite + TypeScript + Tailwind CSS。
+- 后端保持 Python + FastAPI；不引入需要独立部署的向量数据库（除非用户明确要求）。
+- 检索依赖 `VectorStore` 接口，换向量库要新增实现而非改调用方。
+- 现有公开函数签名保持兼容（只加不改），`workflow_mode="rag"` 行为必须与升级前一致。
 
 ### 敏感信息
 
-- 任何 API Key、密码、token 都不能写进代码、文档、日志或 Git。
-- 文档里只写「Key 存在哪里」，不写值。
-- 新增环境变量要同步更新 `backend/.env.example`。
+- API Key、密码、token 不得写入代码、文档、日志或 Git。
+- 文档里只写「Key 存在哪里」，不写值；新增环境变量要同步 `backend/.env.example`。
+- 日志与轨迹写入前必须脱敏（手机号 / 邮箱 / 证件号 / Key）。
 
 ### 业务与合规
 
-- 回答必须尽可能附来源引用。
-- 检索不到时必须明确拒答并建议转人工，不能编造。
-- 不抓取受版权保护或需付费的资料。
-- 涉及价格、承诺、隐私的问题必须保守处理。
+- 回答必须尽量附来源；检索不到必须拒答并建议转人工，不能编造。
+- 高风险写操作必须 dry-run + 审批，幂等防重复；低风险写操作可直接执行。
+- 只收录公开可下载或用户明确有权使用的资料。
 
 ---
 
 ## 9. 待用户确认的问题
 
-- 第一批要导入哪些真实资料：行业、来源、格式、大概多少份。
-- 是否需要配置远程 GitHub 仓库做备份。
-- 延迟、成本、检索命中率、答案准确率的目标阈值分别是多少。
-- 是否要正式做扫描版 OCR 和复杂表格解析。
-- 是否会真实上线：如果是，鉴权、限流、备份需要从可选变成必选。
-- 是否需要多租户和 SSO 落地，还是保持当前可选钩子即可。
+- 第一批导入哪些真实资料（行业、格式、数量）。
+- 是否把仓库推到 GitHub 远程并实跑 CI。
+- 是否接入真实订单 / CRM / 支付系统（决定审批与幂等是否要从 mock 换成真实 adapter）。
+- 延迟、成本、准确率的目标阈值分别是多少。
+- 是否需要把审批从"API + 管理端面板"扩展到"驳回理由 + 审批审计报表"。
