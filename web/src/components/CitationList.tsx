@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Citation } from '../types'
-import { ChevronDownIcon, LinkIcon } from './icons'
+import { ChevronDownIcon, FileIcon, LinkIcon } from './icons'
 
 interface CitationListProps {
   citations: Citation[]
@@ -15,63 +15,74 @@ export function CitationList({ citations }: CitationListProps) {
   }
 
   return (
-    <div className="mt-5">
-      <div className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-400">
-        引用来源
+    <section className="mt-4">
+      <div className="mb-2 flex items-center gap-2">
+        <span className="t-section">引用来源</span>
+        <span className="t-num text-micro text-ink-400">{citations.length}</span>
       </div>
-      <div className="space-y-2">
+
+      {/* 用列表 + 左侧竖线表达"这些都是同一条回答的依据"，比一叠卡片更紧凑 */}
+      <ul className="divide-y divide-line overflow-hidden rounded-card border border-line bg-surface">
         {citations.map((citation) => {
           const isOpen = openId === citation.id
 
           return (
-            <div
-              key={citation.id}
-              className="overflow-hidden rounded-xl border border-line bg-white"
-            >
+            <li key={citation.id}>
               <button
                 type="button"
+                aria-expanded={isOpen}
                 onClick={() =>
                   setOpenId((current) =>
                     current === citation.id ? null : citation.id,
                   )
                 }
-                className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-mist"
+                className="flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-mist"
               >
+                <FileIcon className="h-4 w-4 shrink-0 text-ink-400" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-ink-900">
+                  <span className="block truncate text-ui font-medium text-ink-900">
                     {citation.title}
                   </span>
-                  <span className="mt-1 block text-xs text-ink-500">
-                    {citation.location}
-                  </span>
+                  {citation.location ? (
+                    <span className="mt-0.5 block truncate text-micro text-ink-500">
+                      {citation.location}
+                    </span>
+                  ) : null}
                 </span>
                 <ChevronDownIcon
-                  className={`h-4 w-4 shrink-0 text-ink-500 transition-transform ${
+                  className={`h-4 w-4 shrink-0 text-ink-400 transition-transform ${
                     isOpen ? 'rotate-180' : ''
                   }`}
                 />
               </button>
 
               {isOpen ? (
-                <div className="border-t border-line bg-mist px-3.5 py-3">
-                  <p className="text-sm leading-6 text-ink-600">
+                <div className="border-t border-line bg-mist/60 px-3.5 py-3">
+                  <p className="text-caption leading-6 text-ink-600">
                     {citation.snippet}
                   </p>
-                  <a
-                    href={citation.url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="mt-3 inline-flex items-center gap-1.5 text-xs font-medium text-brand-600 hover:text-brand-700"
-                  >
-                    <LinkIcon className="h-4 w-4" />
-                    打开来源
-                  </a>
+                  <div className="mt-2.5 flex items-center gap-3">
+                    <a
+                      href={citation.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="inline-flex items-center gap-1.5 text-micro font-medium text-brand-600 hover:text-brand-700"
+                    >
+                      <LinkIcon className="h-3.5 w-3.5" />
+                      打开来源
+                    </a>
+                    {typeof citation.score === 'number' ? (
+                      <span className="t-num text-micro text-ink-400">
+                        相关度 {citation.score.toFixed(2)}
+                      </span>
+                    ) : null}
+                  </div>
                 </div>
               ) : null}
-            </div>
+            </li>
           )
         })}
-      </div>
-    </div>
+      </ul>
+    </section>
   )
 }

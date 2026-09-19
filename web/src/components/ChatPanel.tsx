@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Conversation, MockConversation } from '../types'
+import { SparkIcon } from './icons'
 import { AnswerCard } from './AnswerCard'
 import { QuestionInput } from './QuestionInput'
 
@@ -22,47 +23,42 @@ function EmptyState({
   onAsk: (question: string) => void
 }) {
   return (
-    <div className="flex min-h-full items-center justify-center px-6 py-14">
-      <div className="w-full max-w-2xl text-center">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-ink-950 text-white shadow-panel">
-          <svg
-            viewBox="0 0 24 24"
-            className="h-6 w-6"
-            fill="none"
-            aria-hidden="true"
-          >
-            <path
-              d="M8.5 9.5h7M8.5 12.5h4M12 21a9 9 0 1 0-9-9v4a2 2 0 0 0 2 2h3a4 4 0 0 0 4-4Z"
-              stroke="currentColor"
-              strokeWidth="1.7"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-          </svg>
+    <div className="flex min-h-full items-center justify-center px-6 py-12">
+      <div className="w-full max-w-xl">
+        <div className="flex h-9 w-9 items-center justify-center rounded-card border border-line bg-surface text-ink-700">
+          <SparkIcon className="h-4.5 w-4.5" />
         </div>
-        <h2 className="mt-6 text-3xl font-semibold tracking-tight text-ink-950">
-          企业智能客服
+        <h2 className="mt-4 text-display font-semibold text-ink-950">
+          今天需要帮客户解决什么？
         </h2>
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-ink-500">
-          基于企业知识库的实时问答，支持 FAQ 优先命中、RAG 检索、引用来源和转人工工单。
+        <p className="mt-2 text-body text-ink-500">
+          回答优先命中 FAQ；没有标准答案时检索知识库并附引用来源，资料不足会自动转人工。
         </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-2">
+
+        <div className="mt-6 space-y-1.5">
           {suggestions.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => onAsk(item.question)}
-              className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-600 shadow-sm transition hover:border-brand-200 hover:bg-brand-50 hover:text-brand-700"
+              className="flex w-full items-center justify-between gap-3 rounded-card border border-line bg-surface px-3.5 py-2.5 text-left text-ui text-ink-700 transition-colors hover:border-brand-200 hover:bg-brand-50/40 hover:text-brand-700"
             >
-              {item.question}
+              <span className="truncate">{item.question}</span>
+              {/* 装饰性提示：从无障碍名里隐藏，保证按钮名就是问题本身 */}
+              <span aria-hidden="true" className="shrink-0 text-micro text-ink-400">
+                试试
+              </span>
             </button>
           ))}
           <button
             type="button"
             onClick={() => onAsk('模拟错误')}
-            className="rounded-full border border-line bg-white px-4 py-2 text-sm text-ink-600 transition hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"
+            className="flex w-full items-center justify-between gap-3 rounded-card border border-dashed border-line px-3.5 py-2.5 text-left text-ui text-ink-500 transition-colors hover:border-rose-200 hover:text-rose-700"
           >
-            模拟错误状态
+            <span>模拟错误状态</span>
+            <span aria-hidden="true" className="shrink-0 text-micro text-ink-400">
+              演示容错
+            </span>
           </button>
         </div>
       </div>
@@ -88,27 +84,19 @@ export function ChatPanel({
 
   return (
     <section className="flex h-full min-h-0 flex-col bg-canvas">
-      <div className="border-b border-line bg-surface/90 px-5 py-4 backdrop-blur lg:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div>
-            <h1 className="text-base font-semibold tracking-tight text-ink-950">
+      <div className="border-b border-line bg-surface px-4 py-3 lg:px-8">
+        <div className="mx-auto flex max-w-3xl items-center justify-between gap-4">
+          <div className="min-w-0">
+            <h1 className="truncate text-ui font-semibold text-ink-950">
               智能问答工作台
             </h1>
-            <p className="mt-1 text-xs text-ink-500">
-              基于企业知识库的实时回答
+            <p className="mt-0.5 truncate text-micro text-ink-500">
+              知识库检索 · 引用可核对 · 资料不足自动转人工
             </p>
           </div>
-          <div className="flex items-center gap-2">
-            <span className="hidden items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-xs font-medium text-emerald-700 sm:flex">
-              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
-              流式输出
-            </span>
+          <div className="flex shrink-0 items-center gap-2">
             {onNewSession ? (
-              <button
-                type="button"
-                onClick={onNewSession}
-                className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-200 hover:text-brand-700"
-              >
+              <button type="button" onClick={onNewSession} className="btn-secondary">
                 新会话
               </button>
             ) : null}
@@ -117,8 +105,11 @@ export function ChatPanel({
       </div>
 
       {error ? (
-        <div className="mx-auto mt-5 w-full max-w-5xl px-5 lg:px-8">
-          <div className="rounded-xl border border-rose-100 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+        <div className="mx-auto mt-4 w-full max-w-3xl px-4 lg:px-8">
+          <div
+            role="alert"
+            className="rounded-card border border-rose-200/70 bg-rose-50 px-3.5 py-2.5 text-ui text-rose-700"
+          >
             {error}
           </div>
         </div>
@@ -128,7 +119,10 @@ export function ChatPanel({
         {showEmptyState ? (
           <EmptyState suggestions={mockQuestions} onAsk={onAsk} />
         ) : (
-          <div className="mx-auto flex max-w-5xl flex-col gap-5 px-4 py-6 lg:px-8">
+          <div
+            aria-live="polite"
+            className="mx-auto flex max-w-3xl flex-col gap-4 px-4 py-5 lg:px-8"
+          >
             {conversations.map((conversation) => (
               <AnswerCard
                 key={conversation.id}

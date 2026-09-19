@@ -31,8 +31,21 @@ export default {
         danger: '#dc2626',
       },
       borderRadius: {
+        // 企业控制台用紧凑圆角：卡片 10px、面板 12px、控件 8px。
+        // 之前到处用 rounded-2xl（16px）会显得像消费级 App。
+        control: '8px',
         card: '10px',
-        panel: '14px',
+        panel: '12px',
+      },
+      fontSize: {
+        // 统一字号阶梯，避免出现 13px/15px 这类随手写的尺寸
+        micro: ['11px', { lineHeight: '16px' }],
+        caption: ['12px', { lineHeight: '18px' }],
+        ui: ['13px', { lineHeight: '20px' }],
+        body: ['14px', { lineHeight: '22px' }],
+        lead: ['15px', { lineHeight: '26px' }],
+        title: ['17px', { lineHeight: '26px', letterSpacing: '-0.01em' }],
+        display: ['22px', { lineHeight: '30px', letterSpacing: '-0.02em' }],
       },
       fontFamily: {
         sans: [
@@ -44,9 +57,11 @@ export default {
         ],
       },
       boxShadow: {
-        soft: '0 12px 32px rgba(15, 23, 42, 0.08)',
-        panel: '0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.06)',
-        composer: '0 18px 45px rgba(15, 23, 42, 0.12)',
+        // 控制台靠 1px 描边分隔层次，阴影只用在浮起元素（输入区、下拉）
+        soft: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        panel: '0 1px 2px rgba(15, 23, 42, 0.04)',
+        composer:
+          '0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 28px rgba(15, 23, 42, 0.06)',
       },
       spacing: {
         18: '4.5rem',

@@ -16,10 +16,10 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 const STATUS_STYLE: Record<string, string> = {
-  pending: 'border-amber-100 bg-amber-50 text-amber-700',
-  executed: 'border-emerald-100 bg-emerald-50 text-emerald-700',
+  pending: 'border-amber-200/70 bg-amber-50 text-amber-700',
+  executed: 'border-emerald-200/70 bg-emerald-50 text-emerald-700',
   rejected: 'border-line bg-mist text-ink-500',
-  failed: 'border-rose-100 bg-rose-50 text-rose-700',
+  failed: 'border-rose-200/70 bg-rose-50 text-rose-700',
   approved: 'border-brand-100 bg-brand-50 text-brand-700',
 }
 
@@ -30,65 +30,69 @@ export function ApprovalPanel({ approvals, error, onDecide }: ApprovalPanelProps
   const decided = approvals.filter((item) => item.status !== 'pending').slice(0, 3)
 
   return (
-    <section className="border-t border-line px-5 py-4">
+    <section className="border-t border-line px-4 py-3.5">
       <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-ink-950">高风险操作审批</h2>
-        <span className="rounded-full border border-line bg-mist px-2.5 py-1 text-[11px] text-ink-600">
+        <p className="t-section">高风险操作审批</p>
+        <span className="t-num text-micro text-ink-500">
           待处理 {pending.length}
         </span>
       </div>
-      <p className="mt-1 text-[11px] text-ink-500">
-        退款等写操作不会自动执行，批准后才落地（本地 mock，不涉及真实资金）。
+      <p className="mt-1.5 text-micro leading-5 text-ink-500">
+        退款等写操作不会自动执行，批准后才落地（本地 mock，不涉及真实资金）
       </p>
 
       {error ? (
-        <p className="mt-3 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
+        <p className="mt-2.5 rounded-control border border-rose-200/70 bg-rose-50 px-2.5 py-2 text-micro text-rose-700">
           {error}
         </p>
       ) : null}
 
       {pending.length > 0 ? (
-        <label className="mt-3 block">
-          <span className="text-[11px] text-ink-500">驳回理由（可选，会记入审批记录）</span>
+        <label className="mt-2.5 block">
+          <span className="text-micro text-ink-500">
+            驳回理由（可选，会记入审批记录）
+          </span>
           <input
             value={comment}
             onChange={(event) => setComment(event.target.value)}
             placeholder="例如：金额超出免审额度"
-            className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-xs text-ink-900 outline-none placeholder:text-ink-400 focus:border-brand-200"
+            className="mt-1 w-full rounded-control border border-line bg-surface px-2.5 py-1.5 text-caption text-ink-900 outline-none placeholder:text-ink-400 focus:border-brand-300"
           />
         </label>
       ) : null}
 
       {pending.length === 0 && decided.length === 0 ? (
-        <p className="mt-3 text-[11px] text-ink-400">当前没有需要审批的操作。</p>
+        <p className="mt-2.5 text-micro text-ink-400">当前没有需要审批的操作。</p>
       ) : null}
 
-      <ul className="mt-3 space-y-2">
+      <ul className="mt-2.5 space-y-2">
         {pending.map((item) => (
-          <li key={item.id} className="rounded-lg border border-line bg-white px-3 py-2">
+          <li key={item.id} className="rounded-card border border-line bg-surface px-3 py-2.5">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-medium text-ink-900">{item.tool}</span>
-              <span className="rounded-full border border-amber-100 bg-amber-50 px-2 py-0.5 text-[10px] text-amber-700">
+              <span className="text-caption font-medium text-ink-900">
+                {item.tool}
+              </span>
+              <span className="chip border-amber-200/70 bg-amber-50 text-amber-700">
                 {STATUS_LABEL[item.status] ?? item.status}
               </span>
             </div>
-            <p className="mt-1 text-[11px] text-ink-500">
+            <p className="t-num mt-1 text-micro text-ink-500">
               审批号 {item.id}
               {item.preview?.amount ? ` · 金额 ${item.preview.amount} 元` : ''}
               {item.preview?.order_status ? ` · 订单 ${item.preview.order_status}` : ''}
             </p>
-            <div className="mt-2 flex gap-2">
+            <div className="mt-2.5 flex gap-1.5">
               <button
                 type="button"
                 onClick={() => onDecide(item.id, true, comment || undefined)}
-                className="rounded-lg bg-ink-950 px-3 py-1.5 text-[11px] font-medium text-white transition hover:bg-ink-900"
+                className="btn-primary"
               >
                 批准并执行
               </button>
               <button
                 type="button"
                 onClick={() => onDecide(item.id, false, comment || undefined)}
-                className="rounded-lg border border-line bg-white px-3 py-1.5 text-[11px] font-medium text-ink-600 transition hover:border-rose-200 hover:text-rose-700"
+                className="btn-secondary hover:border-rose-200 hover:text-rose-700"
               >
                 驳回
               </button>
@@ -98,11 +102,11 @@ export function ApprovalPanel({ approvals, error, onDecide }: ApprovalPanelProps
       </ul>
 
       {decided.length > 0 ? (
-        <ul className="mt-3 space-y-1">
+        <ul className="mt-2.5 space-y-1">
           {decided.map((item) => (
             <li
               key={item.id}
-              className={`flex items-center justify-between rounded-lg border px-3 py-1.5 text-[11px] ${
+              className={`flex items-center justify-between rounded-control border px-2.5 py-1.5 text-micro ${
                 STATUS_STYLE[item.status] ?? 'border-line bg-mist text-ink-500'
               }`}
             >

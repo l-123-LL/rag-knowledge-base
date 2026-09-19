@@ -3,6 +3,8 @@ __pycache__/
 *.py[cod]
 .env
 backend/.env
+# 临时存放 GitHub 令牌的文件（上传完成后请删除，且绝不要提交）
+.github-token
 data/
 models/
 backups/

@@ -19,7 +19,7 @@ import { ChatPanel } from './components/ChatPanel'
 import { ApprovalPanel } from './components/ApprovalPanel'
 import { SourcePanel } from './components/SourcePanel'
 import { TraceTimeline } from './components/TraceTimeline'
-import { DatabaseIcon } from './components/icons'
+import { ChevronDownIcon, DatabaseIcon } from './components/icons'
 import { mockConversations, mockSources } from './data/mockData'
 import type { Conversation, Source } from './types'
 import type { Metrics, Stats } from './types'
@@ -337,60 +337,75 @@ export default function App() {
 
   return (
     <div className="min-h-screen bg-canvas text-ink-900">
-      <header className="sticky top-0 z-20 border-b border-line bg-surface/95 backdrop-blur">
-        <div className="mx-auto flex h-16 max-w-[1600px] items-center justify-between px-5 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-ink-950 text-white shadow-sm">
-              <DatabaseIcon className="h-5 w-5" />
+      <header className="sticky top-0 z-20 border-b border-line bg-surface">
+        <div className="mx-auto flex h-14 max-w-[1680px] items-center justify-between gap-4 px-4 lg:px-6">
+          <div className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-control bg-ink-950 text-white">
+              <DatabaseIcon className="h-4 w-4" />
             </div>
-            <div>
-              <p className="text-[15px] font-semibold tracking-tight text-ink-950">
+            <div className="min-w-0">
+              <p className="truncate text-ui font-semibold text-ink-950">
                 企业智能客服
               </p>
-              <p className="text-xs text-ink-500">
+              <p className="truncate text-micro text-ink-400">
                 Enterprise Support Console
               </p>
             </div>
+            {isAdmin ? (
+              <span className="chip ml-1 border-brand-100 bg-brand-50 text-brand-700">
+                管理员
+              </span>
+            ) : null}
           </div>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center rounded-lg border border-line bg-white p-0.5 text-xs">
+
+          <div className="flex shrink-0 items-center gap-2">
+            {/* 工作流模式切换：分段控件，选中态用深色实心 */}
+            <div
+              role="group"
+              aria-label="工作流模式"
+              className="flex items-center rounded-control border border-line bg-mist p-0.5"
+            >
               {(['rag', 'tools'] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
+                  aria-pressed={workflowMode === mode}
                   onClick={() => setWorkflowMode(mode)}
                   className={
                     workflowMode === mode
-                      ? 'rounded-md bg-ink-950 px-3 py-1.5 font-medium text-white'
-                      : 'rounded-md px-3 py-1.5 text-ink-600 transition hover:text-ink-900'
+                      ? 'rounded-[6px] bg-surface px-2.5 py-1 text-caption font-medium text-ink-900 shadow-soft'
+                      : 'rounded-[6px] px-2.5 py-1 text-caption font-medium text-ink-500 transition-colors hover:text-ink-800'
                   }
                 >
                   {mode === 'rag' ? 'RAG 问答' : '工具工作流'}
                 </button>
               ))}
             </div>
+
             {trace || showTrace ? (
               <button
                 type="button"
+                aria-pressed={showTrace}
                 onClick={() => setShowTrace((current) => !current)}
-                className="rounded-lg border border-line bg-white px-3 py-1.5 text-xs font-medium text-ink-600 transition hover:border-brand-200 hover:text-brand-700"
+                className="btn-secondary"
               >
-                Trace
+                执行轨迹
               </button>
             ) : null}
-            <div className="hidden items-center gap-2 rounded-full border border-line bg-mist px-3 py-1.5 text-xs text-ink-600 sm:flex">
-              <span className="h-2 w-2 rounded-full bg-success" />
+
+            <span className="hidden items-center gap-1.5 rounded-control border border-line px-2 py-1 text-micro text-ink-600 sm:inline-flex">
+              <span className="status-dot text-emerald-500" />
               服务在线
-            </div>
-            <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-xs font-medium text-brand-700">
+            </span>
+            <span className="hidden rounded-control border border-line bg-mist px-2 py-1 text-micro text-ink-600 md:inline-block">
               默认租户
             </span>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex min-h-[calc(100vh-4rem)] max-w-[1600px]">
-        <aside className="hidden w-[340px] shrink-0 border-r border-line bg-surface lg:block">
+      <div className="mx-auto flex min-h-[calc(100vh-3.5rem)] max-w-[1680px]">
+        <aside className="hidden w-[320px] shrink-0 border-r border-line bg-surface lg:block">
           <SourcePanel
             sources={sources}
             onUploadFile={isAdmin ? handleFileUpload : undefined}
@@ -411,25 +426,32 @@ export default function App() {
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="h-80 border-b border-line bg-surface lg:hidden">
-            <SourcePanel
-              sources={sources}
-              onUploadFile={isAdmin ? handleFileUpload : undefined}
-              onIngestUrl={isAdmin ? handleUrlIngest : undefined}
-              onCreateFaq={isAdmin ? handleCreateFaq : undefined}
-              onToggleSource={isAdmin ? handleToggleSource : undefined}
-              uploadError={uploadError}
-              stats={stats}
-              metrics={metrics}
-            />
-            {isAdmin ? (
-              <ApprovalPanel
-                approvals={approvals}
-                error={approvalError}
-                onDecide={handleDecideApproval}
+          {/* 窄屏：知识库收进可展开区域，默认把版面留给问答 */}
+          <details className="group border-b border-line bg-surface lg:hidden">
+            <summary className="flex cursor-pointer items-center justify-between px-4 py-3 text-ui font-medium text-ink-700">
+              知识库与运行状态
+              <ChevronDownIcon className="h-4 w-4 text-ink-400 transition-transform group-open:rotate-180" />
+            </summary>
+            <div className="max-h-[65vh] overflow-y-auto">
+              <SourcePanel
+                sources={sources}
+                onUploadFile={isAdmin ? handleFileUpload : undefined}
+                onIngestUrl={isAdmin ? handleUrlIngest : undefined}
+                onCreateFaq={isAdmin ? handleCreateFaq : undefined}
+                onToggleSource={isAdmin ? handleToggleSource : undefined}
+                uploadError={uploadError}
+                stats={stats}
+                metrics={metrics}
               />
-            ) : null}
-          </div>
+              {isAdmin ? (
+                <ApprovalPanel
+                  approvals={approvals}
+                  error={approvalError}
+                  onDecide={handleDecideApproval}
+                />
+              ) : null}
+            </div>
+          </details>
 
           <main className="min-h-[620px] flex-1 lg:min-h-0">
             <ChatPanel
