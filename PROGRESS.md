@@ -175,6 +175,7 @@ cd backend
 ### 检索与生成
 
 - 文本切分：按段落聚合 + 窗口切分，可配置块大小和重叠。
+- 父子切分（`HIERARCHICAL_CHUNKING=true` 开启）：子块用于检索、父块用于生成，避免长文档答案被切分边界截断；父块文本存在子块 metadata 里，代价是索引体积变大。
 - 嵌入：`BAAI/bge-large-zh-v1.5`，`normalize_embeddings=True`，内积检索。
 - 向量库：`VectorStore` 接口 + `FAISSVectorStore` 实现，元数据与索引分离落盘，重启可恢复。
 - 关键词检索：`rank-bm25` + `jieba` 中文分词。

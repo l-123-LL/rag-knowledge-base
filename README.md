@@ -34,6 +34,7 @@
 | 能力 | 说明 |
 | --- | --- |
 | 混合检索 | BAAI/bge-large-zh-v1.5 + FAISS（IndexFlatIP）+ jieba + rank-bm25，min-max 融合（0.7 / 0.3） |
+| 父子切分 | `HIERARCHICAL_CHUNKING=true` 时子块检索、父块生成，长文档上下文更完整 |
 | FAQ 优先 | 命中标准问题直接返回，零模型成本；支持运行时增删改 |
 | 规则意图 | 投诉、明确转人工、否定词防误判 |
 | 工具工作流（可选） | `knowledge_search` / `order_lookup` / `logistics_track` / `human_handoff`，含 schema 校验、错误码、超时与重试 |

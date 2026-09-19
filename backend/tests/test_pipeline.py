@@ -48,3 +48,18 @@ def test_pipeline_treats_low_relevance_as_insufficient() -> None:
 
     assert result.contexts == []
     assert "资料不足" in result.answer
+
+
+def test_pipeline_expands_child_hits_to_parent_context(
+    monkeypatch,
+) -> None:
+    # 命中子块时，交给模型的是父块文本，避免答案被切分边界截断。
+    monkeypatch.setenv("HIERARCHICAL_CHUNKING", "true")
+    pipeline = RAGPipeline(HashEmbedder(), FakeGenerator())
+    pipeline.ingest_text("流感患者应尽早给予抗病毒治疗。" * 30, metadata={"file_name": "flu.txt"})
+
+    result = pipeline.answer("流感抗病毒治疗", top_k=1)
+
+    assert result.contexts
+    # FakeGenerator 会把拿到的 context 文本写进答案，父块比子块长
+    assert len(result.answer) > len(result.contexts[0].text)

@@ -1,4 +1,4 @@
-from app.chunking import normalize_text, split_text
+from app.chunking import normalize_text, split_text, split_text_hierarchical
 
 
 def test_normalize_text_keeps_paragraph_breaks() -> None:
@@ -21,3 +21,14 @@ def test_long_paragraph_uses_overlapping_windows() -> None:
 
     assert len(chunks) > 1
     assert all(len(chunk.text) <= 20 for chunk in chunks)
+def test_hierarchical_split_keeps_parent_context() -> None:
+    text = "第一段内容。" * 40 + "\n\n" + "第二段内容。" * 40
+
+    children = split_text_hierarchical(text, parent_size=200, child_size=80, overlap=20)
+
+    assert children
+    for child in children:
+        assert child.metadata["parent_id"].startswith("parent-")
+        assert child.text in child.metadata["parent_text"]
+    # 至少切成两个父块，说明确实做了分层
+    assert len({child.metadata["parent_id"] for child in children}) >= 2

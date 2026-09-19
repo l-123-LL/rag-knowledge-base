@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 
-from .chunking import Chunk, split_text
+import os
+
+from .chunking import Chunk, split_text, split_text_hierarchical
 from .embeddings import Embedder
 from .generation import Generator, GenerationResult
 from .retrieval import HybridRetriever, RetrievedChunk
@@ -33,7 +35,9 @@ class RAGPipeline:
         self.min_relevance_score = min_relevance_score
 
     def ingest_text(self, text: str, metadata: dict | None = None) -> int:
-        chunks = split_text(text)
+        # 可选父子切分：命中子块、生成时用父块上下文（HIERARCHICAL_CHUNKING=true 开启）。
+        hierarchical = os.getenv("HIERARCHICAL_CHUNKING", "false").lower() == "true"
+        chunks = split_text_hierarchical(text) if hierarchical else split_text(text)
         for index, chunk in enumerate(chunks):
             chunk.metadata.update(metadata or {})
             chunk.metadata["chunk_index"] = index
@@ -68,7 +72,7 @@ class RAGPipeline:
 
         result: GenerationResult = self.generator.generate(
             question,
-            contexts,
+            self.expand_parent_context(contexts),
             history=history,
         )
         return PipelineAnswer(
@@ -87,6 +91,30 @@ class RAGPipeline:
             return False
 
         return max(item.raw_dense_score for item in contexts) < self.min_relevance_score
+
+    def expand_parent_context(
+        self,
+        contexts: list[RetrievedChunk],
+    ) -> list[RetrievedChunk]:
+        """命中子块时，把父块文本交给模型，避免答案被切分边界截断。"""
+        expanded: list[RetrievedChunk] = []
+        for context in contexts:
+            parent_text = context.metadata.get("parent_text")
+            if not parent_text or parent_text == context.text:
+                expanded.append(context)
+                continue
+            expanded.append(
+                RetrievedChunk(
+                    text=parent_text,
+                    metadata=context.metadata,
+                    dense_score=context.dense_score,
+                    raw_dense_score=context.raw_dense_score,
+                    bm25_score=context.bm25_score,
+                    combined_score=context.combined_score,
+                    rerank_score=context.rerank_score,
+                )
+            )
+        return expanded
 
     def retrieve(
         self,

@@ -10,6 +10,8 @@ class Chunk:
 
 DEFAULT_CHUNK_SIZE = 600
 DEFAULT_OVERLAP = 80
+DEFAULT_PARENT_SIZE = 1200
+DEFAULT_CHILD_SIZE = 400
 
 
 def normalize_text(text: str) -> str:
@@ -55,3 +57,35 @@ def split_text(
             start = max(end - overlap, start + 1)
 
     return chunks
+
+
+def split_text_hierarchical(
+    text: str,
+    parent_size: int = DEFAULT_PARENT_SIZE,
+    child_size: int = DEFAULT_CHILD_SIZE,
+    overlap: int = DEFAULT_OVERLAP,
+) -> list[Chunk]:
+    """父块 + 子块切分：子块用于检索（粒度细、命中准），父块用于生成（上下文完整）。
+
+    父块文本直接写进子块 metadata，避免再引入一层存储；代价是索引文件会变大
+    （每个子块都带一份父块文本），单机小库可以接受。
+    """
+    children: list[Chunk] = []
+    parents = split_text(text, chunk_size=parent_size, overlap=0)
+
+    for parent_index, parent in enumerate(parents):
+        parent_id = f"parent-{parent_index}"
+        for child_index, child in enumerate(
+            split_text(parent.text, chunk_size=child_size, overlap=overlap)
+        ):
+            metadata = dict(child.metadata)
+            metadata.update(
+                {
+                    "parent_id": parent_id,
+                    "parent_text": parent.text,
+                    "child_index": child_index,
+                }
+            )
+            children.append(Chunk(text=child.text, metadata=metadata))
+
+    return children
