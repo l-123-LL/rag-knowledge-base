@@ -40,7 +40,12 @@ def read_token() -> str:
         return token
     path = Path(TOKEN_FILE)
     if path.exists():
-        return path.read_text(encoding="utf-8").strip()
+        # 文件里可能带着说明用的注释行，逐行找第一个非注释内容
+        for line in path.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if line and not line.startswith("#"):
+                return line
+        raise SystemExit(f"{TOKEN_FILE} 里没有找到令牌（只有注释行）")
     raise SystemExit(
         f"没有找到令牌：请设置环境变量 GITHUB_TOKEN，或把令牌写入 {TOKEN_FILE}"
     )
