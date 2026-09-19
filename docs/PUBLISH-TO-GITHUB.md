@@ -1,16 +1,17 @@
 # 把项目发布到 GitHub
 
-## 一、先看网络现实（2026-09-19 实测）
+## 一、网络现实（2026-09-19 实测）
 
 | 目标 | 结果 |
 | --- | --- |
-| `github.com:443`（HTTPS 推送） | **不通**（TCP 连接超时） |
-| `ssh.github.com:443`（SSH 推送） | **不通** |
-| `codeload.github.com`、备用 IP | **不通** |
-| `api.github.com` | **通**（REST API 可用） |
-| `gitee.com` | 通 |
+| 直连 `github.com:443` / `ssh.github.com:443` / 备用 IP | 不通（TCP 超时） |
+| 经本机代理 `127.0.0.1:17890` 访问 `github.com` | **通**（HTTP 200，8.8s） |
+| 经代理访问 `api.github.com` | **通**（HTTP 200，1.3s） |
+| 经代理 `git ls-remote https://github.com/cli/cli` | **通**（能列出分支） |
+| `gitee.com` 直连 | 通 |
 
-结论：**`git push` 这条路现在走不了**，但 GitHub 的 REST API 通，所以有下面两条可用路线。
+结论：**本机有个可用代理（127.0.0.1:17890）**，只是系统代理开关是关的。
+git 单独指定代理后即可正常推送，所以走下面的路线 A。
 
 ---
 
@@ -33,25 +34,37 @@
 
 ---
 
-## 三、路线 A：换网络后直推（推荐，保留完整提交历史）
+## 三、路线 A：经本机代理直推（当前方案，保留完整提交历史）
 
-只要 `github.com:443` 能通（挂代理/VPN 即可），一条命令搞定：
+### 一次性准备：设置令牌
+
+```powershell
+setx GITHUB_TOKEN "你的令牌"     # 设置后重开终端
+```
+
+也可以把令牌写进仓库根目录的 `.github-token`（已在 `.gitignore` 里，用完删掉）。
+**不要**把令牌贴到聊天里，也不要写进任何会被提交的文件。
+
+令牌权限：细粒度令牌需要 **Contents: Read and write** + **Administration: Read and write**（后者用于建仓库）；经典令牌勾 `repo`。
+
+### 一条命令完成
 
 ```powershell
 cd D:\rag知识库
-git remote add origin https://github.com/<你的用户名>/rag-knowledge-base.git
-git push -u origin master
+.\.venv\Scripts\python.exe scripts\publish-to-github.py --repo rag-knowledge-base
 ```
 
-推送需要凭据：HTTPS 用 Personal Access Token（不是账号密码），或配置 SSH key。
-如果代理是本地端口（例如 7890），告诉 Codex 端口号即可，git 可以单独走代理：
+脚本做的事：验证令牌 → 建仓库（已存在则复用）→ 用一次性 credential helper 推送。
+令牌只经环境变量传给 git 子进程，**不会写进 `.git/config`，也不会出现在命令行**。
+
+### 手动推送（等价的等价写法）
 
 ```powershell
-git config --local http.proxy http://127.0.0.1:7890
-git config --local https.proxy http://127.0.0.1:7890
+git remote add origin https://github.com/<用户名>/rag-knowledge-base.git
+git -c http.proxy=http://127.0.0.1:17890 -c https.proxy=http://127.0.0.1:17890 push -u origin master
 ```
 
-局限：这样推上去的仓库是**一个快照提交**，本地 130+ 条提交历史不会带上去（因为 API 路线只能建单次提交）。
+这种方式会走 Git Credential Manager 弹窗认证；如果弹窗里的 GitHub 页面打不开（浏览器没走代理），就用上面脚本里的令牌方式。
 
 ---
 

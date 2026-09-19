@@ -1,30 +1,27 @@
-"""通过 api.github.com 把当前工作区上传成一个 GitHub 仓库。
+"""把本仓库发布到 GitHub（默认走 git push，保留完整提交历史）。
 
-为什么要有这个脚本：这台机器到 github.com:443 完全不通（HTTPS/SSH/codeload 都
-被拒），`git push` 用不了；但 api.github.com 是通的。所以走 GitHub 的 Git Data API：
-blobs → tree → commit → ref，一次提交把工作区传上去，全程不碰 github.com。
-
-代价：这一步只上传**工作区快照**（一个提交），不含本地的 130 多个提交历史。
-等网络能连 github.com 时，用 `git remote add origin ... && git push -u origin master`
-可以把完整历史补上去（两者不冲突，push 会以本地历史为准）。
+背景：这台机器直连 github.com 不通，但本机 127.0.0.1:17890 有可用代理，
+经代理访问 github.com / api.github.com 都是 200。所以：
+  - 建仓库走 api.github.com；
+  - 推代码走 git push（**完整保留本地提交历史**）；
+  - 认证用一次性 credential helper 从环境变量读 token，
+    不写进 .git/config，也不出现在命令行参数里。
 
 用法（仓库根目录）：
-    # 方式一：环境变量（推荐用 setx 设置用户级变量后重开终端）
-    $env:GITHUB_TOKEN = "..."      # 不要写进任何文件、不要贴到聊天里
-    python scripts/publish-to-github.py --repo rag-knowledge-base --private
+    setx GITHUB_TOKEN "ghp_xxx"          # 或写入仓库根目录的 .github-token（已 gitignore）
+    .\\.venv\\Scripts\\python.exe scripts\\publish-to-github.py --repo rag-knowledge-base
 
-    # 方式二：令牌文件（脚本只读、不打印；用完记得删）
-    #   把令牌写到仓库根目录的 .github-token（已在 .gitignore 里），然后
-    python scripts/publish-to-github.py --repo rag-knowledge-base
+常用参数：
+    --private           建私有仓库（默认公开）
+    --proxy ""          不走代理（网络能直连时）
+    --mode api          改用 REST API 只传工作区快照（无提交历史）
+    --dry-run           只打印计划
 
-需要的令牌权限：
-  - 细粒度令牌：Repository permissions → Contents: Read and write + Administration: Read and write
-  - 或经典令牌：勾选 repo 作用域
+令牌权限：细粒度令牌需要 Contents 读写 + Administration 读写；经典令牌勾 repo。
 """
 
 import argparse
 import base64
-import json
 import os
 import subprocess
 import sys
@@ -34,6 +31,7 @@ import httpx
 
 API = "https://api.github.com"
 TOKEN_FILE = ".github-token"
+DEFAULT_PROXY = "http://127.0.0.1:17890"
 
 
 def read_token() -> str:
@@ -60,119 +58,178 @@ def tracked_files() -> list[str]:
     return [line for line in result.stdout.splitlines() if line.strip()]
 
 
+def git(*args: str, env: dict | None = None) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", *args],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        check=False,
+        env=env,
+    )
+
+
+def ensure_repo(
+    client: httpx.Client, repo: str, private: bool, description: str
+) -> None:
+    created = client.post(
+        "/user/repos",
+        json={
+            "name": repo,
+            "description": description,
+            "private": private,
+            "auto_init": False,
+        },
+    )
+    if created.status_code == 422:
+        print("仓库已存在，直接复用")
+        return
+    created.raise_for_status()
+    print("仓库已创建")
+
+
+def push_with_git(owner: str, repo: str, branch: str, token: str, proxy: str) -> None:
+    """用一次性 credential helper 推送：令牌只经环境变量传给子进程。"""
+    url = f"https://github.com/{owner}/{repo}.git"
+    proxy_args = (
+        ["-c", f"http.proxy={proxy}", "-c", f"https.proxy={proxy}"] if proxy else []
+    )
+    # helper 从环境变量读令牌；不写入任何配置文件
+    helper = '!f() { echo username=x-access-token; echo "password=$GITHUB_TOKEN"; }; f'
+    env = {**os.environ, "GITHUB_TOKEN": token}
+
+    git("remote", "remove", "origin")
+    git("remote", "add", "origin", url)
+
+    print(f"推送 {branch} → {url}（代理 {proxy or '无'}，保留完整提交历史）")
+    result = git(
+        *proxy_args,
+        "-c",
+        f"credential.helper={helper}",
+        "push",
+        "-u",
+        "origin",
+        branch,
+        env=env,
+    )
+    if result.stdout.strip():
+        print(result.stdout.strip()[-1500:])
+    if result.returncode != 0:
+        raise SystemExit(f"推送失败（退出码 {result.returncode}）：\n{(result.stderr or '')[-1500:]}")
+    print("推送完成，提交历史已保留")
+
+
+def upload_snapshot(
+    client: httpx.Client, owner: str, repo: str, branch: str, files: list[str]
+) -> None:
+    """备用方案：用 Git Data API 上传工作区快照（只有一个提交）。"""
+    tree: list[dict] = []
+    for index, name in enumerate(files, start=1):
+        blob = client.post(
+            f"/repos/{owner}/{repo}/git/blobs",
+            json={
+                "content": base64.b64encode(Path(name).read_bytes()).decode("ascii"),
+                "encoding": "base64",
+            },
+        )
+        blob.raise_for_status()
+        tree.append(
+            {
+                "path": name.replace("\\", "/"),
+                "mode": "100755" if os.access(name, os.X_OK) else "100644",
+                "type": "blob",
+                "sha": blob.json()["sha"],
+            }
+        )
+        if index % 25 == 0 or index == len(files):
+            print(f"  已上传 {index}/{len(files)}")
+
+    tree_sha = client.post(
+        f"/repos/{owner}/{repo}/git/trees", json={"tree": tree}
+    ).json()["sha"]
+    commit = client.post(
+        f"/repos/{owner}/{repo}/git/commits",
+        json={
+            "message": "chore: publish working tree from local git repository",
+            "tree": tree_sha,
+        },
+    )
+    commit.raise_for_status()
+    ref = client.post(
+        f"/repos/{owner}/{repo}/git/refs",
+        json={"ref": f"refs/heads/{branch}", "sha": commit.json()["sha"]},
+    )
+    if ref.status_code == 422:
+        client.patch(
+            f"/repos/{owner}/{repo}/git/refs/heads/{branch}",
+            json={"sha": commit.json()["sha"], "force": True},
+        )
+    client.patch(f"/repos/{owner}/{repo}", json={"default_branch": branch})
+    print("已通过 API 上传工作区快照（不含提交历史）")
+
+
 def main() -> None:
-    parser = argparse.ArgumentParser(description="上传当前工作区到 GitHub")
+    parser = argparse.ArgumentParser(description="发布本仓库到 GitHub")
     parser.add_argument("--repo", required=True, help="仓库名，例如 rag-knowledge-base")
-    parser.add_argument("--description", default="企业智能客服 RAG/Agent 问答系统")
+    parser.add_argument(
+        "--description",
+        default="企业智能客服 RAG/Agent 问答系统：混合检索 + 工具工作流 + 评测",
+    )
     parser.add_argument("--private", action="store_true", help="建私有仓库（默认公开）")
     parser.add_argument("--branch", default="master")
-    parser.add_argument("--dry-run", action="store_true", help="只打印计划，不调接口")
+    parser.add_argument(
+        "--proxy", default=DEFAULT_PROXY, help='代理地址，传 "" 表示不走代理'
+    )
+    parser.add_argument(
+        "--mode",
+        choices=["git", "api"],
+        default="git",
+        help="git=推送完整历史；api=只传工作区快照",
+    )
+    parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
     files = tracked_files()
-    print(f"准备上传 {len(files)} 个文件到 {args.repo}（分支 {args.branch}）")
+    print(f"待发布文件：{len(files)} 个（已排除 .gitignore 内容）")
+    print(
+        f"分支 {args.branch}；模式 {args.mode}；"
+        f"可见性 {'私有' if args.private else '公开'}；代理 {args.proxy or '不走代理'}"
+    )
 
     if args.dry_run:
-        for name in files[:10]:
-            print(f"  {name}")
-        if len(files) > 10:
-            print(f"  ... 其余 {len(files) - 10} 个")
         print("dry-run：没有调用任何接口")
         return
 
     token = read_token()
-    headers = {
-        "Authorization": f"Bearer {token}",
-        "Accept": "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "rag-knowledge-base-publisher",
-    }
+    proxy = args.proxy or None
+    client_kwargs: dict = {"base_url": API, "timeout": 60.0}
+    if proxy:
+        client_kwargs["proxy"] = proxy
 
-    with httpx.Client(base_url=API, headers=headers, timeout=60.0) as client:
+    with httpx.Client(
+        **client_kwargs,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
+            "User-Agent": "rag-knowledge-base-publisher",
+        },
+    ) as client:
         user = client.get("/user")
+        if user.status_code == 401:
+            raise SystemExit("令牌无效或已过期（401）")
         user.raise_for_status()
         owner = user.json()["login"]
         print(f"身份确认：{owner}")
 
-        created = client.post(
-            "/user/repos",
-            json={
-                "name": args.repo,
-                "description": args.description,
-                "private": args.private,
-                "auto_init": False,
-            },
-        )
-        if created.status_code == 422:
-            print("仓库已存在，直接往里写")
+        ensure_repo(client, args.repo, args.private, args.description)
+
+        if args.mode == "api":
+            upload_snapshot(client, owner, args.repo, args.branch, files)
         else:
-            created.raise_for_status()
-            print(f"仓库已创建：https://github.com/{owner}/{args.repo}")
-
-        # 1) 逐个上传 blob
-        tree: list[dict] = []
-        for index, name in enumerate(files, start=1):
-            content = Path(name).read_bytes()
-            blob = client.post(
-                f"/repos/{owner}/{args.repo}/git/blobs",
-                json={
-                    "content": base64.b64encode(content).decode("ascii"),
-                    "encoding": "base64",
-                },
-            )
-            blob.raise_for_status()
-            tree.append(
-                {
-                    "path": name.replace("\\", "/"),
-                    "mode": "100755" if os.access(name, os.X_OK) else "100644",
-                    "type": "blob",
-                    "sha": blob.json()["sha"],
-                }
-            )
-            if index % 25 == 0 or index == len(files):
-                print(f"  已上传 {index}/{len(files)}")
-
-        # 2) 建 tree
-        tree_response = client.post(
-            f"/repos/{owner}/{args.repo}/git/trees",
-            json={"tree": tree},
-        )
-        tree_response.raise_for_status()
-        tree_sha = tree_response.json()["sha"]
-
-        # 3) 建 commit（不带 parent，就是首次提交）
-        commit = client.post(
-            f"/repos/{owner}/{args.repo}/git/commits",
-            json={
-                "message": "chore: publish working tree from local git repository",
-                "tree": tree_sha,
-            },
-        )
-        commit.raise_for_status()
-        commit_sha = commit.json()["sha"]
-
-        # 4) 建分支引用
-        ref = client.post(
-            f"/repos/{owner}/{args.repo}/git/refs",
-            json={"ref": f"refs/heads/{args.branch}", "sha": commit_sha},
-        )
-        if ref.status_code == 422:
-            ref = client.patch(
-                f"/repos/{owner}/{args.repo}/git/refs/heads/{args.branch}",
-                json={"sha": commit_sha, "force": True},
-            )
-        ref.raise_for_status()
-
-        # 5) 把默认分支也指向它（GitHub 默认 main，这里显式统一）
-        client.patch(
-            f"/repos/{owner}/{args.repo}",
-            json={"default_branch": args.branch},
-        )
+            push_with_git(owner, args.repo, args.branch, token, proxy)
 
     print(f"\n完成：https://github.com/{owner}/{args.repo}")
-    print("提示：本地已有完整提交历史；网络能连 github.com 时执行")
-    print(f"      git remote add origin https://github.com/{owner}/{args.repo}.git")
-    print("      git push -u origin master")
 
 
 if __name__ == "__main__":
