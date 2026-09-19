@@ -16,9 +16,16 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: "pip"
+          cache-dependency-path: backend/requirements.txt
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          # 先装 CPU 版 torch：直接 pip install -r 会拉 CUDA 版（2GB+），CI 会白白慢几分钟。
+          # 与 backend/Dockerfile 的安装顺序保持一致。
+          pip install --index-url https://download.pytorch.org/whl/cpu torch
+          pip install -r requirements.txt
       - name: Run tests
+        # 后端测试全部用假嵌入器 / 假生成器，不下载模型、不调用外部 API
         run: pytest -p no:cacheprovider
 
   frontend:
