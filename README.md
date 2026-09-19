@@ -120,6 +120,15 @@ cd backend
 
 报告留档在 `backend/evaluation/reports/`。分档：`--tag smoke|core|full`（25 / 60 / 150 条），日常跑冒烟、里程碑跑全量。
 
+### 生成质量（LLM-as-Judge）
+
+```bash
+cd backend
+..\.venv\Scripts\python.exe -m evaluation.generation_report --limit 150 --offline
+```
+
+只对"由模型基于检索资料生成"的答案打分（规则路径不适用），rubric 为 1.0 / 0.5 / 0.0 三档。实测：150 条抽样中 21 条走生成，**faithfulness 1.00、relevance 0.929**，3 条低分全部来自知识库未覆盖的优惠券主题（模型如实拒答而非编造）。报告与人工复核抽样表同样落 `backend/evaluation/reports/`。
+
 ### 单元与集成测试
 
 ```bash

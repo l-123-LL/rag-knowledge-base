@@ -39,12 +39,21 @@ class DeepSeekJudge:
             raise RuntimeError(f"缺少环境变量 {self.api_key_env}")
 
         prompt = (
-            "请评估客服回答质量，只返回 JSON，不要解释。\n"
-            "faithfulness：答案是否完全基于资料，1 表示完全有依据。\n"
-            "relevance：答案是否直接回答用户问题，1 表示完全相关。\n"
+            "你是客服回答质量评审。请只返回 JSON，不要解释。\n"
+            "评分标准（rubric）：\n"
+            "- faithfulness（答案是否有资料依据）："
+            "1.0 = 每一句都能在资料里找到依据；"
+            "0.5 = 主要结论有依据，但夹带了资料里没有的细节；"
+            "0.0 = 关键结论在资料里找不到，属于编造。\n"
+            "- relevance（是否回答了用户的问题）："
+            "1.0 = 直接回答了问题；"
+            "0.5 = 只答了一部分或答得含糊；"
+            "0.0 = 答非所问或只是拒答。\n"
+            "请严格按上述档位给分，不要给中间随意值。\n"
+            '返回格式：{"faithfulness": <0|0.5|1>, "relevance": <0|0.5|1>}\n'
             f"问题：{question}\n"
             f"答案：{answer}\n"
-            f"资料：{chr(10).join(contexts)}"
+            f"资料：{chr(10).join(contexts) if contexts else '（无检索资料）'}"
         )
 
         with httpx.Client(timeout=self.timeout_seconds) as client:
