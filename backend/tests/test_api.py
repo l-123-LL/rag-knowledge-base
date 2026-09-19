@@ -123,6 +123,35 @@ def test_ask_returns_insufficient_for_unknown_question() -> None:
     assert response.json()["citations"] == []
 
 
+class FakeRefusingPipeline:
+    """检索有结果、分数也够，但模型读完资料说"里面没有这条"——第三种拒答。"""
+
+    def answer(self, question: str, **kwargs) -> PipelineAnswer:
+        return PipelineAnswer(
+            answer="根据现有资料，无法确认定制商品是否可以无理由退货。",
+            contexts=[
+                RetrievedChunk(
+                    text="平台说明里没有定制商品的退货条款。",
+                    metadata={"source": "平台说明", "file_name": "平台说明"},
+                    combined_score=0.8,
+                )
+            ],
+        )
+
+
+def test_model_refusal_also_escalates_to_human() -> None:
+    app.state.pipeline = FakeRefusingPipeline()
+
+    response = client.post("/ask", json={"question": "定制商品可以无理由退货吗？"})
+
+    payload = response.json()
+    assert response.status_code == 200
+    assert payload["status"] == "insufficient"
+    # 模型的解释要保留（它说明了资料里有什么），同时补上带工单号的转人工话术
+    assert "无法确认定制商品" in payload["answer"]
+    assert "工单号：" in payload["answer"]
+
+
 def test_insufficient_answer_escalates_to_human() -> None:
     # 检索不到资料时不能只回一句“不知道”，要给出转人工出口和工单号。
     app.state.pipeline = FakePipeline()

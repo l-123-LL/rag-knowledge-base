@@ -36,6 +36,7 @@ from .observability import (
 )
 from .mock_data import sources
 from .pipeline import RAGPipeline
+from .refusal import looks_like_refusal
 from .trace_store import read_trace
 from .workflow import run_tool_workflow
 from .schemas import (
@@ -120,6 +121,18 @@ def get_pipeline() -> RAGPipeline:
 # 拒答与转人工共用同一句话术来源，避免 /ask 与 /ask/stream 说法不一致。
 INSUFFICIENT_ANSWER = "当前资料不足，暂时无法确认答案。"
 INSUFFICIENT_ESCALATION = "当前资料不足，暂时无法确认答案，已为您转交人工客服跟进。"
+
+
+def citation_from_context(index: int, context) -> Citation:
+    """把检索到的上下文转成前端展示的引用条目（位置、来源、片段、分数）。"""
+    return Citation(
+        id=str(index),
+        title=context.metadata.get("source", "未知来源"),
+        url=context.metadata.get("url", ""),
+        location=context.metadata.get("file_name", ""),
+        snippet=context.text[:200],
+        score=context.combined_score,
+    )
 
 
 def escalate_to_human(
@@ -748,6 +761,49 @@ def ask(
         )
 
     record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+
+    # 第三种拒答：检索有结果、分数也够，但模型读完资料发现里面没有这条答案。
+    # 保留模型的解释（它常常会说清"资料里只有什么"），再补一句转人工，别让用户卡住。
+    if looks_like_refusal(result.answer):
+        handoff = escalate_to_human(
+            question=request.question,
+            session_id=request.session_id,
+            reason="model_refusal",
+            tenant_id=tenant_id,
+            prefix="已为您转交人工客服跟进。",
+        )
+        answer_text = f"{result.answer}\n\n{handoff}"
+        record_message(
+            request.session_id,
+            "assistant",
+            answer_text,
+            tenant_id=tenant_id,
+        )
+        log_ask_event(
+            {
+                "route": "rag",
+                "session_id": request.session_id,
+                "question": request.question,
+                "model": "deepseek-chat",
+                "status": "insufficient",
+                "escalated": True,
+                "reason": "model_refusal",
+                "latency_ms": latency_ms,
+                "usage": result.usage,
+                "citation_count": len(result.contexts),
+            }
+        )
+        return AskResponse(
+            answer=answer_text,
+            citations=[
+                citation_from_context(index, context)
+                for index, context in enumerate(result.contexts)
+            ],
+            model="deepseek-chat",
+            status="insufficient",
+            latency_ms=latency_ms,
+        )
+
     record_message(
         request.session_id,
         "assistant",
@@ -779,14 +835,7 @@ def ask(
     return AskResponse(
         answer=result.answer,
         citations=[
-            Citation(
-                id=str(index),
-                title=context.metadata.get("source", "未知来源"),
-                url=context.metadata.get("url", ""),
-                location=context.metadata.get("file_name", ""),
-                snippet=context.text[:200],
-                score=context.combined_score,
-            )
+            citation_from_context(index, context)
             for index, context in enumerate(result.contexts)
         ],
         model="deepseek-chat",
@@ -901,11 +950,38 @@ def ask_stream(
 
     def event_stream():
         yield sse({"type": "sources", "contexts": context_payload})
+        collected: list[str] = []
         try:
             for delta in generator(request.question, contexts, history):
+                collected.append(delta)
                 yield sse({"type": "delta", "text": delta})
         except GenerationError as exc:
             yield sse({"type": "error", "message": str(exc)})
+        # 与 /ask 保持一致：模型自己说"资料里没有"时，也要有转人工出口
+        answer_text = "".join(collected)
+        record_message(request.session_id, "user", request.question, tenant_id=tenant_id)
+        if looks_like_refusal(answer_text):
+            handoff = escalate_to_human(
+                question=request.question,
+                session_id=request.session_id,
+                reason="model_refusal",
+                tenant_id=tenant_id,
+                prefix="已为您转交人工客服跟进。",
+            )
+            yield sse({"type": "delta", "text": f"\n\n{handoff}"})
+            record_message(
+                request.session_id,
+                "assistant",
+                f"{answer_text}\n\n{handoff}",
+                tenant_id=tenant_id,
+            )
+        else:
+            record_message(
+                request.session_id,
+                "assistant",
+                answer_text,
+                tenant_id=tenant_id,
+            )
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(
