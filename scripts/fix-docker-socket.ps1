@@ -1,4 +1,4 @@
-<#
+﻿<#
 Docker Desktop 启动报错修复脚本
 
 症状（Docker Desktop 弹窗 / 日志里出现）：

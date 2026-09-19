@@ -50,3 +50,24 @@
 **评估口径不一致**：评估脚本默认注入测试替身 `HashEmbedder`，命令行输出 hit@1 = 0.90，而线上链路用 BGE，实测 0.96。修正做法是评估必须走真实链路，替身只允许出现在单元测试里。
 
 **BM25 打分是 O(N²)**：`BM25Index.score` 每次调用都重算全量分数，检索层逐文档调用。512 条文档时循环打分 88.3 ms、一次性打分 0.38 ms，差 233 倍。**已修复**：新增 `BM25Index.scores()` 一次性打分，检索层改为单次调用（保留原 `score()` 签名），512 条索引检索从平均 370.9 ms / P95 444.3 ms 降到 187.5 ms / 193.4 ms，并补了批量与逐条打分一致性测试。
+
+## 案例六：日志被强杀截断，聚合接口直接崩
+
+**现象**：并发压测中途强制结束 uvicorn，之后 `/alerts` 返回 500；跑测试时 `test_alerts_endpoint_returns_status` 报 `JSONDecodeError: Unterminated string`。
+
+**排查**：进程被强杀时最后一行 JSON 只写了一半；`summarize_ask_log` / `summarize_feedback` 无保护地 `json.loads` 每一行，遇到坏行就抛异常，导致 `/metrics` 和 `/alerts` 整个不可用。
+
+**修复**：抽出 `_load_events()`，遇 `JSONDecodeError` 跳过该行；补了一条"日志含半行 JSON 时聚合仍能工作"的测试。
+
+**收获**：追加写的日志文件天然可能被截断，读取侧必须容错——监控接口不应该被日志格式问题拖垮。
+
+## 案例七：Docker Desktop 在这台机器上的四连坑
+
+| 现象 | 根因 | 处理 |
+| --- | --- | --- |
+| 反复弹 `unable to start`，日志报 `rename ...sock.stale: The file cannot be accessed by the system` | 强杀 Docker 后残留的 AF_UNIX socket 无法改名 | 结束进程 → 把 `%LOCALAPPDATA%\Docker` 与 `docker-secrets-engine` 整体改名移开 → 重启（已封装为 `scripts/fix-docker-socket.ps1`） |
+| 构建报 `connecting via static system HTTPS proxy http://127.0.0.1:17890` | 注册表里残留着已失效的代理地址，Docker 的"系统代理"模式仍在用 | 清除 `HKCU\...\Internet Settings\ProxyServer`（备份到 `%TEMP%`） |
+| 拉基础镜像超时 | Docker Hub 直连不通 | `daemon.json` 配 `registry-mirrors: ["https://docker.m.daocloud.io"]`，改完平滑重启引擎 |
+| 修复脚本本身报语法错误 | 无 BOM 的 UTF-8 中文脚本被 Windows PowerShell 5.1 当 GBK 读 | 脚本改存为**带 BOM 的 UTF-8**（并做语法自检） |
+
+镜像体积上还踩了一个：Linux 上 `pip install sentence-transformers` 默认拉 CUDA 版 torch（nvidia-* 依赖数 GB），改成先装 CPU 版后镜像只有 2.27 GB。
