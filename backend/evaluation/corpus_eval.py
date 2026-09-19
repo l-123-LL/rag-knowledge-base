@@ -175,25 +175,30 @@ def compare_rerank(embedder_name: str, rerank_model: str) -> dict:
     from time import perf_counter
 
     from app.reranker import BGEReranker
+    from app.retrieval import RetrievedChunk
 
     embedder = resolve_embedder(embedder_name)
     without = run_corpus_evaluation(embedder)
-    # 重排模型首次加载很慢，先单独计时，避免把它算进检索延迟
+    # 重排模型首次加载很慢，先单独计时，避免把它算进检索延迟。
+    # 注意要传一条真实的分块：rerank 对空列表是直接 return 的，传空列表不会触发加载。
     reranker = BGEReranker(rerank_model)
     started = perf_counter()
-    reranker.rerank("预热", [])
+    reranker.rerank("预热", [RetrievedChunk(text="预热文本")])
     load_seconds = perf_counter() - started
 
+    timed = _TimedReranker(reranker)
     started = perf_counter()
     with_rerank = run_corpus_evaluation(
         resolve_embedder(embedder_name),
-        reranker=reranker,
+        reranker=timed,
     )
     rerank_seconds = perf_counter() - started
 
     comparison = {
         "rerank_model": rerank_model,
         "model_load_seconds": round(load_seconds, 1),
+        # 单次重排耗时单独统计：混进整体耗时会看不出到底慢在哪
+        "rerank_latency_ms": timed.summary(),
         "without": without["average"],
         "with_rerank": with_rerank["average"],
         "delta": {
@@ -206,6 +211,33 @@ def compare_rerank(embedder_name: str, rerank_model: str) -> dict:
         "question_count": with_rerank["question_count"],
     }
     return comparison
+
+
+class _TimedReranker:
+    """包一层计时，用来单独统计「重排本身」的延迟。"""
+
+    def __init__(self, inner) -> None:
+        self.inner = inner
+        self.durations_ms: list[float] = []
+
+    def rerank(self, query: str, chunks):
+        from time import perf_counter
+
+        started = perf_counter()
+        result = self.inner.rerank(query, chunks)
+        self.durations_ms.append((perf_counter() - started) * 1000)
+        return result
+
+    def summary(self) -> dict:
+        if not self.durations_ms:
+            return {}
+        ordered = sorted(self.durations_ms)
+        return {
+            "avg_ms": round(sum(self.durations_ms) / len(self.durations_ms)),
+            "p95_ms": round(ordered[int(len(ordered) * 0.95) - 1]),
+            "max_ms": round(max(self.durations_ms)),
+            "calls": len(self.durations_ms),
+        }
 
 
 if __name__ == "__main__":

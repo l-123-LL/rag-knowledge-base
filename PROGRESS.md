@@ -375,18 +375,27 @@ cd backend
 
 ### P1-3 验证 rerank 的实际收益
 
-**状态：对比链路已就绪，权重下载受网络限制（2026-09-19）。**
+**状态：已实测完成（2026-09-19），结论是「不开」。**
 
-已做：`corpus_eval.py` 加了 `--compare-rerank`，一条命令给出开/关重排的指标差与耗时：
+命令：
 
 ```bash
 cd backend
 ..\.venv\Scripts\python.exe -m evaluation.corpus_eval --compare-rerank BAAI/bge-reranker-base
 ```
 
-对比逻辑本身已用假重排器测通（`tests/test_corpus_eval_rerank.py`：确认重排真的改变排序、也确认标注里的语料文件都存在）。
+| 指标 | 不开重排 | 开重排（bge-reranker-base，CPU） | 变化 |
+| --- | --- | --- | --- |
+| doc_hit@1 | **0.95** | 0.85 | **−0.10** |
+| evidence_hit@1 | **0.90** | 0.85 | −0.05 |
+| evidence_hit@3 | 0.95 | 0.90 | −0.05 |
+| evidence_mrr | **0.925** | 0.875 | −0.05 |
+| 单次检索延迟 | **142 ms**（avg，含查询向量化） | — | — |
+| 纯重排延迟（20 个候选） | — | **avg 6475 ms / p95 7633 ms / max 8928 ms** | — |
 
-卡点：`BAAI/bge-reranker-base` 权重 1.1GB，hf-mirror 限速到几十 kB/s，下到 870MB 后停滞（多次续传仍是 0 速度）。**权重到位后直接跑上面那条命令**即可拿到真实数字，不需要改代码。
+诊断细节（逐条对比 top1）：**5/20 条问题的 top1 被改掉，而且改坏的多**——例如把整段条款换成了 `cloud.macrozheng.com/start/...` 这样的 URL 碎片。原因推测有两个：一是本语料只有 74 个分块、一阶段命中已经很高（0.95），没有提升空间，重排只在噪声里挑；二是 CPU 上 278M 参数的 CrossEncoder 跑 20 个候选要 6.5 秒，对客服问答完全不可接受。
+
+**决策：`RERANK_MODEL` 默认留空（关闭）。** 代码路径与 A/B 命令都保留——等语料规模上来、一阶段召回明显变弱（比如上千份文档、hit@1 掉到 0.8 以下）时再开着重测。对比逻辑本身用假重排器做了单测（`tests/test_corpus_eval_rerank.py`）。
 
 ### P2-1 代码规范与部署验证
 
@@ -414,7 +423,7 @@ cd backend
 - ~~评估入口口径不一致~~ → 已修复：命令行默认注入真实模型（`--embedder bge`，可切 `hash` 做快速回归），测试替身只保留给单元测试；同时加 `--offline` 跳过联网校验（150 秒 → 17 秒）。
 - **BM25 的 O(N²) 已修复**：新增 `BM25Index.scores()` 一次性打分，检索层改为单次调用（保留原 `score()` 签名）。512 条索引实测检索从平均 370.9 ms / P95 444.3 ms 降到 **187.5 ms / 193.4 ms**，结果与逐文档打分完全一致（有单测）。
 - ~~成本数字缺失~~ → 已补：单价已配置在 `backend/.env`，`evaluation/cost_report.py` 可从日志算出单次成本（实测 $0.000247/次，1000 次 $0.247）。注意单次 RAG 成本随 prompt 长度线性变化，语料换大会同步变大。
-- **rerank 未实测（受网络限制）**：代码路径与 A/B 对比命令都就绪（`corpus_eval --compare-rerank`），但 `bge-reranker-base` 权重 1.1GB 在 hf-mirror 上限速到几十 kB/s，下到 870MB 后停滞。权重到位即可直接出数字。
+- **rerank 实测为负收益，已默认关闭**：`bge-reranker-base` 在本语料上把 doc_hit@1 从 0.95 拉到 0.85，纯重排延迟 6.5 s/次（CPU、20 候选），所以 `RERANK_MODEL` 留空。详见第 5 节 P1-3。语料规模变大后应重新评估。
 - **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。
 - **Docker 未实测构建**：文件齐全，但没有在本机跑过 `docker compose up`。
 - ~~评估集偏小且偏理想~~ → 已补：真实语料上另做了一套 20 条标注评测（doc_hit@1 0.95 / evidence_hit@1 0.90 / evidence_mrr 0.925，见第 3 节）。但这两套加起来仍只有 70 条问题、5 篇资料，属于小型自建集，不能替代真实业务抽样。

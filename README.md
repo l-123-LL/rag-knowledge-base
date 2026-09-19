@@ -146,6 +146,7 @@ cd web && npm test && npm run typecheck && npm run build                     # 2
 3. **阈值看原始余弦相似度**：归一化分数永远有最大值 1.0，做不了绝对判断。当前语料（5 篇公开资料 / 74 分块）标定 `RAG_MIN_SCORE=0.37`，域内 10/10 保留、域外 8/8 挡下；标定脚本 `backend/evaluation/calibrate_threshold.py` 可复现。
 3.1 **分块 id 全局唯一**：id = 来源-序号-内容哈希。多篇资料共用 `text-0` 这种 id 会让检索分数互相覆盖（真实踩过的坑，见 `docs/FAILURE-CASES.md` 案例八）。
 4. **评测分两套**：检索质量用真实 BGE 单独评测；Agent 任务指标不依赖生成质量，因此可以零成本高频回归。
+5. **rerank 实测为负收益，默认关闭**：`bge-reranker-base` 在本语料上把 doc_hit@1 从 0.95 拉到 0.85，纯重排延迟 avg 6475 ms（检索本身才 142 ms）。代码保留、`RERANK_MODEL` 留空，语料变大后再重测——**不是"重排没用"，而是"这个规模下没余量可捞"**。
 
 ## 已知边界
 

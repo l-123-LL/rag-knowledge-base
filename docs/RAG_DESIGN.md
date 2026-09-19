@@ -92,12 +92,23 @@ powershell -ExecutionPolicy Bypass -File scripts/ingest-corpus.ps1
 | 向量检索 | FAISS 内积，取全量候选 | 语义泛化，问法和原文不一致也能命中 |
 | 关键词检索 | `rank-bm25` + `jieba` 中文分词 | 药名/单号/条款号这类"字面必须一致"的查询，向量容易漂 |
 | 融合权重 | 向量 0.7 / BM25 0.3 | 客服场景以语义为主，但保留关键词的精确性 |
-| rerank | `BGEReranker`（CrossEncoder），代码就绪 | 精排能提升 top1 命中，代价是延迟 |
+| rerank | `BGEReranker`（CrossEncoder），**实测为负收益，默认关闭** | 见下方"重排实测" |
 | 拒答阈值 | `RAG_MIN_SCORE=0.37`（**原始余弦**，不是归一化分） | 归一化分数永远有最大值 1.0，做不了绝对判断 |
 
 **BM25 性能**：原实现每个候选都重算一次全量分数（O(N²)），512 条文档时循环打分 88.3 ms vs 一次性打分 0.38 ms（**233 倍**）。改成 `BM25Index.scores()` 一次算完，512 条索引检索从 370.9 ms / P95 444.3 ms 降到 **187.5 ms / 193.4 ms**。
 
 **阈值怎么定的**（`backend/evaluation/calibrate_threshold.py`，问题集 `corpus_questions.json`）：
+
+**重排实测（2026-09-19，`BAAI/bge-reranker-base`，CPU）**：
+
+| 指标 | 不开重排 | 开重排 | 变化 |
+| --- | --- | --- | --- |
+| doc_hit@1 | **0.95** | 0.85 | **−0.10** |
+| evidence_hit@1 | 0.90 | 0.85 | −0.05 |
+| evidence_mrr | 0.925 | 0.875 | −0.05 |
+| 纯重排延迟（20 候选） | — | avg **6475 ms** / p95 **7633 ms** / max 8928 ms | — |
+
+逐条看，5/20 条的 top1 被改掉而且改坏的多（把整段条款换成 URL 碎片）。两个原因：本语料只有 74 个分块、一阶段 doc_hit@1 已经 0.95，重排没有提升空间；CPU 上跑 CrossEncoder 每个问题 6.5 秒，对客服问答不可接受。**所以 `RERANK_MODEL` 默认留空**，等语料规模变大、一阶段召回变弱时再用同一条命令重测。
 
 | 分组 | 条数 | 最高原始余弦相似度 |
 | --- | --- | --- |
@@ -188,7 +199,7 @@ powershell -ExecutionPolicy Bypass -File scripts/ingest-corpus.ps1
 
 ## 10. 已知不足
 
-1. **rerank 未实测**：代码与 A/B 对比命令就绪（`corpus_eval --compare-rerank`），但 `bge-reranker-base` 权重 1.1GB 在镜像上限速，下载受阻。权重到位即可出数字。
+1. **rerank 实测是负收益**（doc_hit@1 0.95 → 0.85，6.5 s/次），所以默认关闭。这个结论只在当前 74 个分块的语料上成立，语料变大后必须重测——不要把它当成"重排没用"的通用结论。
 2. **评测集是自己搭的**（20 + 50 + 150 条），不是业务方标注的真实分布；上线前要用真实工单采样重建。
 3. **扫描版 PDF / OCR 未验证**：只有钩子。
 4. **企业自有资料未接入**：现在的语料是公开替代品，换资料后必须重标阈值。
