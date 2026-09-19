@@ -256,6 +256,8 @@ def run_tool_workflow(
         wants_logistics = any(keyword in question for keyword in LOGISTICS_KEYWORDS)
         wants_order = any(keyword in question for keyword in ORDER_KEYWORDS)
         wants_refund = any(keyword in question for keyword in REFUND_ACTION_KEYWORDS)
+        # 工具组合：既问订单状态又问物流时，先查订单再补物流轨迹（而不是只挑一个）。
+        composed = wants_logistics and (wants_order or "订单" in question)
 
         # 退款属于高风险写操作：先走审批，不直接执行。
         if order_id and wants_refund and tool_calls < max_steps:
@@ -300,7 +302,7 @@ def run_tool_workflow(
         # 只要问题里出现订单号，默认就是问这张订单的状态：不再依赖关键词，
         # 否则「SOxxx 还没付款吗」这类问法会掉到知识检索。
         if not answer and order_id and tool_calls < max_steps:
-            tool_name = "logistics_track" if wants_logistics else "order_lookup"
+            tool_name = "logistics_track" if (wants_logistics and not composed) else "order_lookup"
             if from_history:
                 record("resolve", order_id=order_id, source="history")
             result, duration_ms = _run_tool(
@@ -331,6 +333,29 @@ def run_tool_workflow(
                     )
                 ]
                 model = tool_name
+
+                # 组合路径第二步：订单查到了，再补一段物流轨迹。
+                if tool_name == "order_lookup" and composed and tool_calls < max_steps:
+                    logistics_result, logistics_ms = _run_tool(
+                        "logistics_track",
+                        {"order_id": order_id},
+                        context,
+                        deadline - time.perf_counter(),
+                    )
+                    tool_calls += 1
+                    record(
+                        "tool",
+                        tool="logistics_track",
+                        status="ok" if logistics_result.ok else logistics_result.code,
+                        code=logistics_result.code,
+                        attempts=logistics_result.attempts,
+                        duration_ms=logistics_ms,
+                        input_summary=order_id,
+                    )
+                    if logistics_result.ok:
+                        record_data = logistics_result.data["logistics"]
+                        answer = f"{answer}{_logistics_answer(record_data)}"
+                        model = "order_lookup+logistics_track"
             else:
                 # 订单查不到时不要让宽泛的 FAQ 关键词给出误导性回答，
                 # 直接降级到知识检索，仍无结果则转人工。

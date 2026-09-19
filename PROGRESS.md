@@ -237,6 +237,7 @@ cd backend
 - 评测分档：`--tag smoke|core|full`（25 / 60 / 150 条）与 `--limit`，日常只跑冒烟，里程碑跑全量并留档。
 - 多轮指代（新增）：追问里没带订单号时，从最近几轮用户消息里取上一个订单号（「它的物流到哪了」），并在轨迹里记录 `resolve` 步骤与 `reused_from_history` 标记。
 - 高风险写操作审批（新增）：`refund_request` 工具默认只创建审批单并返回 dry-run 预览，不执行任何写入；管理员通过 `GET /approvals` 查看、`POST /approvals/{id}/decision` 批准后才落地（本地 mock 只建单，不动真实资金）。审批带幂等键，重复批准不会重复执行；租户隔离。低风险的 `human_handoff` 仍然即时执行，不增加用户等待。
+- 工具组合（新增）：同时问订单与物流时先调 `order_lookup` 再补 `logistics_track`，两段结果合成一条答案；步数上限（3 次业务调用）仍然生效，超限即降级。评测口径同步调整为「期望工具出现在成功调用的工具集合里即算命中」，150 条回归仍是路由 100%。
 - mock 数据位于 `backend/mock/orders.json`（20 条订单 + 10 条物流，含 acme 租户样本用于隔离验证），刻意不放被 gitignore 的 `data/`。
 
 ### 知识库管理

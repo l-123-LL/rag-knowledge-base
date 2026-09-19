@@ -25,7 +25,19 @@ describe('ApprovalPanel', () => {
 
     fireEvent.click(screen.getByRole('button', { name: '批准并执行' }))
 
-    expect(onDecide).toHaveBeenCalledWith('AP20260919ABC123', true)
+    expect(onDecide).toHaveBeenCalledWith('AP20260919ABC123', true, undefined)
+  })
+
+  it('passes the reject reason to the decision handler', () => {
+    const onDecide = vi.fn()
+    render(<ApprovalPanel approvals={[pendingApproval]} onDecide={onDecide} />)
+
+    fireEvent.change(screen.getByPlaceholderText('例如：金额超出免审额度'), {
+      target: { value: '金额超出免审额度' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: '驳回' }))
+
+    expect(onDecide).toHaveBeenCalledWith('AP20260919ABC123', false, '金额超出免审额度')
   })
 
   it('shows an empty hint when nothing needs approval', () => {

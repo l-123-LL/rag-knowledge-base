@@ -87,11 +87,11 @@ def test_logistics_question_calls_logistics_track() -> None:
 
 
 def test_unknown_order_falls_back_to_knowledge_search() -> None:
-    # 带明确物流关键词才走物流工具；查不到时降级到知识检索。
+    # 同时提到订单与物流时先查订单；订单查不到就不再查物流，直接降级到知识检索。
     outcome = run("订单 SO20260999999 的物流到哪了")
 
     tools = [step.get("tool") for step in outcome.steps if step.get("tool")]
-    assert tools == ["logistics_track", "knowledge_search"]
+    assert tools == ["order_lookup", "knowledge_search"]
     assert outcome.model == "knowledge_search+deepseek"
 
 
@@ -200,3 +200,21 @@ def test_refund_request_goes_through_approval() -> None:
     assert "审批号" in outcome.answer
     steps = [step for step in outcome.steps if step.get("tool") == "refund_request"]
     assert steps and steps[0]["code"] == "APPROVAL_REQUIRED"
+
+
+def test_composed_query_calls_order_then_logistics() -> None:
+    # 工具组合：既问订单状态又问物流，两个工具都要调，答案里两段信息都在。
+    outcome = run("订单 SO20260901001 现在什么状态，物流到哪了")
+
+    tools = [step.get("tool") for step in outcome.steps if step.get("tool")]
+    assert tools == ["order_lookup", "logistics_track"]
+    assert outcome.model == "order_lookup+logistics_track"
+    assert "已发货" in outcome.answer
+    assert "运输中" in outcome.answer
+
+
+def test_composed_query_respects_max_steps() -> None:
+    # 步数上限为 1 时只允许调一个工具，不能因为组合路径突破上限。
+    outcome = run("订单 SO20260901001 现在什么状态，物流到哪了", max_steps=1)
+
+    assert outcome.tool_calls <= 1

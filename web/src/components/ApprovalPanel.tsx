@@ -1,9 +1,10 @@
+import { useState } from 'react'
 import type { ApprovalRecord } from '../types'
 
 interface ApprovalPanelProps {
   approvals: ApprovalRecord[]
   error?: string | null
-  onDecide: (approvalId: string, approved: boolean) => void
+  onDecide: (approvalId: string, approved: boolean, comment?: string) => void
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -23,6 +24,8 @@ const STATUS_STYLE: Record<string, string> = {
 }
 
 export function ApprovalPanel({ approvals, error, onDecide }: ApprovalPanelProps) {
+  // 驳回理由是可选项：填了就随审批决定一起记入审计记录。
+  const [comment, setComment] = useState('')
   const pending = approvals.filter((item) => item.status === 'pending')
   const decided = approvals.filter((item) => item.status !== 'pending').slice(0, 3)
 
@@ -42,6 +45,18 @@ export function ApprovalPanel({ approvals, error, onDecide }: ApprovalPanelProps
         <p className="mt-3 rounded-lg border border-rose-100 bg-rose-50 px-3 py-2 text-[11px] text-rose-700">
           {error}
         </p>
+      ) : null}
+
+      {pending.length > 0 ? (
+        <label className="mt-3 block">
+          <span className="text-[11px] text-ink-500">驳回理由（可选，会记入审批记录）</span>
+          <input
+            value={comment}
+            onChange={(event) => setComment(event.target.value)}
+            placeholder="例如：金额超出免审额度"
+            className="mt-1 w-full rounded-lg border border-line bg-white px-3 py-2 text-xs text-ink-900 outline-none placeholder:text-ink-400 focus:border-brand-200"
+          />
+        </label>
       ) : null}
 
       {pending.length === 0 && decided.length === 0 ? (
@@ -65,14 +80,14 @@ export function ApprovalPanel({ approvals, error, onDecide }: ApprovalPanelProps
             <div className="mt-2 flex gap-2">
               <button
                 type="button"
-                onClick={() => onDecide(item.id, true)}
+                onClick={() => onDecide(item.id, true, comment || undefined)}
                 className="rounded-lg bg-ink-950 px-3 py-1.5 text-[11px] font-medium text-white transition hover:bg-ink-900"
               >
                 批准并执行
               </button>
               <button
                 type="button"
-                onClick={() => onDecide(item.id, false)}
+                onClick={() => onDecide(item.id, false, comment || undefined)}
                 className="rounded-lg border border-line bg-white px-3 py-1.5 text-[11px] font-medium text-ink-600 transition hover:border-rose-200 hover:text-rose-700"
               >
                 驳回

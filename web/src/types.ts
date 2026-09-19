@@ -96,6 +96,7 @@ export interface ApprovalRecord {
   tenant_id?: string
   created_at?: string
   decided_by?: string | null
+  decision_comment?: string | null
   preview?: Record<string, unknown>
   execution?: {
     ok: boolean

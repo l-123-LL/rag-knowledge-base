@@ -460,6 +460,7 @@ def decide_approval(
 
     record["decided_at"] = datetime.now(timezone.utc).isoformat()
     record["decided_by"] = request.decided_by or "admin"
+    record["decision_comment"] = request.comment
     record["status"] = "approved" if request.approved else "rejected"
 
     if request.approved:

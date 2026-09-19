@@ -80,7 +80,7 @@
 ### 后端 · 工具与工作流
 
 - `backend/app/tools.py`：工具注册表 + 5 个工具（`knowledge_search` / `order_lookup` / `logistics_track` / `human_handoff` / `refund_request`），Pydantic 输入输出、统一错误码、超时（默认 3 s）、重试（默认 1 次）、dry-run、`requires_approval`。
-- `backend/app/workflow.py`：最小状态机（输入护栏 → 规则意图 → 退款审批 → 订单/物流工具 → FAQ → 知识检索 → 转人工），多轮订单号指代（`reuse_order_id_from_history`），最多 3 次业务工具调用（转人工不占预算）、总超时 15 s。
+- `backend/app/workflow.py`：最小状态机（输入护栏 → 规则意图 → 退款审批 → 订单/物流工具 → 工具组合 → FAQ → 知识检索 → 转人工），多轮订单号指代（`reuse_order_id_from_history`），最多 3 次业务工具调用（转人工不占预算）、总超时 15 s。
 - `backend/app/approvals.py`：审批单持久化（`data/approvals/{tenant}/`）、幂等键（租户+工具+参数）、`create/get/list/save/count_pending`。
 - `backend/app/trace_store.py`：`trace_id` 生成、按天 JSONL 写入、按 id 回读、PII 脱敏（手机号/邮箱/证件号/Key）。
 - `backend/app/order_store.py`：读取本地 mock 订单与物流（`backend/mock/orders.json`，20 订单 + 10 物流），租户过滤与手机号脱敏。
@@ -147,6 +147,7 @@
 11. **镜像不内联管理员 Key**：`web/.dockerignore` 排除 `.env`，默认构建出用户视图；需要管理端时显式 `--build-arg`。
 12. **日志读取容错**：追加写日志可能被强杀截断，聚合逻辑跳过损坏行（否则 `/metrics`、`/alerts` 会整个 500）。
 13. **知识带版本与生效时间**：同一 `doc_key` 只召回最高版本，`as_of` 可按历史日期检索当时生效的政策——客服场景里"政策改过，用户问的是当时的规定"必须能答对，也避免新旧政策同时命中。
+14. **工具组合的做法**：同时提到订单与物流时，先 `order_lookup` 拿状态、再 `logistics_track` 拿轨迹，合成一条答案；评测里把"期望工具"判定改成"出现在成功调用的工具集合中"，否则组合路径会被误判成路由错误。
 
 ---
 

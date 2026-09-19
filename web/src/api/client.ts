@@ -142,11 +142,12 @@ export async function listApprovals(): Promise<ApprovalRecord[]> {
 export async function decideApproval(
   approvalId: string,
   approved: boolean,
+  comment?: string,
 ): Promise<ApprovalRecord | null> {
   const response = await requestBackend(`/api/approvals/${approvalId}/decision`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ approved, decided_by: 'admin-console' }),
+    body: JSON.stringify({ approved, decided_by: 'admin-console', comment }),
   })
 
   if (response?.ok) {

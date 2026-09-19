@@ -60,6 +60,8 @@ class TicketCreateRequest(BaseModel):
 class ApprovalDecisionRequest(BaseModel):
     approved: bool
     decided_by: str | None = None
+    # 驳回理由（可选）：记进审批单，便于审计与后续复盘。
+    comment: str | None = None
 
 
 class IngestResponse(BaseModel):

@@ -552,10 +552,12 @@ def test_refund_approval_flow_via_api(
 
     approved = client.post(
         f"/approvals/{approvals[0]['id']}/decision",
-        json={"approved": True},
+        json={"approved": True, "decided_by": "测试管理员", "comment": "金额在免审额度内"},
     ).json()
     assert approved["status"] == "executed"
     assert approved["execution"]["data"]["ticket_id"].startswith("T")
+    assert approved["decision_comment"] == "金额在免审额度内"
+    assert approved["decided_by"] == "测试管理员"
 
     # 幂等：重复批准不会重复执行
     again = client.post(

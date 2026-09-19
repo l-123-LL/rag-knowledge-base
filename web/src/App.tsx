@@ -99,10 +99,10 @@ export default function App() {
   }, [isAdmin])
 
   const handleDecideApproval = useCallback(
-    async (approvalId: string, approved: boolean) => {
+    async (approvalId: string, approved: boolean, comment?: string) => {
       setApprovalError(null)
       try {
-        const updated = await decideApproval(approvalId, approved)
+        const updated = await decideApproval(approvalId, approved, comment)
         if (updated) {
           setApprovals((current) =>
             current.map((item) => (item.id === approvalId ? updated : item)),

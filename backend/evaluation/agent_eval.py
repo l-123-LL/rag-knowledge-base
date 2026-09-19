@@ -155,10 +155,21 @@ def _predicted_route(outcome) -> str:
     return "none"
 
 
-def _route_matches(expected: str, predicted: str) -> bool:
+def _successful_tools(outcome) -> list[str]:
+    """成功调用的业务工具集合（用于组合任务的命中判定）。"""
+    return [
+        step["tool"]
+        for step in outcome.steps
+        if step.get("tool") and step["tool"] != "human_handoff" and step.get("status") == "ok"
+    ]
+
+
+def _route_matches(expected: str, predicted: str, successful: list[str] | None = None) -> bool:
+    """期望工具出现在成功调用的工具集合里就算命中（组合任务会调多个工具）。"""
+    used = successful or []
     if expected == "knowledge":
-        return predicted in KNOWLEDGE_ROUTES
-    return expected == predicted
+        return predicted in KNOWLEDGE_ROUTES or any(tool in KNOWLEDGE_ROUTES for tool in used)
+    return expected == predicted or expected in used
 
 
 def evaluate_task(task: dict, pipeline: EvalPipeline) -> dict:
@@ -170,11 +181,12 @@ def evaluate_task(task: dict, pipeline: EvalPipeline) -> dict:
         history=task.get("history"),
     )
     predicted = _predicted_route(outcome)
+    successful_tools = _successful_tools(outcome)
     answer = outcome.answer or ""
     escalated = outcome.handoff_reason is not None
     attempts = sum(int(step.get("attempts", 1) or 1) for step in outcome.steps if step.get("tool"))
 
-    route_ok = _route_matches(task["expected_route"], predicted)
+    route_ok = _route_matches(task["expected_route"], predicted, successful_tools)
     keywords_list = task.get("expect_keywords", [])
     keywords_required = task.get("keywords_required", True)
     keyword_hit = any(word in answer for word in keywords_list) if keywords_list else True
