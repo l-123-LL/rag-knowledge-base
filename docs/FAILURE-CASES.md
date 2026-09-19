@@ -69,8 +69,11 @@
 | 构建报 `connecting via static system HTTPS proxy http://127.0.0.1:17890` | 注册表里残留着已失效的代理地址，Docker 的"系统代理"模式仍在用 | 清除 `HKCU\...\Internet Settings\ProxyServer`（备份到 `%TEMP%`） |
 | 拉基础镜像超时 | Docker Hub 直连不通 | `daemon.json` 配 `registry-mirrors: ["https://docker.m.daocloud.io"]`，改完平滑重启引擎 |
 | 修复脚本本身报语法错误 | 无 BOM 的 UTF-8 中文脚本被 Windows PowerShell 5.1 当 GBK 读 | 脚本改存为**带 BOM 的 UTF-8**（并做语法自检） |
+| 重建后端容器后，前端来源面板悄悄变回示例数据 | nginx 只在启动时解析一次 upstream，后端容器重建换了 IP，`proxy_pass http://backend:8000` 仍然指向旧地址 | `location /api/` 里改用 Docker 内置 DNS 动态解析：`resolver 127.0.0.11 valid=10s;` + `set $backend_upstream ...` + `rewrite` 后 `proxy_pass $backend_upstream` |
 
 镜像体积上还踩了一个：Linux 上 `pip install sentence-transformers` 默认拉 CUDA 版 torch（nvidia-* 依赖数 GB），改成先装 CPU 版后镜像只有 2.27 GB。
+
+顺带记两个 Windows PowerShell 5.1 的坑（写导入脚本时踩的）：`Get-Content -Raw` 返回的字符串带 `PSPath` 等 NoteProperty，`ConvertTo-Json` 会把它序列化成对象，接口直接 422；`Invoke-RestMethod -Body` 传字符串时按本地代码页编码，中文正文会被后端按 UTF-8 解码成乱码（表现为 JSON decode error 或入库一堆乱码分块）。解法是 `[System.IO.File]::ReadAllText` 读文件 + `[System.Text.Encoding]::UTF8.GetBytes` 显式转字节。
 
 ## 案例八：分块 id 撞车，正确答案被判成「资料不足」（最难查的一个）
 
