@@ -102,6 +102,7 @@
 - `backend/evaluation/enterprise_eval.py`：50 条检索评测集 + CLI（`--embedder bge|hash`、`--offline`）。
 - `backend/evaluation/run_eval.py`：样例语料检索评测 CLI。
 - `backend/evaluation/calibrate_threshold.py` + `corpus_questions.json`：**拒答阈值标定**——读 `backend/corpus/` 的真实语料，算域内问题最低分与域外问题最高分，给出建议阈值与「保留/挡下」数量；两组重叠时会直接报"分不开"，不给假的安全值。
+- `backend/evaluation/corpus_eval.py` + `corpus_eval_questions.json`：**真实语料检索评测**（20 条标注问题：期望文档 + 证据关键词），区分 `doc_hit@k`（文档对不对）与 `evidence_hit@k`（证据句有没有命中），报告写到 `reports/corpus-eval-*.md`。当前基线 doc_hit@1 0.95 / evidence_hit@1 0.90 / evidence_mrr 0.925。
 - `backend/evaluation/agent_tasks.json`：100 条 Agent 任务（订单 25 / 物流 15 / 政策 15 / 多轮 20 / 转人工 13 / 拒答与注入 12）。
 - `backend/evaluation/agent_eval.py`：Agent 评测（默认确定性生成器、`--use-real-model`、`--tag smoke|core|full`、`--limit`、`--offline`），输出 JSON + Markdown。
 - `backend/evaluation/load_test.py`：并发压测（混合问题、并发级别、P50/P95/P99、吞吐、状态码分布）。

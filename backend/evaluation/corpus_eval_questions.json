@@ -1,0 +1,105 @@
+{
+  "note": "真实语料检索评测集。source 是期望命中的文档（backend/corpus 下的文件名去扩展名），keyword 是期望命中分块里必须出现的证据词。换语料后要同步更新这两列，否则指标没有意义。",
+  "questions": [
+    {
+      "question": "快递签收时可以先验收吗？",
+      "source": "05-快递暂行条例",
+      "keyword": "当面验收"
+    },
+    {
+      "question": "快件丢了怎么赔偿？",
+      "source": "05-快递暂行条例",
+      "keyword": "赔偿责任"
+    },
+    {
+      "question": "寄贵重物品可以要求保价吗？",
+      "source": "05-快递暂行条例",
+      "keyword": "保价"
+    },
+    {
+      "question": "寄快递需要提供身份信息吗？",
+      "source": "05-快递暂行条例",
+      "keyword": "身份信息"
+    },
+    {
+      "question": "经营快递业务需要取得许可吗？",
+      "source": "05-快递暂行条例",
+      "keyword": "快递业务经营许可"
+    },
+    {
+      "question": "谁负责监督管理全国快递业？",
+      "source": "05-快递暂行条例",
+      "keyword": "国务院邮政管理部门"
+    },
+    {
+      "question": "快递企业要建立安全生产责任制吗？",
+      "source": "05-快递暂行条例",
+      "keyword": "安全生产责任制"
+    },
+    {
+      "question": "快递企业可以把快件投递到代收人那里吗？",
+      "source": "05-快递暂行条例",
+      "keyword": "代收人"
+    },
+    {
+      "question": "mall 项目的后台管理系统包含哪些模块？",
+      "source": "01-mall平台说明",
+      "keyword": "后台管理系统包含"
+    },
+    {
+      "question": "mall 前台商城系统有哪些功能模块？",
+      "source": "01-mall平台说明",
+      "keyword": "前台商城系统包含"
+    },
+    {
+      "question": "mall 项目用什么技术栈开发后台？",
+      "source": "01-mall平台说明",
+      "keyword": "SpringBoot"
+    },
+    {
+      "question": "哪个项目是微服务版电商系统？",
+      "source": "02-mall-swarm说明",
+      "keyword": "mall-swarm"
+    },
+    {
+      "question": "微服务版电商系统用什么注册中心？",
+      "source": "02-mall-swarm说明",
+      "keyword": "Nacos"
+    },
+    {
+      "question": "哪个项目是精简版电商系统？",
+      "source": "03-mall-tiny说明",
+      "keyword": "mall-tiny"
+    },
+    {
+      "question": "精简版电商系统用了哪些技术？",
+      "source": "03-mall-tiny说明",
+      "keyword": "SpringBoot"
+    },
+    {
+      "question": "litemall 包含哪些端？",
+      "source": "04-litemall说明",
+      "keyword": "微信小程序"
+    },
+    {
+      "question": "litemall 的商城功能里有没有订单售后？",
+      "source": "04-litemall说明",
+      "keyword": "订单售后"
+    },
+    {
+      "question": "litemall 用的是什么许可协议？",
+      "source": "04-litemall说明",
+      "keyword": "MIT"
+    },
+    {
+      "question": "litemall 的技术栈是什么？",
+      "source": "04-litemall说明",
+      "keyword": "Spring Boot"
+    },
+    {
+      "question": "mall 后台管理系统有促销管理模块吗？",
+      "source": "01-mall平台说明",
+      "keyword": "促销管理"
+    }
+  ]
+}

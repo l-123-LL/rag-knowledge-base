@@ -92,6 +92,32 @@ cd backend
 
 评估集定义在 `backend/evaluation/enterprise_eval.py`：10 个客服主题 × 5 条问法 = 50 条，语料是 10 条短文本。这个规模只适合做回归基线，不能代表真实长文档效果。
 
+### 检索评估（真实语料 20 条标注问题，2026-09-19）
+
+上面那套是短文本、一问一答几乎一一对应，hit@1 = 0.96 说明不了长文档上的表现。所以在 `backend/corpus/` 的真实资料上另做了一套：
+
+```bash
+cd backend
+..\.venv\Scripts\python.exe -m evaluation.corpus_eval
+```
+
+5 篇资料 / 74 个分块；20 条问题，每条标注「期望命中的文档 + 证据关键词」；区分两种口径——`doc_hit@k` 只看文档对不对，`evidence_hit@k` 还要求命中那段里真的出现证据句（更接近「能不能答对」）。
+
+| 指标 | 数值 |
+| --- | --- |
+| doc_hit@1 / @3 / @5 | **0.95 / 1.00 / 1.00** |
+| evidence_hit@1 / @3 / @5 | **0.90 / 0.95 / 0.95** |
+| evidence_mrr | **0.925** |
+
+两条未命中都留档在 `backend/evaluation/reports/corpus-eval-*.md`，原因清楚且不掩盖：
+
+| 问题 | 现象 | 性质 |
+| --- | --- | --- |
+| 哪个项目是微服务版电商系统？ | 期望 `02-mall-swarm`，top1 是 `01-mall平台说明`（该文友情提示里也提到 mall-swarm） | 文档本身有重叠，属于真实歧义 |
+| 精简版电商系统用了哪些技术？ | top1 文档是对的（`03-mall-tiny`），但证据词 `SpringBoot` 落在同文档的另一个分块里 | 切分粒度导致，@3 命中 |
+
+标定过程中还修了两处标注问题（不影响代码，但影响指标可信度）：英文关键词改成大小写不敏感（语料写 `nacos`、标注写 `Nacos` 会误判未命中），以及把一条本身有歧义的问题换成唯一指向的问题。「评测标签不干净比没有评测更糟」这条也写进了经验。
+
 ### 端到端延迟与 token（真实 DeepSeek 调用，3 个问题）
 
 | 指标 | 实测值 |
@@ -358,7 +384,7 @@ cd backend
 - **rerank 未实测**：代码路径存在，但从未开启对比过效果。
 - **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。
 - **Docker 未实测构建**：文件齐全，但没有在本机跑过 `docker compose up`。
-- **评估集偏小且偏理想**：50 条问题都来自 10 条短文本，hit@1 = 0.96 不能代表真实长文档场景。
+- ~~评估集偏小且偏理想~~ → 已补：真实语料上另做了一套 20 条标注评测（doc_hit@1 0.95 / evidence_hit@1 0.90 / evidence_mrr 0.925，见第 3 节）。但这两套加起来仍只有 70 条问题、5 篇资料，属于小型自建集，不能替代真实业务抽样。
 - **相关性阈值跟着语料走**：当前 `RAG_MIN_SCORE=0.37` 是在 5 篇公开语料（74 分块）上标定的（域内最低 0.377、域外最高 0.360，间隔只有 0.017）。换成企业自有资料后必须用 `backend/evaluation/calibrate_threshold.py` 重新采样，否则会误拒答或漏拒答。
 - **转人工只是“登记 + 话术”**：没有坐席排队、分配、实时会话，也没有转人工后的消息回流；工单目前只落盘成 JSON，可选 Webhook 外发。
 - **没有 lint / format 脚本**，靠人工约定风格。
@@ -412,6 +438,8 @@ npm run build
 # 检索评估
 cd backend
 ..\.venv\Scripts\python.exe -m evaluation.enterprise_eval
+..\.venv\Scripts\python.exe -m evaluation.corpus_eval          # 真实语料 20 条标注评测
+..\.venv\Scripts\python.exe -m evaluation.calibrate_threshold  # 拒答阈值标定
 ```
 
 前端普通用户视图：直接访问 `http://127.0.0.1:5173/`（`web/.env` 里没有 `VITE_ADMIN_API_KEY` 时看不到管理功能）。
