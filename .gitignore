@@ -7,3 +7,5 @@ data/
 models/
 backups/
 .pytest-tmp*/
+.pytest-final/
+.pytest-*/
