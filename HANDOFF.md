@@ -127,6 +127,7 @@
 - `docs/architecture-modules.svg|png|md`：模块划分图。
 - `docs/DEPLOYMENT.md`：部署、验证清单、回滚、备份恢复、故障排查、并发压测、国内网络注意事项。
 - `docs/CASE-STUDY.md`：一页项目案例。
+- `docs/RAG_DESIGN.md`：**RAG 设计说明**——数据、切分、Embedding、向量库、检索、Prompt、评估、工程、数字汇总与已知不足。对外讲技术选型、面试被追问参数时看这份，所有数字都标注了口径和复现命令。
 - `docs/FAILURE-CASES.md`：七个真实故障与排查记录。
 - `docs/DEMO-SCRIPT.md`：3–5 分钟演示脚本。
 - `docs/PHASE0-最小改动方案.md`：本轮改造方案（已执行完）。

@@ -174,6 +174,7 @@ start-*.bat              一键启动脚本
 - `PROGRESS.md`：当前进度与实测数字
 - `HANDOFF.md`：交接文档（目标、文件地图、决策、约束）
 - `INTERVIEW.md`：面试材料（陈述、问答、数字口径）
+- `docs/RAG_DESIGN.md`：**RAG 设计说明**——数据、切分、Embedding、向量库、检索、Prompt、评估、工程的选型理由与实测数字
 - `docs/PHASE0-最小改动方案.md`：本阶段改造方案
 - `docs/CASE-STUDY.md`：一页项目案例
 - `docs/FAILURE-CASES.md`：真实故障与排查记录
