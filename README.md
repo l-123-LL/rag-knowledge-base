@@ -175,3 +175,5 @@ start-*.bat              一键启动脚本
 - `docs/CASE-STUDY.md`：一页项目案例
 - `docs/FAILURE-CASES.md`：真实故障与排查记录
 - `docs/DEPLOYMENT.md`：Docker 部署、验证清单、回滚与故障排查
+- `docs/DEMO-SCRIPT.md`：3–5 分钟现场演示口述稿
+- `docs/VIDEO-SCRIPT.md`：演示视频的分镜表与旁白逐字稿
