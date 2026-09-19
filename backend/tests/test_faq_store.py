@@ -78,3 +78,12 @@ def test_exception_markers_support_custom_list(faq_dir: Path, monkeypatch) -> No
     assert find_faq_answer("预售商品可以退货吗？") is None
     # 自定义列表会覆盖默认列表：定制不在列表里，于是回到 FAQ
     assert find_faq_answer("定制商品可以退货吗？") is not None
+
+
+def test_generic_keyword_does_not_capture_unrelated_question(faq_dir: Path) -> None:
+    # 实测问题：发货 FAQ 的关键词里只要有「订单」，任何带「订单」的问题都会被吸走，
+    # 「litemall 的商城功能里有没有订单售后？」曾被答成"24 小时内发货"。
+    # 关键词必须足够具体，通用词单独命中不算。
+    assert find_faq_answer("litemall 的商城功能里有没有订单售后？") is None
+    # 真正的发货问题仍然要命中
+    assert find_faq_answer("我的订单什么时候发货？") is not None

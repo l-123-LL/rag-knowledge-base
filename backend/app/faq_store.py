@@ -41,7 +41,9 @@ def _default_items() -> list[dict]:
             "id": "faq-shipping",
             "question": "我的订单什么时候发货？",
             "answer": "现货订单通常在工作日 24 小时内发出，发货后可在订单详情查看物流单号。",
-            "keywords": ["发货", "物流", "配送", "订单"],
+            # 刻意不放"订单"这种通用词：它会把任何带"订单"的问题都吸过来
+            # （实测「litemall 的商城功能里有没有订单售后？」被答成发货时间）。
+            "keywords": ["发货", "物流", "配送", "什么时候发"],
             "tenant_id": "default",
             "version": 1,
             "citations": [
