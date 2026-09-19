@@ -117,6 +117,7 @@ Copy-Item backend\data "D:\backup\rag-data-$(Get-Date -Format yyyyMMdd)" -Recurs
 | 前端 `http://127.0.0.1:5173/` | HTTP 200，页面正常挂载 |
 | 容器内运行用户 | `uid=1000(app)`，非 root |
 | 镜像体积 | `rag-backend` 2.27 GB（CPU 版 torch）、`rag-web` 73.9 MB |
+| 高风险写操作审批 | 提交退款申请只生成审批单（`pending`）；`GET /approvals` 需管理员 Key（无 Key 返回 401）；批准后 `status=executed` 并建单；重复批准返回同一工单（幂等） |
 
 ## 7. 实机踩到的三个坑（已修）
 
