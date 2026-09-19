@@ -1,4 +1,5 @@
 import json
+import hashlib
 import logging
 import time
 import os
@@ -147,7 +148,65 @@ def health() -> HealthResponse:
 def list_sources(
     tenant_id: str = Depends(get_tenant_id),
 ) -> list[Source]:
+    """来源列表：优先返回索引里真实存在的资料，索引为空时才退回示例列表。
+
+    以前这里只返回内存里的示例列表，导入了真实资料也看不出来；而且列表随进程
+    重启就丢。现在直接从索引元数据反推（不需要加载嵌入模型，读 records.json 即可）。
+    """
+    indexed = indexed_sources(app.state.pipeline)
+    if indexed:
+        return [source for source in indexed if source.tenant_id == tenant_id]
     return [source for source in sources if source.tenant_id == tenant_id]
+
+
+def indexed_sources(pipeline) -> list[Source]:
+    """按 source 字段聚合索引里的分块，得到「有哪些资料、各有多少分块」。"""
+    chunks: list[tuple[dict, str]] = []
+    retriever = getattr(pipeline, "retriever", None) if pipeline else None
+    if retriever is not None and getattr(retriever, "doc_metadata", None):
+        chunks = list(zip(retriever.doc_metadata, retriever.doc_texts))
+    else:
+        # 管线还没构建时读落盘记录，避免为了看资料列表就把模型加载起来
+        records_path = Path(os.getenv("FAISS_DIR", "data/faiss")) / "records.json"
+        if records_path.exists():
+            try:
+                records = json.loads(records_path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                records = {}
+            chunks = [
+                (record.get("metadata") or {}, record.get("text") or "")
+                for record in records.values()
+            ]
+
+    grouped: dict[tuple[str, str], dict] = {}
+    for metadata, text in chunks:
+        title = metadata.get("source") or metadata.get("file_name") or "未命名资料"
+        tenant = metadata.get("tenant_id", "default")
+        entry = grouped.setdefault(
+            (tenant, title),
+            {"count": 0, "url": metadata.get("url", ""), "sample": ""},
+        )
+        entry["count"] += 1
+        if not entry["sample"]:
+            entry["sample"] = " ".join((text or "").split())
+
+    return [
+        Source(
+            # id 用内容摘要，保证重启后稳定（Python 内置 hash 每个进程都会变）
+            id=f"indexed-{index}-{hashlib.sha1(title.encode('utf-8')).hexdigest()[:6]}",
+            title=title,
+            category="已入库资料",
+            url=entry["url"],
+            status="indexed",
+            updatedAt="已入库",
+            description=f"{entry['count']} 个分块"
+            + (f"｜{entry['sample'][:60]}" if entry["sample"] else ""),
+            tenant_id=tenant,
+        )
+        for index, ((tenant, title), entry) in enumerate(
+            sorted(grouped.items(), key=lambda item: item[0][1])
+        )
+    ]
 
 
 @app.post("/ingest", response_model=IngestResponse)
@@ -265,8 +324,15 @@ def reset_session(
 def stats(tenant_id: str = Depends(get_tenant_id)) -> dict:
     pipeline = app.state.pipeline
     chunk_count = pipeline.chunk_count() if pipeline else persisted_chunk_count()
+    # 来源数跟着真实索引走，同样是"有真实资料就不看示例列表"
+    indexed = indexed_sources(pipeline)
+    source_count = (
+        sum(1 for source in indexed if source.tenant_id == tenant_id)
+        if indexed
+        else sum(1 for source in sources if source.tenant_id == tenant_id)
+    )
     return {
-        "source_count": sum(1 for source in sources if source.tenant_id == tenant_id),
+        "source_count": source_count,
         "chunk_count": chunk_count,
         "session_count": count_sessions(tenant_id=tenant_id),
         "faq_count": faq_count(tenant_id=tenant_id),

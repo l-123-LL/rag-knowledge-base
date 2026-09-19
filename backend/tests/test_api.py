@@ -167,11 +167,42 @@ def test_asked_not_to_transfer_is_not_transferred() -> None:
     assert response.json()["model"] != "intent"
 
 
-def test_sources_returns_sample_list() -> None:
+def test_sources_returns_sample_list_when_index_empty(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+) -> None:
+    # 索引为空时才回退到示例列表（把 FAISS_DIR 指到空目录，避免读到本机真实索引）
+    monkeypatch.setenv("FAISS_DIR", str(tmp_path))
+    app.state.pipeline = None
+
     response = client.get("/sources")
 
     assert response.status_code == 200
     assert len(response.json()) >= 5
+
+
+def test_sources_follow_indexed_records(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    # 索引里有真实资料时，来源面板必须反映真实资料（而不是示例列表），
+    # 并且不需要加载嵌入模型就能读出来。
+    monkeypatch.setenv("FAISS_DIR", str(tmp_path))
+    app.state.pipeline = None
+    (tmp_path / "records.json").write_text(
+        json.dumps(
+            {
+                "0": {"text": "快递签收前可以先验收。", "metadata": {"source": "快递条例"}},
+                "1": {"text": "投递应当告知收件人当面验收。", "metadata": {"source": "快递条例"}},
+                "2": {"text": "订单支付后 24 小时内发货。", "metadata": {"source": "平台说明"}},
+            },
+            ensure_ascii=False,
+        ),
+        encoding="utf-8",
+    )
+
+    payload = client.get("/sources").json()
+
+    assert [item["title"] for item in payload] == ["平台说明", "快递条例"]
+    assert payload[1]["description"].startswith("2 个分块")
+    assert all(item["status"] == "indexed" for item in payload)
 
 
 def test_ingest_file_accepts_text_file() -> None:
