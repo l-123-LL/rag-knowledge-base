@@ -1,0 +1,7 @@
+# 压测用覆盖文件：关掉限流以测量原始吞吐。
+# 用法：docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up -d
+# 压测结束后用 docker compose up -d 恢复默认限流。
+services:
+  backend:
+    environment:
+      RATE_LIMIT_PER_MINUTE: "0"

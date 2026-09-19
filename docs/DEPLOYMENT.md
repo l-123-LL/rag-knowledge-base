@@ -139,7 +139,57 @@ rename ...sailor-ingest.sock ...sailor-ingest.sock.stale: The file cannot be acc
 
 另外注意 pip 源：本机实测**清华源不可达**，而容器内访问官方 `pypi.org` 正常（1.6 秒），所以 `PIP_INDEX_URL` 默认留空走官方源，需要时再覆盖。
 
-## 8. 尚未验证的部分（如实说明）
+## 8. 并发压测（2026-09-19 实测）
 
-- 未做并发压测与容器故障注入（审计里列为待办）；
+脚本：`backend/evaluation/load_test.py`（默认只打不依赖外部模型的路径，零 API 花费）
+
+```powershell
+# 默认限流（120 次/分钟/IP）下的表现
+python -m evaluation.load_test --url http://127.0.0.1:8001 --concurrency 1,5,10,20 --requests 40
+
+# 关掉限流后的原始吞吐（原生启动时用 RATE_LIMIT_PER_MINUTE=0；
+# 容器方式用 docker compose -f docker-compose.yml -f docker-compose.loadtest.yml up -d）
+python -m evaluation.load_test --url http://127.0.0.1:8001 --concurrency 1,10,20,40,80 --requests 120
+```
+
+**默认限流开启时**（单实例，订单/FAQ/转人工路径）：
+
+| 并发 | 成功 | P95 | 吞吐 | 状态码 |
+| --- | --- | --- | --- | --- |
+| 1 | 40/40 | 60.5 ms | 14.1 RPS | 200 |
+| 5 | 40/40 | 52.3 ms | 133.5 RPS | 200 |
+| 10 | 40/40 | 80.7 ms | 166.5 RPS | 200 |
+| 20 | 0/40 | 69.0 ms | 325.0 RPS | **429**（限流生效） |
+
+**关闭限流后的容量曲线**：
+
+| 并发 | 成功 | P95 | 吞吐 |
+| --- | --- | --- | --- |
+| 1 | 120/120 | 52.6 ms | 24.9 RPS |
+| 10 | 120/120 | 81.9 ms | 177.0 RPS |
+| 20 | 120/120 | 125.6 ms | 182.0 RPS |
+| 40 | 120/120 | 210.4 ms | 183.8 RPS |
+| 80 | 120/120 | 350.8 ms | 164.0 RPS |
+
+结论：**600 次请求零错误**；吞吐在并发 20 左右饱和（约 180 RPS），之后延迟线性上升、吞吐略降。默认限流 120 次/分钟会先于容量上限触发，这是设计行为而不是缺陷。
+
+注意口径：以上是**不调用外部模型**的路径（订单 / FAQ / 转人工）。知识问答要等 DeepSeek 生成（首 token 2.5–3 秒），CPU 版 BGE 的检索吞吐此前实测约 13–16 QPS，这两个数字才是整条链路的真实瓶颈。
+
+## 9. 国内网络注意事项
+
+1. **Docker Hub 直连不通**：本机实测 `registry-1.docker.io` 超时，需在 `%USERPROFILE%\.docker\daemon.json` 配镜像加速：
+
+```json
+{ "registry-mirrors": ["https://docker.m.daocloud.io"] }
+```
+
+改完用 `docker desktop restart` 平滑重启引擎（改配置后必须重启才生效）。
+
+2. **PyPI 源**：本机实测清华源不可达，容器内访问官方 `pypi.org` 正常，因此 `PIP_INDEX_URL` 默认留空。
+
+3. **不要强制结束 Docker 进程**：会留下无法重命名的 AF_UNIX socket，导致下次启动失败。真遇到了就跑 `scripts\fix-docker-socket.ps1`（管理员权限），它会结束进程、移开卡住的运行时目录、恢复设置并重启引擎。
+
+## 10. 尚未验证的部分（如实说明）
+
+- 未做容器故障注入（例如压测中途停掉后端容器验证降级）；
 - 未验证容器在多实例/重启后的索引恢复（数据卷挂载已就位，但没有实测重启恢复）。
