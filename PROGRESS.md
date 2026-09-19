@@ -374,8 +374,18 @@ cd backend
 
 ### P1-3 验证 rerank 的实际收益
 
-要做什么：设置 `RERANK_MODEL=BAAI/bge-reranker-v2-m3`，用同一套 50 条问题做开关对比，记录 hit@1 / MRR 变化，并记录额外延迟。
-涉及：`backend/app/reranker.py`、`backend/evaluation/enterprise_eval.py`。
+**状态：对比链路已就绪，权重下载受网络限制（2026-09-19）。**
+
+已做：`corpus_eval.py` 加了 `--compare-rerank`，一条命令给出开/关重排的指标差与耗时：
+
+```bash
+cd backend
+..\.venv\Scripts\python.exe -m evaluation.corpus_eval --compare-rerank BAAI/bge-reranker-base
+```
+
+对比逻辑本身已用假重排器测通（`tests/test_corpus_eval_rerank.py`：确认重排真的改变排序、也确认标注里的语料文件都存在）。
+
+卡点：`BAAI/bge-reranker-base` 权重 1.1GB，hf-mirror 限速到几十 kB/s，下到 870MB 后停滞（多次续传仍是 0 速度）。**权重到位后直接跑上面那条命令**即可拿到真实数字，不需要改代码。
 
 ### P2-1 代码规范与部署验证
 
@@ -396,7 +406,7 @@ cd backend
 - ~~评估入口口径不一致~~ → 已修复：命令行默认注入真实模型（`--embedder bge`，可切 `hash` 做快速回归），测试替身只保留给单元测试；同时加 `--offline` 跳过联网校验（150 秒 → 17 秒）。
 - **BM25 的 O(N²) 已修复**：新增 `BM25Index.scores()` 一次性打分，检索层改为单次调用（保留原 `score()` 签名）。512 条索引实测检索从平均 370.9 ms / P95 444.3 ms 降到 **187.5 ms / 193.4 ms**，结果与逐文档打分完全一致（有单测）。
 - ~~成本数字缺失~~ → 已补：单价已配置在 `backend/.env`，`evaluation/cost_report.py` 可从日志算出单次成本（实测 $0.000247/次，1000 次 $0.247）。注意单次 RAG 成本随 prompt 长度线性变化，语料换大会同步变大。
-- **rerank 未实测**：代码路径存在，但从未开启对比过效果。
+- **rerank 未实测（受网络限制）**：代码路径与 A/B 对比命令都就绪（`corpus_eval --compare-rerank`），但 `bge-reranker-base` 权重 1.1GB 在 hf-mirror 上限速到几十 kB/s，下到 870MB 后停滞。权重到位即可直接出数字。
 - **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。
 - **Docker 未实测构建**：文件齐全，但没有在本机跑过 `docker compose up`。
 - ~~评估集偏小且偏理想~~ → 已补：真实语料上另做了一套 20 条标注评测（doc_hit@1 0.95 / evidence_hit@1 0.90 / evidence_mrr 0.925，见第 3 节）。但这两套加起来仍只有 70 条问题、5 篇资料，属于小型自建集，不能替代真实业务抽样。
