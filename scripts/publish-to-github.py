@@ -75,8 +75,23 @@ def git(*args: str, env: dict | None = None) -> subprocess.CompletedProcess:
 
 
 def ensure_repo(
-    client: httpx.Client, repo: str, private: bool, description: str
+    client: httpx.Client, owner: str, repo: str, private: bool, description: str
 ) -> None:
+    # 先查是否存在：令牌往往只给了 Contents 权限（够推送），没有建仓库权限。
+    # 仓库已经存在时不该再去建，否则会拿到 403 让人误以为令牌失效。
+    existing = client.get(f"/repos/{owner}/{repo}")
+    if existing.status_code == 200:
+        # 顺手把令牌对这个仓库的实际权限打出来：
+        # permissions.push=false 说明令牌是只读的，推送必然 403。
+        permissions = (existing.json() or {}).get("permissions", {})
+        scopes = existing.headers.get("x-oauth-scopes", "(细粒度令牌不返回此头)")
+        print(
+            f"令牌权限自检：push={permissions.get('push')} "
+            f"admin={permissions.get('admin')} scopes={scopes}"
+        )
+        print("仓库已存在，直接复用")
+        return
+
     created = client.post(
         "/user/repos",
         json={
@@ -89,6 +104,11 @@ def ensure_repo(
     if created.status_code == 422:
         print("仓库已存在，直接复用")
         return
+    if created.status_code == 403:
+        raise SystemExit(
+            "令牌没有创建仓库的权限（需要 Administration: write）。\n"
+            f"请先在网页上手动建好空仓库：https://github.com/new?name={repo}"
+        )
     created.raise_for_status()
     print("仓库已创建")
 
@@ -227,7 +247,7 @@ def main() -> None:
         owner = user.json()["login"]
         print(f"身份确认：{owner}")
 
-        ensure_repo(client, args.repo, args.private, args.description)
+        ensure_repo(client, owner, args.repo, args.private, args.description)
 
         if args.mode == "api":
             upload_snapshot(client, owner, args.repo, args.branch, files)

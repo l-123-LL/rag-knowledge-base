@@ -1,6 +1,19 @@
 # 把项目发布到 GitHub
 
+> **状态：已完成（2026-09-20）。** 仓库地址 <https://github.com/l-123-LL/rag-knowledge-base>，
+> 136 个提交、177 个文件，CI（后端 ruff + pytest、前端 test + typecheck + build）两个 job 全绿。
+
 ## 一、网络现实（2026-09-19 实测）
+
+**最终结论：** 直连不通时靠本机代理（`127.0.0.1:17890`，YunNiaoLoonCore）也能推成，但代理会间歇抖动；
+真正决定成败的是**令牌权限**。实测踩到的两个坑值得记下来：
+
+1. **细粒度令牌不好用**：`Contents: Read and write` 藏在权限行尾的下拉框里，很容易只选中 `No access`；
+   而且它默认没有建仓库权限。最后改用**经典令牌勾 `repo`**，一次通过。
+2. **有 `.github/workflows/` 的仓库，令牌必须额外勾 `workflow`**。否则 GitHub 会整次拒绝推送，
+   报 `refusing to allow a Personal Access Token to create or update workflow ... without workflow scope`——
+   注意是**整个推送被拒**，不是只跳过那个文件（表现为"177 个文件一个都没上去"）。
+   经典令牌补勾 `workflow` 后**令牌字符串不变**，不需要重新复制粘贴。
 
 | 目标 | 结果 |
 | --- | --- |

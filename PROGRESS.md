@@ -37,7 +37,7 @@
 
 | 项目 | 现状 |
 | --- | --- |
-| 仓库路径 | `D:\rag知识库`（本地 Git，分支 `master`，**没有配置远程仓库**） |
+| 仓库路径 | `D:\rag知识库`（本地 Git，分支 `master`）+ 远程 **https://github.com/l-123-LL/rag-knowledge-base**（2026-09-20 推送，136 个提交，CI 全绿） |
 | 提交数 | 114 个提交（2026-09-19：检索分块 id 撞车修复 + 5 篇公开语料入库 + 阈值重标 + 来源面板接真实索引 + nginx 动态解析） |
 | 当前语料 | `backend/corpus/` 5 篇公开资料（Apache-2.0 / MIT / 法律法规文本），导入后 **74 个分块**；导入脚本 `scripts/ingest-corpus.ps1` |
 | 前端 | React 18 + Vite 5 + TypeScript 5 + Tailwind CSS 3，开发端口 `5173` |
@@ -435,7 +435,7 @@ cd backend
 - ~~移动端只做过手动检查~~ → 已于 2026-09-19 做过一次自动化窄屏检查：用 CDP `Emulation.setDeviceMetricsOverride` 把视口压到 **375×800**，实测 `body.scrollWidth == 375`（**无横向溢出**），唯一"溢出"的元素是 `sr-only` 的无障碍标签（本身不可见）。来源面板、问答区、输入框、按钮在窄屏下都仍可访问。仍未做的是**跨浏览器/多机型的自动化回归**（需要引入 Playwright 之类的浏览器测试框架）。
 - **鉴权是可选钩子**：默认单机演示无鉴权，上生产前必须配置 `ADMIN_API_KEY` 和 OIDC。
 - **本机密钥**：`backend/.env` 里有真实 DeepSeek Key；换机器时需要重新配置，且绝不能提交。
-- **没有远程仓库**：目前只在本地，代码没有异地备份。
+- ~~没有远程仓库~~ → 已解决（2026-09-20）：推送到 `https://github.com/l-123-LL/rag-knowledge-base`，136 个提交、177 个文件，CI 两个 job 全绿。推送细节与踩到的坑见 `docs/PUBLISH-TO-GITHUB.md`。
 - ~~管理员 Key 可能被打进前端镜像~~ → 已修复：`web/.dockerignore` 排除 `.env`（保留不含密钥的 `.env.user`）。
 - **鉴权默认关闭**：未配置 `ADMIN_API_KEY` / `OIDC_JWKS_URL` 时启动会打印警告，公网部署前必须补齐。
 

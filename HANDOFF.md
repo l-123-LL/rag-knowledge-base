@@ -199,7 +199,7 @@
 
 ### 工程
 
-- CI 只在本地跑过，没有远程仓库实跑。
+- ~~CI 只在本地跑过~~ → 已解决（2026-09-20）：远程仓库 <https://github.com/l-123-LL/rag-knowledge-base> 已建立并推送，GitHub Actions 真实跑通（backend: ruff + pytest；frontend: test + typecheck + build，两个 job 全绿）。
 - 没有 lint / format 脚本（前端 ESLint/Prettier、后端 ruff/black 都未接入）。
 - 前端没有审批驳回理由输入框；没有演示视频。
 
