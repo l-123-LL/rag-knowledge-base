@@ -425,13 +425,13 @@ cd backend
 - **BM25 的 O(N²) 已修复**：新增 `BM25Index.scores()` 一次性打分，检索层改为单次调用（保留原 `score()` 签名）。512 条索引实测检索从平均 370.9 ms / P95 444.3 ms 降到 **187.5 ms / 193.4 ms**，结果与逐文档打分完全一致（有单测）。
 - ~~成本数字缺失~~ → 已补：单价已配置在 `backend/.env`，`evaluation/cost_report.py` 可从日志算出单次成本（实测 $0.000247/次，1000 次 $0.247）。注意单次 RAG 成本随 prompt 长度线性变化，语料换大会同步变大。
 - **rerank 实测为负收益，已默认关闭**：`bge-reranker-base` 在本语料上把 doc_hit@1 从 0.95 拉到 0.85，纯重排延迟 6.5 s/次（CPU、20 候选），所以 `RERANK_MODEL` 留空。详见第 5 节 P1-3。语料规模变大后应重新评估。
-- **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。
-- **Docker 未实测构建**：文件齐全，但没有在本机跑过 `docker compose up`。
+- **OCR 未实测**：只有钩子，扫描版 PDF 实际效果未知。企业资料如果是扫描件，请先自行 OCR 成 Word/文本（见 `docs/INGEST-ENTERPRISE-DATA.md`）。
+- ~~Docker 未实测构建~~ → 已多次实测：`docker compose up -d --build` 通过，后端 healthy、前端 nginx 转发正常、容器非 root 运行、模型离线加载；冷启动流程封装在 `scripts/demo.ps1`。
 - ~~评估集偏小且偏理想~~ → 已补：真实语料上另做了一套 20 条标注评测（doc_hit@1 0.95 / evidence_hit@1 0.90 / evidence_mrr 0.925，见第 3 节）。但这两套加起来仍只有 70 条问题、5 篇资料，属于小型自建集，不能替代真实业务抽样。
 - **相关性阈值跟着语料走**：当前 `RAG_MIN_SCORE=0.37` 是在 5 篇公开语料（74 分块）上标定的（域内最低 0.377、域外最高 0.360，间隔只有 0.017）。换成企业自有资料后必须用 `backend/evaluation/calibrate_threshold.py` 重新采样，否则会误拒答或漏拒答。
 - **转人工只是“登记 + 话术”**：没有坐席排队、分配、实时会话，也没有转人工后的消息回流；工单目前只落盘成 JSON，可选 Webhook 外发。
-- **没有 lint / format 脚本**，靠人工约定风格。
-- **没有 README 和设计文档**，新人只能靠 `HANDOFF.md` + `PROGRESS.md`。
+- ~~没有 lint 脚本~~ → 后端已补：`backend/ruff.toml` + `requirements-dev.txt`，`ruff check .` 全绿并接入 CI。**前端 ESLint / Prettier 仍未做**。
+- ~~没有 README 和设计文档~~ → 已补：`README.md`（对外）+ `docs/RAG_DESIGN.md`（选型与实测数字）+ `HANDOFF.md`（交接）+ `docs/INGEST-ENTERPRISE-DATA.md`（接入企业资料）。
 - ~~移动端只做过手动检查~~ → 已于 2026-09-19 做过一次自动化窄屏检查：用 CDP `Emulation.setDeviceMetricsOverride` 把视口压到 **375×800**，实测 `body.scrollWidth == 375`（**无横向溢出**），唯一"溢出"的元素是 `sr-only` 的无障碍标签（本身不可见）。来源面板、问答区、输入框、按钮在窄屏下都仍可访问。仍未做的是**跨浏览器/多机型的自动化回归**（需要引入 Playwright 之类的浏览器测试框架）。
 - **鉴权是可选钩子**：默认单机演示无鉴权，上生产前必须配置 `ADMIN_API_KEY` 和 OIDC。
 - **本机密钥**：`backend/.env` 里有真实 DeepSeek Key；换机器时需要重新配置，且绝不能提交。
