@@ -95,3 +95,61 @@ def test_tables_to_markdown() -> None:
 
     assert "| 商品 | 退货天数 |" in markdown
     assert "| 普通商品 | 7 天 |" in markdown
+
+
+def test_load_csv_as_markdown_table() -> None:
+    # 企业 FAQ 最常见的形态就是 CSV/Excel 表格
+    content = "问题,答复\n退货要几天,7 天内可申请\n运费谁承担,质量问题由商家承担\n".encode()
+
+    text, metadata = load_bytes("faq.csv", content)
+
+    assert metadata["file_type"] == ".csv"
+    assert "| 问题 | 答复 |" in text
+    assert "| 退货要几天 | 7 天内可申请 |" in text
+
+
+def test_load_xlsx_keeps_sheet_name_and_rows() -> None:
+    from io import BytesIO
+
+    from openpyxl import Workbook
+
+    workbook = Workbook()
+    sheet = workbook.active
+    sheet.title = "售后时效"
+    sheet.append(["商品类型", "退货天数"])
+    sheet.append(["普通商品", 7])
+    sheet.append(["定制商品", "不支持"])
+    buffer = BytesIO()
+    workbook.save(buffer)
+
+    text, metadata = load_bytes("policy.xlsx", buffer.getvalue())
+
+    assert metadata["file_type"] == ".xlsx"
+    assert "## 售后时效" in text
+    assert "| 商品类型 | 退货天数 |" in text
+    assert "| 定制商品 | 不支持 |" in text
+
+
+def test_load_docx_keeps_paragraph_and_table_order() -> None:
+    from io import BytesIO
+
+    import docx
+
+    document = docx.Document()
+    document.add_paragraph("售后政策说明")
+    table = document.add_table(rows=2, cols=2)
+    table.cell(0, 0).text = "场景"
+    table.cell(0, 1).text = "处理方式"
+    table.cell(1, 0).text = "定制商品"
+    table.cell(1, 1).text = "不支持无理由退货"
+    document.add_paragraph("如有疑问请联系人工客服。")
+    buffer = BytesIO()
+    document.save(buffer)
+
+    text, metadata = load_bytes("policy.docx", buffer.getvalue())
+
+    assert metadata["file_type"] == ".docx"
+    assert "售后政策说明" in text
+    assert "| 定制商品 | 不支持无理由退货 |" in text
+    # 段落在表格前、结尾段落在表格后，说明顺序没乱
+    assert text.index("售后政策说明") < text.index("| 定制商品") < text.index("如有疑问")

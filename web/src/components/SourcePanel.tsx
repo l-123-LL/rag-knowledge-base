@@ -339,7 +339,7 @@ export function SourcePanel({
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".txt,.md,.html,.htm,.pdf"
+                accept=".txt,.md,.html,.htm,.pdf,.csv,.xlsx,.docx"
                 className="hidden"
                 onChange={(event) =>
                   void handleFileChange(event.target.files?.[0])

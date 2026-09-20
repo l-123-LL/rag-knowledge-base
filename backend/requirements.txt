@@ -10,4 +10,7 @@ jieba>=0.42
 pypdf>=5.0
 python-multipart>=0.0.20
 pdfplumber>=0.11
+# 企业资料常见格式：Excel（FAQ/价目/时效表）与 Word（正文+表格混排）
+openpyxl>=3.1,<4.0
+python-docx>=1.1,<2.0
 PyJWT[crypto]>=2.10

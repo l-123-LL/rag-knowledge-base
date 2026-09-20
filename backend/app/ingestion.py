@@ -46,6 +46,32 @@ def load_bytes(filename: str, content: bytes) -> tuple[str, dict]:
         }
         return text, metadata
 
+    if suffix == ".xlsx" or suffix == ".xlsm":
+        # 企业资料里最常见的就是 Excel 表格（FAQ 清单、价目、时效表）
+        text = xlsx_to_text(content)
+        return text, {
+            "source_path": filename,
+            "file_name": filename,
+            "file_type": suffix,
+        }
+
+    if suffix == ".docx":
+        # Word 里往往是「正文 + 表格」混排，两段都要取
+        text = docx_to_text(content)
+        return text, {
+            "source_path": filename,
+            "file_name": filename,
+            "file_type": suffix,
+        }
+
+    if suffix == ".csv":
+        text = csv_to_markdown(content.decode("utf-8", errors="ignore"))
+        return text, {
+            "source_path": filename,
+            "file_name": filename,
+            "file_type": suffix,
+        }
+
     text = content.decode("utf-8", errors="ignore")
 
     if suffix in {".html", ".htm"}:
@@ -57,6 +83,71 @@ def load_bytes(filename: str, content: bytes) -> tuple[str, dict]:
         "file_type": suffix,
     }
     return text, metadata
+
+
+def csv_to_markdown(text: str) -> str:
+    """CSV 转 Markdown 表格：表格结构比裸文本更容易被模型读懂列的含义。"""
+    import csv
+
+    rows = list(csv.reader(text.splitlines()))
+    return tables_to_markdown([rows]) or text
+
+
+def xlsx_to_text(content: bytes) -> str:
+    """Excel 逐 sheet 转 Markdown 表格，保留 sheet 名作为小节标题。"""
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(BytesIO(content), read_only=True, data_only=True)
+    sections: list[str] = []
+
+    for sheet in workbook.worksheets:
+        rows: list[list[str | None]] = []
+        for row in sheet.iter_rows(values_only=True):
+            values = ["" if cell is None else str(cell).strip() for cell in row]
+            if any(values):
+                rows.append(values)
+        if not rows:
+            continue
+
+        table = tables_to_markdown([rows])
+        if table:
+            sections.append(f"## {sheet.title}\n{table}")
+
+    workbook.close()
+    return "\n\n".join(sections)
+
+
+def docx_to_text(content: bytes) -> str:
+    """Word 按文档顺序取出段落与表格（表格转 Markdown）。"""
+    import docx
+    from docx.oxml.ns import qn
+    from docx.table import Table
+    from docx.text.paragraph import Paragraph
+
+    document = docx.Document(BytesIO(content))
+    parts: list[str] = []
+    pending_tables: list[list[list[str | None]]] = []
+
+    def flush_tables() -> None:
+        if pending_tables:
+            parts.append(tables_to_markdown(pending_tables))
+            pending_tables.clear()
+
+    # 直接遍历 body 子节点，才能保住「段落 → 表格 → 段落」的原始顺序
+    for child in document.element.body.iterchildren():
+        if child.tag == qn("w:p"):
+            text = Paragraph(child, document).text.strip()
+            if text:
+                flush_tables()
+                parts.append(text)
+        elif child.tag == qn("w:tbl"):
+            table = Table(child, document)
+            pending_tables.append(
+                [[cell.text.strip() for cell in row.cells] for row in table.rows]
+            )
+
+    flush_tables()
+    return "\n\n".join(part for part in parts if part.strip())
 
 
 def tables_to_markdown(tables: list[list[list[str | None]]]) -> str:
