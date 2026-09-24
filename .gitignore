@@ -8,6 +8,15 @@ backend/.env
 # 求职策略类文档与面试准备稿：只留本地，不随公开仓库发布
 社招_*.md
 INTERVIEW.md
+# 个人求职/学习材料（投递记录、面试答案、学习手册）：绝不进公开仓库
+docs/BOSS*
+docs/AI_Agent*
+docs/Day?_*
+docs/[0-9]天学习路径*
+docs/模拟面试*
+# 后台运行时日志
+*.log
+backend/.codex_backend*
 data/
 models/
 backups/
