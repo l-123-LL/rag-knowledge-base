@@ -15,7 +15,6 @@ httpx 在项目虚拟环境里本来就有，跨版本稳定。
 """
 
 import argparse
-import os
 import sys
 from pathlib import Path
 
