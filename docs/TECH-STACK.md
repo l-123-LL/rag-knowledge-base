@@ -181,3 +181,84 @@ flowchart LR
 | 容器 | `python:3.12-slim`、`node:24-alpine`、`nginx:1.27-alpine` 未固定到 digest | 低到中 |
 
 建议：如需长期维护，补一份 `backend/requirements.lock`（`pip freeze > requirements.lock`）并在 Dockerfile 中安装 lock 文件，把版本风险降到和前端同一水平。
+
+---
+
+## 8. API 接口地图（22 个业务接口）
+
+鉴权列的含义：**管理员 Key** = `X-API-Key`；**用户令牌** = 配置 OIDC 后才生效，未配置时放行；**租户头** = `X-Tenant-ID`。
+
+| 分组 | 方法 | 路径 | 鉴权 | 用途 |
+| --- | --- | --- | --- | --- |
+| 健康与观测 | GET | `/health` | 无 | 健康检查（Docker healthcheck 用） |
+| 健康与观测 | GET | `/stats` | 租户头 | 资料数 / 分块数 / FAQ / 工单 / 会话统计 |
+| 健康与观测 | GET | `/metrics` | 无 | 查询量、平均延迟、token、成本、有帮助率 |
+| 健康与观测 | GET | `/alerts` | 无 | 按延迟与有帮助率给出告警状态 |
+| 健康与观测 | GET | `/traces/{trace_id}` | 租户头 + 用户令牌 | 按 trace_id 回放执行轨迹 |
+| 问答 | POST | `/ask` | 租户头 + 用户令牌 | 同步问答（返回 answer / citations / usage / cost） |
+| 问答 | POST | `/ask/stream` | 租户头 + 用户令牌 | SSE 流式问答 |
+| 问答 | POST | `/feedback` | 租户头 | 有用 / 没用反馈 |
+| 问答 | POST | `/session/reset` | 租户头 | 清空会话记忆 |
+| 资料 | GET | `/sources` | 租户头 | 资料列表（从索引元数据反推） |
+| 资料 | POST | `/ingest` | 租户头 + 管理员 Key | 直接导入纯文本 |
+| 资料 | POST | `/ingest/file` | 租户头 + 管理员 Key | 上传文件导入（PDF/Word/Excel/CSV/HTML/MD） |
+| 资料 | POST | `/ingest/url` | 租户头 + 管理员 Key | 抓取公开网页正文并导入 |
+| 资料 | POST | `/sources/{source_id}/archive` | 租户头 + 管理员 Key | 停用 / 恢复某个来源 |
+| FAQ | GET | `/faqs` | 租户头 | 列出 FAQ |
+| FAQ | POST | `/faqs` | 租户头 + 管理员 Key | 新增 FAQ |
+| FAQ | PUT | `/faqs/{faq_id}` | 租户头 + 管理员 Key | 修改 FAQ（版本号递增） |
+| FAQ | DELETE | `/faqs/{faq_id}` | 租户头 + 管理员 Key | 删除 FAQ |
+| 工单 | POST | `/tickets` | 租户头 | 创建工单（转人工时内部也会调用） |
+| 工单 | GET | `/tickets` | 租户头 | 列出工单 |
+| 审批 | GET | `/approvals` | 租户头 + 管理员 Key | 列出高风险操作审批单 |
+| 审批 | POST | `/approvals/{approval_id}/decision` | 租户头 + 管理员 Key | 批准 / 驳回（幂等） |
+| 运维 | POST | `/backup` | 管理员 Key | 打包备份数据目录 |
+
+**鉴权现状（需要知道的风险）**：`/health`、`/metrics`、`/alerts` 完全公开；`/tickets` 与 `/feedback` 只需要租户头。单机演示没问题，**公网部署前必须补鉴权**，否则工单列表和指标是裸的。
+
+---
+
+## 9. 一次请求的时序（含耗时与失败点）
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant U as 浏览器
+    participant N as Nginx / Vite
+    participant A as FastAPI /ask
+    participant R as HybridRetriever
+    participant V as FAISS
+    participant B as BM25 + jieba
+    participant D as DeepSeek
+    participant S as 本地存储
+
+    U->>N: POST /ask {question, session_id, workflow_mode}
+    N->>A: 转发请求
+    A->>S: 读会话历史
+    A->>A: 鉴权 / 租户 / 输入护栏 / 意图路由
+
+    alt FAQ 命中
+        A->>S: 读 FAQ
+        A-->>U: 标准答案（实测 <100ms，零模型成本）
+    else 走 RAG
+        A->>R: 检索词（追问时合并上一轮问题）
+        R->>R: BGE 编码查询
+        R->>V: 向量检索
+        R->>B: BM25 打分
+        R-->>A: 归一化后按 0.7 / 0.3 融合
+        Note over R,A: 检索整体约 100-150ms（74 分块、CPU、模型已加载）
+
+        alt 最高原始余弦 < 0.37
+            A->>S: 建工单
+            A-->>U: 资料不足 + 工单号
+        else 通过阈值
+            A->>D: 提交 prompt（实测约 1400 tokens）
+            D-->>A: 首 token 约 2.5-3.0s
+            A-->>U: 流式返回答案 + 引用（总耗时约 2.6-3.1s）
+        end
+    end
+
+    A->>S: 写 ask.jsonl 日志 + 执行轨迹（含 cost / trace_id）
+```
+
+耗时标注的口径：检索与 FAQ 是 2026-09 在本机 CPU 上的实测；首 token 与总耗时来自 3 次真实 DeepSeek 调用。**它们会随语料规模、网络和模型负载变化**，不是 SLA。
